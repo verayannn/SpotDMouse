@@ -1,8 +1,8 @@
 # Mini Pupper Quadruped Locomotion with Reinforcement Learning
 
-A comprehensive project documenting the development of training a Mini Pupper quadruped robot to walk using Reinforcement Learning (PPO) in Isaac Lab. This research evolved from adapting existing Boston Dynamics Spot configurations into a deep exploration of reward engineering, robot scaling, joint control, and gait dynamics through massive parallel simulation.
+A subproject documenting the development of training a Mini Pupper quadruped robot to walk using Reinforcement Learning (RSL RL PPO) in Isaac Lab.
 
-## 🎯 Project Overview
+## Project Overview
 
 This work demonstrates successful quadruped locomotion training by scaling down Boston Dynamics Spot robot configurations to work with the significantly smaller Mini Pupper platform. The key insight was recognizing that robot scale affects every aspect of locomotion - from velocity commands to joint constraints - requiring systematic parameter adaptation rather than direct configuration transfer.
 
@@ -44,7 +44,7 @@ The following videos demonstrate the successful locomotion training results:
 - **Blue Circle with Arrow**: Commanded angular velocity (yaw rotation)
 - **Robot Movement**: Demonstrates coordinated diagonal gait pattern
 
-*Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is actually correct behavior for a 133mm tall quadruped.*
+*Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is currenty being trained at a higher action scale to accommodate the size of the minipupper's servo capabilities.*
 
 ## 🔧 Critical Scaling Discoveries
 
@@ -117,7 +117,7 @@ ranges=mdp.UniformVelocityCommandCfg.Ranges(
 
 # Mini Pupper Configuration (scaled by ~0.4x for body size)
 ranges=mdp.UniformVelocityCommandCfg.Ranges(
-    lin_vel_x=(-0.8, 3.5),   # Scaled for small robot dynamics
+    lin_vel_x=(-0.8, 2.0),   # Scaled for small robot dynamics
     lin_vel_y=(-0.3, 0.3), 
     ang_vel_z=(-1.0, 1.0)
 )
@@ -149,12 +149,12 @@ add_base_mass = EventTerm(
 )
 ```
 
-## 🏋️ Training Architecture
+## Training Architecture
 
 ### Massive Parallel Simulation
-My project leverages the computational approaches outlined in recent quadruped locomotion research to achieve efficient training through massive parallelization:
+My project leverages the computational approaches outlined in recent quadruped locomotion research from ETH-Zurich to achieve efficient training through massive parallelization:
 
-- **8,098 parallel Mini Pupper environments** running simultaneously
+- **8,098 parallel Mini Pupper environments** training simultaneously
 - **Actor-Critic Policy Network**: Three-layer MLP with 12-dimensional action output (one per joint)
 - **NVIDIA RTX 4090 GPU acceleration** for physics simulation
 - **PPO (Proximal Policy Optimization)** for stable policy learning
@@ -186,7 +186,7 @@ My work builds upon three key research contributions:
 
 The combination of these approaches enabled me to train a Mini Pupper locomotion policy from scratch in approximately **4-6 hours** using parallel simulation, compared to weeks or months that would be required with traditional single-environment training.
 
-## 🤖 Robot Specifications
+## Robot Specifications
 
 | Component | Specification |
 |-----------|---------------|
@@ -197,7 +197,7 @@ The combination of these approaches enabled me to train a Mini Pupper locomotion
 | **Sensors** | IMU, optional LiDAR (excluded from action space) |
 | **Computational Target** | Raspberry Pi 4 deployment capability |
 
-## 📊 Key Technical Achievements
+## Key Technical Achievements
 
 ### 1. Joint Control Discovery & Actor Network Design
 **Problem**: My initial configuration included all 26+ joints (sensors, decorative plates, etc.)
@@ -236,26 +236,9 @@ base_orientation = RewardTermCfg(weight=-3.0)      # Maintain upright posture
 joint_torques = RewardTermCfg(weight=-5.0e-4)      # Energy efficiency
 ```
 
-### 3. My Gait Frequency Optimization
-
-**Critical Discovery**: I found that the `air_time` reward's `mode_time` parameter controls gait frequency, which directly affects how the actor network learns temporal coordination patterns:
-
-```python
-air_time = RewardTermCfg(
-    params={
-        "mode_time": 0.2,  # Optimized for Mini Pupper
-        # Frequency = 1 / (mode_time × 2) = 2.5 Hz
-    }
-)
-```
-
-**Frequency Analysis:**
-- **Spot Optimal**: 0.3 mode_time → 1.67 Hz (longer legs, slower natural frequency)
-- **Mini Pupper Optimal**: 0.2 mode_time → 2.5 Hz (shorter legs, higher natural frequency)
-
 The actor network learns to output coordinated 12-dimensional action sequences that produce this optimal gait frequency, with the teacher-student paradigm ensuring the policy generalizes across different velocity commands.
 
-## 📈 Training Results
+## Training Results
 
 ### Final Performance Metrics
 | Metric | Value | Interpretation |
@@ -268,13 +251,13 @@ The actor network learns to output coordinated 12-dimensional action sequences t
 | **Action Noise** | 0.20 | Converged exploration |
 
 ### Locomotion Quality Assessment
-- ✅ **Diagonal trot gait** with proper phase relationships
-- ✅ **Bidirectional movement** (forward and backward)
-- ✅ **Speed**: 1.5 m/s (11.3 body lengths/second - very fast for size)
-- ✅ **Energy efficiency** through natural joint angle utilization
-- ✅ **Stable posture** with minimal body contact terminations
+- **Diagonal trot gait** with proper phase relationships
+- **Bidirectional movement** (forward and backward)
+- **Speed**: 1.5 m/s (11.3 body lengths/second - very fast for size)
+- **Energy efficiency** through natural joint angle utilization
+- **Stable posture** with minimal body contact terminations
 
-## 🛠️ Technical Implementation
+## Technical Implementation
 
 ### Environment Configuration
 ```python
@@ -299,7 +282,7 @@ terrain_mix = {
 - Previous actions (12D)
 - Additional proprioceptive data (28D)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Isaac Lab installation
@@ -319,7 +302,7 @@ python scripts/rsl_rl/train.py \
 - `spot_flat_env_cfg.py`: Training environment with scaled parameters
 - `mdp.py`: Custom reward functions and locomotion primitives
 
-## 📝 References
+## References
 
 1. Rudin, N., Hoeller, D., Reist, P., & Hutter, M. (2022). Learning to walk in minutes using massively parallel deep reinforcement learning. *Proceedings of Machine Learning Research*, 164, 91-104. [Link](https://proceedings.mlr.press/v164/rudin22a/rudin22a.pdf)
 

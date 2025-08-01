@@ -19,18 +19,15 @@ The fundamental challenge of my project stemmed from the dramatic scale differen
 | **Target Speed** | 1.6 m/s | 1.5 m/s | **Similar (11.3 body lengths/s)** |
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/spot_anatomy.png" alt="Boston Dynamics Spot anatomy" width="45%">
-  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/minipupper_anatomy.png" alt="Mini Pupper anatomy" width="45%">
+  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/spotdiagram.png" alt="Boston Dynamics Spot anatomy" width="45%">
+  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/minipupperdiagram.png" alt="Mini Pupper anatomy" width="45%">
 </p>
-
-*Figure 1: Anatomical comparison between Boston Dynamics Spot (left) and Mini Pupper (right), showing similar joint structure but vastly different scales.*
-
+Figure 1: Anatomical comparison between Boston Dynamics Spot (left) and Mini Pupper (right), showing similar joint structure but vastly different scales.
 <p align="center">
-  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/spot_assembly.png" alt="Boston Dynamics Spot assembly" width="45%">
-  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/minipupper_assembly.png" alt="Mini Pupper assembly diagram" width="45%">
+  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/minipuppersimforward.png" alt="Mini Pupper Forward Simulation" width="45%">
+  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/minipuppersimbackward.png" alt="Mini Pupper Backward Simulation" width="45%">
 </p>
-
-*Figure 2: Assembly diagrams showing the mechanical complexity difference between Spot (left) with hydraulic actuators and Mini Pupper (right) with servo-based joints.*
+Figure 2: Training simulation screenshots showing Mini Pupper forward locomotion (left) and backward locomotion (right), with velocity command visualizations.
 
 ## 🎥 Training Results
 

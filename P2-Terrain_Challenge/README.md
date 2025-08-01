@@ -2,7 +2,7 @@
 
 A comprehensive project documenting the development of training a Mini Pupper quadruped robot to walk using Reinforcement Learning (PPO) in Isaac Lab. This research evolved from adapting existing Boston Dynamics Spot configurations into a deep exploration of reward engineering, robot scaling, joint control, and gait dynamics through massive parallel simulation.
 
-## 🎯 Project Overview
+## Project Overview
 
 This work demonstrates successful quadruped locomotion training by scaling down Boston Dynamics Spot robot configurations to work with the significantly smaller Mini Pupper platform. The key insight was recognizing that robot scale affects every aspect of locomotion - from velocity commands to joint constraints - requiring systematic parameter adaptation rather than direct configuration transfer.
 
@@ -25,7 +25,7 @@ The fundamental challenge of this project stemmed from the dramatic scale differ
 
 *Figure 1: Anatomical comparison between Boston Dynamics Spot (left) and Mini Pupper (right), showing similar joint structure but vastly different scales.*
 
-## 🎥 Training Results
+## Training Results
 
 The following videos demonstrate the successful locomotion training results:
 
@@ -40,7 +40,7 @@ The following videos demonstrate the successful locomotion training results:
 - **Blue Circle with Arrow**: Commanded angular velocity (yaw rotation)
 - **Robot Movement**: Demonstrates coordinated diagonal gait pattern
 
-*Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is actually correct behavior for a 133mm tall quadruped.*
+*Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is a reflection of the action scaling which I will update the networks to scale larger actuation from the robots in simulation.*
 
 ## 🔧 Critical Scaling Discoveries
 
@@ -145,7 +145,7 @@ add_base_mass = EventTerm(
 )
 ```
 
-## 🏋️ Training Architecture
+## Training Architecture
 
 ### Massive Parallel Simulation
 This project leverages the computational approaches outlined in recent quadruped locomotion research to achieve efficient training through massive parallelization:
@@ -187,7 +187,7 @@ The combination of these approaches enabled training a Mini Pupper locomotion po
 | **Sensors** | IMU, optional LiDAR (excluded from action space) |
 | **Computational Target** | Raspberry Pi 4 deployment capability |
 
-## 📊 Key Technical Achievements
+## Key Technical Achievements
 
 ### 1. Joint Control Discovery
 **Problem**: Initial configuration included all 26+ joints (sensors, decorative plates, etc.)
@@ -237,7 +237,7 @@ air_time = RewardTermCfg(
 - **Spot Optimal**: 0.3 mode_time → 1.67 Hz (longer legs, slower natural frequency)
 - **Mini Pupper Optimal**: 0.2 mode_time → 2.5 Hz (shorter legs, higher natural frequency)
 
-## 📈 Training Results
+## Training Results
 
 ### Final Performance Metrics
 | Metric | Value | Interpretation |
@@ -256,7 +256,7 @@ air_time = RewardTermCfg(
 - ✅ **Energy efficiency** through natural joint angle utilization
 - ✅ **Stable posture** with minimal body contact terminations
 
-## 🛠️ Technical Implementation
+## Technical Implementation
 
 ### Environment Configuration
 ```python
@@ -281,7 +281,7 @@ terrain_mix = {
 - Previous actions (12D)
 - Additional proprioceptive data (28D)
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Isaac Lab installation

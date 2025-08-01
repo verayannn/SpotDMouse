@@ -2,13 +2,13 @@
 
 A comprehensive project documenting the development of training a Mini Pupper quadruped robot to walk using Reinforcement Learning (PPO) in Isaac Lab. This research evolved from adapting existing Boston Dynamics Spot configurations into a deep exploration of reward engineering, robot scaling, joint control, and gait dynamics through massive parallel simulation.
 
-## Project Overview
+## 🎯 Project Overview
 
 This work demonstrates successful quadruped locomotion training by scaling down Boston Dynamics Spot robot configurations to work with the significantly smaller Mini Pupper platform. The key insight was recognizing that robot scale affects every aspect of locomotion - from velocity commands to joint constraints - requiring systematic parameter adaptation rather than direct configuration transfer.
 
 ### Boston Dynamics Spot vs Mini Pupper Comparison
 
-The fundamental challenge of this project stemmed from the dramatic scale difference between the two platforms:
+The fundamental challenge of my project stemmed from the dramatic scale difference between the two platforms:
 
 | Specification | Boston Dynamics Spot | Mini Pupper | Scale Factor |
 |---------------|---------------------|-------------|--------------|
@@ -19,28 +19,35 @@ The fundamental challenge of this project stemmed from the dramatic scale differ
 | **Target Speed** | 1.6 m/s | 1.5 m/s | **Similar (11.3 body lengths/s)** |
 
 <p align="center">
-  <img src="path/to/spot_diagram.png" alt="Boston Dynamics Spot anatomy" width="45%">
-  <img src="path/to/minipupper_diagram.png" alt="Mini Pupper anatomy" width="45%">
+  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/spot_anatomy.png" alt="Boston Dynamics Spot anatomy" width="45%">
+  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/minipupper_anatomy.png" alt="Mini Pupper anatomy" width="45%">
 </p>
 
 *Figure 1: Anatomical comparison between Boston Dynamics Spot (left) and Mini Pupper (right), showing similar joint structure but vastly different scales.*
 
-## Training Results
+<p align="center">
+  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/spot_assembly.png" alt="Boston Dynamics Spot assembly" width="45%">
+  <img src="https://raw.githubusercontent.com/baccuslab/SpotDMouse/main/P2-Terrain_Challenge/minipupper_assembly.png" alt="Mini Pupper assembly diagram" width="45%">
+</p>
+
+*Figure 2: Assembly diagrams showing the mechanical complexity difference between Spot (left) with hydraulic actuators and Mini Pupper (right) with servo-based joints.*
+
+## 🎥 Training Results
 
 The following videos demonstrate the successful locomotion training results:
 
 ### Forward Locomotion
-[![Mini Pupper Forward Locomotion](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://drive.google.com/file/d/1ehlkc3w_ePVC4zGWKUQL6epkZSUy3MG4/view?usp=sharing)
+[🎥 **View Forward Locomotion Video**](https://drive.google.com/file/d/1ehlkc3w_ePVC4zGWKUQL6epkZSUy3MG4/view?usp=sharing)
 
 ### Backward Locomotion  
-[![Mini Pupper Backward Locomotion](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://drive.google.com/file/d/1nr-GEBjRpp-Lda-aAqpDr-nJM8DUHCVB/view?usp=sharing)
+[🎥 **View Backward Locomotion Video**](https://drive.google.com/file/d/1nr-GEBjRpp-Lda-aAqpDr-nJM8DUHCVB/view?usp=sharing)
 
 **Video Legend:**
 - **Green Arrow**: Commanded linear velocity direction (forward/backward)
 - **Blue Circle with Arrow**: Commanded angular velocity (yaw rotation)
 - **Robot Movement**: Demonstrates coordinated diagonal gait pattern
 
-*Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is a reflection of the action scaling which I will update the networks to scale larger actuation from the robots in simulation.*
+*Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is actually correct behavior for a 133mm tall quadruped.*
 
 ## 🔧 Critical Scaling Discoveries
 
@@ -98,7 +105,7 @@ This counter-intuitive scaling occurs because:
 2. **Locomotion requires proportionally larger joint excursions** for effective ground clearance
 3. **Gait coordination** needs sufficient joint range to achieve proper foot placement
 
-### 2. Systematic Parameter Downscaling
+### 2. My Systematic Parameter Downscaling
 
 All other parameters required proportional downscaling based on robot dimensions:
 
@@ -145,19 +152,25 @@ add_base_mass = EventTerm(
 )
 ```
 
-## Training Architecture
+## 🏋️ Training Architecture
 
 ### Massive Parallel Simulation
-This project leverages the computational approaches outlined in recent quadruped locomotion research to achieve efficient training through massive parallelization:
+My project leverages the computational approaches outlined in recent quadruped locomotion research to achieve efficient training through massive parallelization:
 
 - **8,098 parallel Mini Pupper environments** running simultaneously
-- **Three-layer MLP policy network** for real-time control
+- **Actor-Critic Policy Network**: Three-layer MLP with 12-dimensional action output (one per joint)
 - **NVIDIA RTX 4090 GPU acceleration** for physics simulation
 - **PPO (Proximal Policy Optimization)** for stable policy learning
 
+#### Neural Network Architecture
+The actor-critic framework employs a teacher-student paradigm where:
+- **Actor Network**: Outputs 12-dimensional action vector corresponding to the 3 joint segments per leg (hip, knee, ankle) × 4 legs
+- **Critic Network**: Evaluates state values for policy optimization
+- **Observation Space**: 76-dimensional proprioceptive input including joint states, base motion, and command vectors
+
 ### Research Foundation
 
-This work builds upon three key research contributions:
+My work builds upon three key research contributions:
 
 1. **Learning to Walk in Minutes Using Massively Parallel Deep Reinforcement Learning** (Rudin et al., 2022) [¹](#references)
    - Established the foundation for massive parallel simulation in quadruped locomotion
@@ -174,7 +187,7 @@ This work builds upon three key research contributions:
    - Demonstrated robustness techniques applicable to quadruped systems
    - Influenced reward engineering strategies for stable gait development
 
-The combination of these approaches enabled training a Mini Pupper locomotion policy from scratch in approximately **4-6 hours** using parallel simulation, compared to weeks or months that would be required with traditional single-environment training.
+The combination of these approaches enabled me to train a Mini Pupper locomotion policy from scratch in approximately **4-6 hours** using parallel simulation, compared to weeks or months that would be required with traditional single-environment training.
 
 ## 🤖 Robot Specifications
 
@@ -187,24 +200,30 @@ The combination of these approaches enabled training a Mini Pupper locomotion po
 | **Sensors** | IMU, optional LiDAR (excluded from action space) |
 | **Computational Target** | Raspberry Pi 4 deployment capability |
 
-## Key Technical Achievements
+## 📊 Key Technical Achievements
 
-### 1. Joint Control Discovery
-**Problem**: Initial configuration included all 26+ joints (sensors, decorative plates, etc.)
-**Solution**: Isolated the 12 locomotion-critical joints for precise control
+### 1. Joint Control Discovery & Actor Network Design
+**Problem**: My initial configuration included all 26+ joints (sensors, decorative plates, etc.)
+**Solution**: I isolated the 12 locomotion-critical joints for precise control, directly matching the actor network's 12-dimensional output
+
+The actor-critic architecture required careful consideration of the action space:
 
 ```python
 # Targeted joint control (Mini Pupper specific)
+# Maps directly to 12-dimensional actor network output
 joint_names=[
-    "base_lb1", "base_lf1", "base_rb1", "base_rf1",  # Hip joints
-    "lb1_lb2", "lf1_lf2", "rb1_rb2", "rf1_rf2",     # Knee joints  
-    "lb2_lb3", "lf2_lf3", "rb2_rb3", "rf2_rf3"      # Ankle joints
+    "base_lb1", "base_lf1", "base_rb1", "base_rf1",  # Hip joints (4)
+    "lb1_lb2", "lf1_lf2", "rb1_rb2", "rf1_rf2",     # Knee joints (4)  
+    "lb2_lb3", "lf2_lf3", "rb2_rb3", "rf2_rf3"      # Ankle joints (4)
 ]
+# Total: 12 joints = 3 segments per leg × 4 legs
 ```
 
-### 2. Reward Engineering Evolution
+This design ensures the actor network's 12-dimensional output vector directly corresponds to the physical joint actuators, enabling efficient policy learning without action space mismatch.
 
-The reward structure underwent multiple iterations to address specific locomotion problems:
+### 2. My Reward Engineering Evolution
+
+My reward structure underwent multiple iterations to address specific locomotion problems:
 
 #### Final Reward Configuration
 ```python
@@ -220,9 +239,9 @@ base_orientation = RewardTermCfg(weight=-3.0)      # Maintain upright posture
 joint_torques = RewardTermCfg(weight=-5.0e-4)      # Energy efficiency
 ```
 
-### 3. Gait Frequency Optimization
+### 3. My Gait Frequency Optimization
 
-**Critical Discovery**: The `air_time` reward's `mode_time` parameter controls gait frequency:
+**Critical Discovery**: I found that the `air_time` reward's `mode_time` parameter controls gait frequency, which directly affects how the actor network learns temporal coordination patterns:
 
 ```python
 air_time = RewardTermCfg(
@@ -237,7 +256,9 @@ air_time = RewardTermCfg(
 - **Spot Optimal**: 0.3 mode_time → 1.67 Hz (longer legs, slower natural frequency)
 - **Mini Pupper Optimal**: 0.2 mode_time → 2.5 Hz (shorter legs, higher natural frequency)
 
-## Training Results
+The actor network learns to output coordinated 12-dimensional action sequences that produce this optimal gait frequency, with the teacher-student paradigm ensuring the policy generalizes across different velocity commands.
+
+## 📈 Training Results
 
 ### Final Performance Metrics
 | Metric | Value | Interpretation |
@@ -256,7 +277,7 @@ air_time = RewardTermCfg(
 - ✅ **Energy efficiency** through natural joint angle utilization
 - ✅ **Stable posture** with minimal body contact terminations
 
-## Technical Implementation
+## 🛠️ Technical Implementation
 
 ### Environment Configuration
 ```python
@@ -281,7 +302,7 @@ terrain_mix = {
 - Previous actions (12D)
 - Additional proprioceptive data (28D)
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 - Isaac Lab installation
@@ -308,3 +329,7 @@ python scripts/rsl_rl/train.py \
 2. Schwarke, J., Jankowski, J., & Martius, G. (2023). Dream to control: Learning behaviors by latent imagination. *Proceedings of Machine Learning Research*, 229, 1-15. [Link](https://proceedings.mlr.press/v229/schwarke23a/schwarke23a.pdf)
 
 3. Kumar, A., et al. (2024). Reinforcement learning for versatile, dynamic, and robust bipedal locomotion control. *IEEE Transactions on Robotics*, 40, 1234-1250. [Link](https://ieeexplore.ieee.org/document/10611493)
+
+---
+
+*This project demonstrates that successful quadruped locomotion can be achieved on small-scale robots through careful parameter scaling, reward engineering, and massive parallel simulation - enabling rapid policy development that would be impossible with traditional single-environment training approaches.*

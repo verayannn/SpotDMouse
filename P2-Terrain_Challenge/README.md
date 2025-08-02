@@ -29,15 +29,15 @@ Figure 1: Anatomical comparison between Boston Dynamics Spot (left) and Mini Pup
 </p>
 Figure 2: Training simulation screenshots showing Mini Pupper forward locomotion (left) and backward locomotion (right), with velocity command visualizations.
 
-## 🎥 Training Results
+## Training Results
 
 The following videos demonstrate the successful locomotion training results:
 
 ### Forward Locomotion
-[🎥 **View Forward Locomotion Video**](https://drive.google.com/file/d/1ehlkc3w_ePVC4zGWKUQL6epkZSUy3MG4/view?usp=sharing)
+[ **View Forward Locomotion Video**](https://drive.google.com/file/d/1ehlkc3w_ePVC4zGWKUQL6epkZSUy3MG4/view?usp=sharing)
 
 ### Backward Locomotion  
-[🎥 **View Backward Locomotion Video**](https://drive.google.com/file/d/1nr-GEBjRpp-Lda-aAqpDr-nJM8DUHCVB/view?usp=sharing)
+[ **View Backward Locomotion Video**](https://drive.google.com/file/d/1nr-GEBjRpp-Lda-aAqpDr-nJM8DUHCVB/view?usp=sharing)
 
 **Video Legend:**
 - **Green Arrow**: Commanded linear velocity direction (forward/backward)
@@ -46,7 +46,7 @@ The following videos demonstrate the successful locomotion training results:
 
 *Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is currenty being trained at a higher action scale to accommodate the size of the minipupper's servo capabilities.*
 
-## 🔧 Critical Scaling Discoveries
+##  Critical Scaling Discoveries
 
 ### 1. Action Space Scaling Paradox
 

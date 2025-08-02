@@ -311,5 +311,3 @@ python scripts/rsl_rl/train.py \
 3. Kumar, A., et al. (2024). Reinforcement learning for versatile, dynamic, and robust bipedal locomotion control. *IEEE Transactions on Robotics*, 40, 1234-1250. [Link](https://ieeexplore.ieee.org/document/10611493)
 
 ---
-
-*This project demonstrates that successful quadruped locomotion can be achieved on small-scale robots through careful parameter scaling, reward engineering, and massive parallel simulation - enabling rapid policy development that would be impossible with traditional single-environment training approaches.*

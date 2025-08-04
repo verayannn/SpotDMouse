@@ -55,7 +55,7 @@ This project represents a fundamentally different approach from traditional comp
   - [IsaacSimURDFConveter](./P2-Terrain_Challenge/IsaacSimURDFConveter/) - URDF model conversion for IsaacSim
   - RSL RL training with MLP actor-critic networks
   - Sim-to-real transfer of learned locomotion policies
-- **Status:** Active Development
+- **Status:** 🔄 Active Development
 - **Goal:** Establish robust locomotion baseline before applying biological constraints
 
 ### [Phase 3 (P3): Integrated Bio-Constrained System](./P3/)
@@ -69,7 +69,7 @@ This project represents a fundamentally different approach from traditional comp
 - **Training Target:** Exploration and cricket hunting tasks in naturalistic environments
 - **Key Comparison:** Biologically constrained CNN vs MobileNet to test Efficient Learning Hypothesis
 - **Analysis Methods:** Integrated Gradients attribution to assess biological constraint contributions
-- **Status:** In Progress
+- **Status:** 🔄 In Progress
 - **Research Question:** Do mouse V1 primitives in the encoder enable more efficient learning than standard architectures?
 
 ---
@@ -141,7 +141,7 @@ Neural data is collected separately using open-loop VR paradigm:
 ## Key Results
 
 ### Phase 2: RSL RL Locomotion Training
-![Mini Pupper Simulation](./P2-Terrain_Challenge/minipupperdiagram.png)
+![Mini Pupper Simulation](./P2-Terrain_Challenge/CS123_ref/Screenshot\ from\ 2025-06-26\ 21-40-54.png)
 *Mini Pupper learning locomotion in IsaacSim using RSL RL with MLP networks*
 
 ![Mini Pupper Forward Simulation](./P2-Terrain_Challenge/minipuppersimforward.png)
@@ -155,6 +155,9 @@ Neural data is collected separately using open-loop VR paradigm:
 **IG(x, x') = (x - x') × ∫₀¹ ∇F(x' + α(x - x'))dα**
 
 *where x is the input, x' is the baseline, F is the model, and the integral is approximated using the trapezoidal rule across attribution path steps. The analysis demonstrates how specific V1-constrained channels contribute to cricket hunting behavior decisions.*
+
+![Biological Constraint Contributions](./assets/images/biological_constraint_contributions.png)
+*Biological constraint contribution analysis - In Progress*
 
 ### Efficient Learning Hypothesis Validation
 - **Controlled Comparison:** V1 CNN vs MobileNet encoder with identical decoder-locomotion systems
@@ -210,6 +213,10 @@ Neural data is collected separately using open-loop VR paradigm:
   url={https://github.com/baccuslab/SpotDMouse}
 }
 ```
+
+
+``
+
 ## Demonstrations
 
 ### Mini Pupper Terrain Navigation

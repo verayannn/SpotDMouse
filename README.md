@@ -156,9 +156,6 @@ Neural data is collected separately using open-loop VR paradigm:
 
 *where x is the input, x' is the baseline, F is the model, and the integral is approximated using the trapezoidal rule across attribution path steps. The analysis demonstrates how specific V1-constrained channels contribute to cricket hunting behavior decisions.*
 
-![Biological Constraint Contributions](./assets/images/biological_constraint_contributions.png)
-*Biological constraint contribution analysis - In Progress*
-
 ### Efficient Learning Hypothesis Validation
 - **Controlled Comparison:** V1 CNN vs MobileNet encoder with identical decoder-locomotion systems
 - **Attribution Analysis:** Integrated Gradients methods to assess biological constraint contributions
@@ -219,15 +216,7 @@ Neural data is collected separately using open-loop VR paradigm:
 
 ## Demonstrations
 
-### Mini Pupper Terrain Navigation
-- [Robot Setup and Configuration](./docs/robot_setup.md)
-- [IsaacSim Integration Guide](./docs/isacsim_integration.md)
-- [Terrain Challenge Protocols](./docs/terrain_challenges.md)
-
-### Model Performance
-- [P1 vs P3 Navigation Comparison](./shared/visualization/navigation_comparison.py)
-- [Biological Constraint Validation](./P3/experiments/bio_constraint_analysis.ipynb)
-- [Terrain Adaptation Metrics](./P2-Terrain_Challenge/analysis/terrain_performance.py)
+-See P1 and P2.
 
 ---
 

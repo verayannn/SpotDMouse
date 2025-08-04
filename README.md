@@ -34,6 +34,10 @@ This project represents a fundamentally different approach from traditional comp
 
 *CNN training pipeline showing the neural prediction model architecture that learns to predict V1 responses to naturalistic visual stimuli, forming the foundation for our biologically constrained vision encoders.*
 
+![CNN Training](./cnntraining.png)
+
+*Detailed CNN training process showing the neural network learning to predict V1 responses to naturalistic visual stimuli.*
+
 ---
 
 ## Research Phases
@@ -51,7 +55,7 @@ This project represents a fundamentally different approach from traditional comp
   - [IsaacSimURDFConveter](./P2-Terrain_Challenge/IsaacSimURDFConveter/) - URDF model conversion for IsaacSim
   - RSL RL training with MLP actor-critic networks
   - Sim-to-real transfer of learned locomotion policies
-- **Status:** 🔄 Active Development
+- **Status:** Active Development
 - **Goal:** Establish robust locomotion baseline before applying biological constraints
 
 ### [Phase 3 (P3): Integrated Bio-Constrained System](./P3/)
@@ -65,7 +69,7 @@ This project represents a fundamentally different approach from traditional comp
 - **Training Target:** Exploration and cricket hunting tasks in naturalistic environments
 - **Key Comparison:** Biologically constrained CNN vs MobileNet to test Efficient Learning Hypothesis
 - **Analysis Methods:** Integrated Gradients attribution to assess biological constraint contributions
-- **Status:** 🔄 In Progress
+- **Status:** In Progress
 - **Research Question:** Do mouse V1 primitives in the encoder enable more efficient learning than standard architectures?
 
 ---
@@ -81,7 +85,7 @@ Neural data is collected separately using open-loop VR paradigm:
 
 ### Mini Pupper Robot Platform
 
-![Mini Pupper IsaacSim Setup](./minipuppersimforward.png)
+![Mini Pupper IsaacSim Setup](./P2-Terrain_Challenge/CS123_ref/Screenshot\ from\ 2025-06-26\ 21-40-54.png)
 *Mini Pupper robot model in IsaacSim for locomotion training using RSL RL framework*
 
 #### Phase 2: IsaacSim Simulation Training
@@ -152,9 +156,6 @@ Neural data is collected separately using open-loop VR paradigm:
 
 *where x is the input, x' is the baseline, F is the model, and the integral is approximated using the trapezoidal rule across attribution path steps. The analysis demonstrates how specific V1-constrained channels contribute to cricket hunting behavior decisions.*
 
-![Biological Constraint Contributions](./assets/images/biological_constraint_contributions.png)
-*Biological constraint contribution analysis - In Progress*
-
 ### Efficient Learning Hypothesis Validation
 - **Controlled Comparison:** V1 CNN vs MobileNet encoder with identical decoder-locomotion systems
 - **Attribution Analysis:** Integrated Gradients methods to assess biological constraint contributions
@@ -209,45 +210,6 @@ Neural data is collected separately using open-loop VR paradigm:
   url={https://github.com/baccuslab/SpotDMouse}
 }
 ```
-
-## 📁 Repository Structure
-
-```
-SpotDMouse/
-├── README.md                          # This file
-├── requirements.txt                   # Python dependencies
-├── assets/
-│   ├── images/
-│   │   ├── experimental_setup.png     # Mini Pupper setup photo
-│   │   └── architecture_diagram.png   # Neural network architecture
-│   └── gifs/
-│       └── mini_pupper_terrain_demo.gif # Robot terrain navigation demo
-├── P1/                               # Phase 1: MobileNet SSD baseline
-│   ├── models/
-│   ├── experiments/
-│   └── results/
-├── P2-Terrain_Challenge/             # Phase 2: Terrain navigation challenges
-│   ├── IsaacSimURDFConveter/        # URDF conversion tools for IsaacSim
-│   ├── terrain_generation/          # Terrain scenario creation
-│   ├── simulation_environments/     # IsaacSim environment setups
-│   └── challenges/                  # Specific terrain navigation tasks
-├── P3/                              # Phase 3: Biologically constrained neural networks
-│   ├── cortical_models/            # Bio-inspired network architectures
-│   ├── robot_integration/          # Mini Pupper implementation
-│   ├── experiments/                # Bio-constrained navigation experiments
-│   └── results/                    # Performance comparisons and analysis
-├── shared/                          # Shared utilities and data processing
-│   ├── robot_control/              # Mini Pupper control interfaces
-│   ├── simulation_tools/           # IsaacSim utilities
-│   └── visualization/              # Results visualization tools
-└── docs/                           # Additional documentation
-    ├── robot_setup.md              # Mini Pupper configuration guide
-    ├── isacsim_integration.md      # IsaacSim setup and usage
-    └── terrain_challenges.md       # Challenge descriptions and protocols
-```
-
----
-
 ## Demonstrations
 
 ### Mini Pupper Terrain Navigation
@@ -262,7 +224,7 @@ SpotDMouse/
 
 ---
 
-## 🔬 Experimental Methods
+## Experimental Methods
 
 ### Phase 2: RSL RL Training in IsaacSim
 1. **URDF Conversion:** Custom converter for Mini Pupper models in IsaacSim simulation
@@ -291,7 +253,7 @@ SpotDMouse/
 
 ---
 
-## 📈 Research Progress
+## Research Progress
 
 ### Completed
 - MobileNet SSD baseline implementation for object detection (P1)

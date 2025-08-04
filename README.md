@@ -206,7 +206,7 @@ Natural Visual Input → V1 CNN Encoder (fixed) → Decoder (trainable) → RSL 
 ### Phase 3: Attribution Analysis & Biological Validation
 
 ![Integrated Gradients Attribution Analysis](./IGSum.png)
-*Integrated Gradients attribution analysis applied to individual CNN channels. The visualization shows channel-wise attribution scores computed using the mathematical framework for understanding how V1-constrained features contribute to cricket hunting decisions.*
+*Integrated Gradients attribution analysis applied to individual CNN channels in one layer. The visualization shows channel-wise attribution scores computed using the mathematical framework for understanding how V1-constrained features contribute to natural scene responses.*
 
 **Attribution Framework:**
 - **Integrated Gradients:** Provides sufficiency evidence for biological feature contributions

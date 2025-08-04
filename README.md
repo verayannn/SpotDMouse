@@ -155,9 +155,6 @@ Neural data is collected using a sophisticated **open-loop VR paradigm**:
 
 ### Phase 2: RSL RL Locomotion Training
 
-![Mini Pupper IsaacSim Setup](./P2-Terrain_Challenge/CS123_ref/Screenshot\ from\ 2025-06-26\ 21-40-54.png)
-*Mini Pupper robot model in IsaacSim for locomotion training using RSL RL framework*
-
 ![Mini Pupper Simulation](./standingrobot.png)
 *Mini Pupper learning locomotion in IsaacSim using RSL RL with MLP networks*
 

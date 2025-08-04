@@ -55,7 +55,7 @@ This project represents a fundamentally different approach from traditional comp
   - [IsaacSimURDFConveter](./P2-Terrain_Challenge/IsaacSimURDFConveter/) - URDF model conversion for IsaacSim
   - RSL RL training with MLP actor-critic networks
   - Sim-to-real transfer of learned locomotion policies
-- **Status:** 🔄 Active Development
+- **Status:** Active Development
 - **Goal:** Establish robust locomotion baseline before applying biological constraints
 
 ### [Phase 3 (P3): Integrated Bio-Constrained System](./P3/)
@@ -69,7 +69,7 @@ This project represents a fundamentally different approach from traditional comp
 - **Training Target:** Exploration and cricket hunting tasks in naturalistic environments
 - **Key Comparison:** Biologically constrained CNN vs MobileNet to test Efficient Learning Hypothesis
 - **Analysis Methods:** Integrated Gradients attribution to assess biological constraint contributions
-- **Status:** 🔄 In Progress
+- **Status:** In Progress
 - **Research Question:** Do mouse V1 primitives in the encoder enable more efficient learning than standard architectures?
 
 ---

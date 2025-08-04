@@ -92,7 +92,7 @@ The integration of neuroscientific insights with robotics follows recent trends 
 
 ## Research Phases
 
-### [Phase 1 (P1): Baseline Approach](./P1/)
+### [Phase 1 (P1): Baseline Approach](./P1-LetThereBSight/)
 - **Approach:** Standard MobileNet SSD architecture for robotic navigation
 - **Purpose:** Establish baseline performance metrics for Mini Pupper robot navigation
 - **Implementation:** Conventional computer vision approach without biological constraints
@@ -108,7 +108,7 @@ The integration of neuroscientific insights with robotics follows recent trends 
 - **Rationale:** Establish robust locomotion baseline before applying biological constraints
 - **Status:** Complete
 
-### [Phase 3 (P3): Integrated Bio-Constrained System](./P3/)
+### [Phase 3 (P3): Integrated Bio-Constrained System](./P3-ITSALIVE)
 - **Approach:** Combine RSL RL-trained MLP (from P2) + V1-trained CNN + trainable decoder
 - **Environment:** Naturalistic IsaacSim environments for exploration and cricket hunting behavior
 - **Purpose:** Test integrated bio-constrained system in natural foraging scenarios

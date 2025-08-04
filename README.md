@@ -30,13 +30,13 @@ This project represents a fundamentally different approach from traditional comp
 
 *Open-loop VR paradigm for mouse V1 neural recordings during naturalistic visual motion stimuli (adapted from Niru et al.). This experimental setup demonstrates the overall training method where CNNs are trained to predict neural responses. The representations learned in this model capture how the visual pathway from retina to LGN and V1 responds to natural scenes at mouse eye level. Our models extend this approach with deeper and larger architectures to accommodate processing further along the visual pathway.*
 
-![CNN Neural Prediction Training](./cnnneurprediction.png)
-
-*CNN training pipeline showing the neural prediction model architecture that learns to predict V1 responses to naturalistic visual stimuli, forming the foundation for our biologically constrained vision encoders.*
-
 ![CNN Training](./cnntraining.png)
 
 *Detailed CNN training process showing the neural network learning to predict V1 responses to naturalistic visual stimuli.*
+
+![CNN Neural Prediction Training](./cnnneurprediction.png)
+
+*CNN training pipeline showing the neural prediction model architecture that learns to predict V1 responses to naturalistic visual stimuli, forming the foundation for our biologically constrained vision encoders.*
 
 ---
 
@@ -141,7 +141,7 @@ Neural data is collected separately using open-loop VR paradigm:
 ## Key Results
 
 ### Phase 2: RSL RL Locomotion Training
-![Mini Pupper Simulation](./P2-Terrain_Challenge/CS123_ref/Screenshot\ from\ 2025-06-26\ 21-40-54.png)
+![Mini Pupper Simulation](./standingrobot.png)
 *Mini Pupper learning locomotion in IsaacSim using RSL RL with MLP networks*
 
 ![Mini Pupper Forward Simulation](./P2-Terrain_Challenge/minipuppersimforward.png)

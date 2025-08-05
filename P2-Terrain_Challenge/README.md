@@ -39,12 +39,15 @@ The following videos demonstrate the successful locomotion training results:
 ### Backward Locomotion  
 [ **View Backward Locomotion Video**](https://drive.google.com/file/d/1nr-GEBjRpp-Lda-aAqpDr-nJM8DUHCVB/view?usp=sharing)
 
+### Updated Forward Locomotion (Full swing gait behavior!) 
+[ **View Backward Locomotion Video**](https://drive.google.com/file/d/1ByXAGdbyetPRMT3x1I_PSxt-fAYvBpSF/view?usp=sharing)
+
 **Video Legend:**
 - **Green Arrow**: Commanded linear velocity direction (forward/backward)
 - **Blue Circle with Arrow**: Commanded angular velocity (yaw rotation)
 - **Robot Movement**: Demonstrates coordinated diagonal gait pattern
 
-*Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is currenty being trained at a higher action scale to accommodate the size of the minipupper's servo capabilities.*
+*Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is currenty being trained at a higher action scale to accommodate the size of the minipupper's servo capabilities.* Updated August 5th, 2025. It walks as expected in simulation.
 
 ##  Critical Scaling Discoveries
 

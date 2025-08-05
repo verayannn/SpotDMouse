@@ -54,12 +54,16 @@ class SpotActionsCfg:
     joint_pos = mdp.JointPositionActionCfg(
         asset_name="robot", 
         joint_names=[
-            # Only the 12 leg joints your robot actually uses for walking:
-            "base_lb1", "base_lf1", "base_rb1", "base_rf1",
-            "lb1_lb2", "lf1_lf2", "rb1_rb2", "rf1_rf2", 
-            "lb2_lb3", "lf2_lf3", "rb2_rb3", "rf2_rf3"
+            # LF leg (front-left)
+            "base_lf1", "lf1_lf2", "lf2_lf3",
+            # RF leg (front-right)  
+            "base_rf1", "rf1_rf2", "rf2_rf3",
+            # LB leg (back-left)
+            "base_lb1", "lb1_lb2", "lb2_lb3",
+            # RB leg (back-right)
+            "base_rb1", "rb1_rb2", "rb2_rb3"
         ], 
-        scale=0.4, 
+        scale=0.65,#0.20 
         use_default_offset=True
     )
 
@@ -70,7 +74,7 @@ class SpotCommandsCfg:
 
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
-        resampling_time_range=(10.0, 10.0),
+        resampling_time_range=(4.0, 8.0),#for 2025-08-03_23-37-43 (next)resampling_time_range=(10.0, 10.0)
         rel_standing_envs=0.05,
         rel_heading_envs=0.0,
         heading_command=False,
@@ -213,33 +217,41 @@ class SpotRewardsCfg:
         weight=2.0,#5.0
         params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
     )
+    #for 2025-08-03_23-37-43 (below)
+    # base_linear_velocity = RewardTermCfg(
+    #     func=spot_mdp.base_linear_velocity_reward,
+    #     weight=10.0,#5.0
+    #     params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+    # )
+
     base_linear_velocity = RewardTermCfg(
         func=spot_mdp.base_linear_velocity_reward,
         weight=10.0,#5.0
-        params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+        params={"std": 1.0, "ramp_rate": 0.4, "ramp_at_vel": 3.25, "asset_cfg": SceneEntityCfg("robot")},
     )
 
-    # foot_clearance = RewardTermCfg(
-    #     func=spot_mdp.foot_clearance_reward,
-    #     weight=2.0,#0.5
-    #     params={
-    #         "std": 0.05, #0.05
-    #         "tanh_mult": 2.0,
-    #         "target_height": 0.0158,#0.1
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
-    #     },
-    # )
 
     foot_clearance = RewardTermCfg(
-        func=spot_mdp.individual_foot_clearance_reward,  # Changed function name
-        weight=0.5,#0.5  # Keep same weight might increase it to 2.0
+        func=spot_mdp.foot_clearance_reward,
+        weight=2.0,#0.5
         params={
-            "std": 0.05,
+            "std": 0.05, #0.05
             "tanh_mult": 2.0,
-            "target_height": 0.0158,
+            "target_height": 0.0158,#0.1
             "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
         },
     )
+
+    # foot_clearance = RewardTermCfg(
+    #     func=spot_mdp.individual_foot_clearance_reward,  # Changed function name
+    #     weight=0.5,#0.5  # Keep same weight might increase it to 2.0
+    #     params={
+    #         "std": 0.05,
+    #         "tanh_mult": 2.0,
+    #         "target_height": 0.0158,
+    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
+    #     },
+    # )
 
     gait = RewardTermCfg(
         func=spot_mdp.GaitReward,
@@ -267,15 +279,26 @@ class SpotRewardsCfg:
     base_orientation = RewardTermCfg(
         func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")}
     )
+    #for 2025-08-03_23-37-43 (below)
+    # foot_slip = RewardTermCfg(
+    #     func=spot_mdp.foot_slip_penalty,
+    #     weight=-0.5,#-0.5
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
+    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
+    #         "threshold": 0.5,#1.0
+    #     },
+    # )
     foot_slip = RewardTermCfg(
         func=spot_mdp.foot_slip_penalty,
-        weight=-0.5,#-0.5
+        weight=-0.25,#for 2025-08-03_23-37-43 (next)-0.5
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
             "threshold": 0.5,#1.0
         },
     )
+
     joint_acc = RewardTermCfg(
         func=spot_mdp.joint_acceleration_penalty,
         weight=-1.0e-4,

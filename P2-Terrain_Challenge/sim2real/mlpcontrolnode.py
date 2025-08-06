@@ -154,37 +154,65 @@ class MLPController(Node):
         # For now, assume we're achieving the commanded velocity
         return self.velocity_commands[:3], np.array([0.0, 0.0, 0.0])
     
+    # def get_observation(self):
+    #     """Construct the 76-dimensional observation vector matching training"""
+        
+    #     # Get estimated base velocities (placeholder)
+    #     lin_vel, ang_vel = self.estimate_base_velocity()
+        
+    #     # Construct observation (same order as training)
+    #     obs = np.concatenate([
+    #         lin_vel,                    # base_lin_vel (3)
+    #         ang_vel,                    # base_ang_vel (3) 
+    #         self.projected_gravity,     # projected_gravity (3)
+    #         self.velocity_commands,     # velocity_commands (3)
+    #         self.joint_positions,       # joint_pos (12)
+    #         self.joint_velocities,      # joint_vel (12)
+    #         self.last_action           # last_action (12)
+    #     ])
+        
+    #     # Add noise (matching training config)
+    #     noise_scales = np.array([0.1, 0.1, 0.1,     # lin_vel noise
+    #                             0.1, 0.1, 0.1,      # ang_vel noise  
+    #                             0.05, 0.05, 0.05,   # gravity noise
+    #                             0.0, 0.0, 0.0,      # no noise on commands
+    #                             *([0.05] * 12),     # joint pos noise
+    #                             *([0.5] * 12),      # joint vel noise
+    #                             *([0.0] * 12)])     # no noise on last action
+        
+    #     # Add small amount of noise for robustness
+    #     obs += np.random.uniform(-0.01, 0.01, obs.shape) * noise_scales
+        
+    #     return obs.astype(np.float32)
+
     def get_observation(self):
         """Construct the 76-dimensional observation vector matching training"""
         
-        # Get estimated base velocities (placeholder)
+        # Get estimated base velocities
         lin_vel, ang_vel = self.estimate_base_velocity()
         
-        # Construct observation (same order as training)
-        obs = np.concatenate([
-            lin_vel,                    # base_lin_vel (3)
-            ang_vel,                    # base_ang_vel (3) 
-            self.projected_gravity,     # projected_gravity (3)
-            self.velocity_commands,     # velocity_commands (3)
-            self.joint_positions,       # joint_pos (12)
-            self.joint_velocities,      # joint_vel (12)
-            self.last_action           # last_action (12)
-        ])
+        # Build observation step by step
+        obs_parts = []
+        obs_parts.append(lin_vel)                    # Should be 3
+        obs_parts.append(ang_vel)                    # Should be 3
+        obs_parts.append(self.projected_gravity)     # Should be 3
+        obs_parts.append(self.velocity_commands)     # Should be 3
+        obs_parts.append(self.joint_positions)       # Should be 12
+        obs_parts.append(self.joint_velocities)      # Should be 12
+        obs_parts.append(self.last_action)           # Should be 12
         
-        # Add noise (matching training config)
-        noise_scales = np.array([0.1, 0.1, 0.1,     # lin_vel noise
-                                0.1, 0.1, 0.1,      # ang_vel noise  
-                                0.05, 0.05, 0.05,   # gravity noise
-                                0.0, 0.0, 0.0,      # no noise on commands
-                                *([0.05] * 12),     # joint pos noise
-                                *([0.5] * 12),      # joint vel noise
-                                *([0.0] * 12)])     # no noise on last action
+        # Debug: print sizes
+        current_size = sum(part.shape[0] for part in obs_parts)
+        self.get_logger().info(f'Current obs size: {current_size}, need 76')
         
-        # Add small amount of noise for robustness
-        obs += np.random.uniform(-0.01, 0.01, obs.shape) * noise_scales
+        # Pad with zeros to reach 76
+        obs = np.concatenate(obs_parts)
+        if obs.shape[0] < 76:
+            padding = np.zeros(76 - obs.shape[0])
+            obs = np.concatenate([obs, padding])
         
-        return obs.astype(np.float32)
-    
+        return obs[:76].astype(np.float32)
+
     def control_loop(self):
         """Main control loop - runs at 50 Hz"""
         if self.model is None:

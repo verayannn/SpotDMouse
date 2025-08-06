@@ -185,89 +185,84 @@ class MLPController(Node):
         
         return obs.astype(np.float32)
     
-    def control_loop(self):
-        """Main control loop - runs at 50 Hz"""
-        if self.model is None:
-            return
-            
-        try:
-            # Get observation
-            obs = self.get_observation()
-            obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
-            
-            # Get action from MLP
-            with torch.no_grad():
-                raw_action = self.model(obs_tensor).cpu().numpy()[0]
-
-                position_action = raw_action * self.action_std * 0.5  # Scale down for safety
-    
-            # Apply to default positions
-            default_positions = np.array([
-                0.0, 0.52, -1.05,  # LF leg
-                0.0, 0.52, -1.05,  # RF leg  
-                0.0, 0.52, -1.05,  # LB leg
-                0.0, 0.52, -1.05   # RB leg
-            ])
-            
-            target_positions = default_positions + position_action
-            
-            # Safety limits based on your servo specs
-            joint_limits = np.array([
-                [-0.5, 0.5],     # Hip joints
-                [0.0, 1.57],     # Thigh joints (0 to 90 degrees)
-                [-2.09, -0.52]   # Calf joints (-120 to -30 degrees)
-            ] * 4).flatten()  # Repeat for all 4 legs
-            
-            target_positions = np.clip(target_positions, joint_limits[::2], joint_limits[1::2])
-            
-            # Scale action by learned std
-            scaled_action = raw_action * self.action_std
-            
-            # Apply torque scaling for real servos
-            scaled_action *= self.torque_scale
-            
-            # Safety: limit rate of change
-            if len(self.action_history) > 0:
-                action_diff = scaled_action - self.action_history[-1]
-                action_diff = np.clip(action_diff, -self.max_joint_change, self.max_joint_change)
-                scaled_action = self.action_history[-1] + action_diff
-            
-            # Store for next iteration
-            self.action_history.append(scaled_action.copy())
-            self.last_action = scaled_action.copy()
-            
-            # Convert to absolute joint positions (action is relative to default)
-            default_positions = np.array([
-                0.0, 0.0, 0.0, 0.0,        # Hip joints
-                0.52, 0.52, 0.52, 0.52,    # Thigh joints  
-                -1.05, -1.05, -1.05, -1.05 # Calf joints
-            ])
-            
-            target_positions = default_positions + scaled_action
-            
-            # Publish joint commands
-            trajectory_msg = JointTrajectory()
-            trajectory_msg.header.stamp = self.get_clock().now().to_msg()
-            
-            trajectory_msg.header.stamp = self.get_clock().now().to_msg()
-
-            trajectory_msg.joint_names = [self.joint_mapping[i] for i in range(12)]
-
-            point = JointTrajectoryPoint()
-            point.positions =  target_positions.tolist()
-            point.time_from_start.sec = 0
-            point.time_from_start.nanosec = 20000000
-
-            trajectory_msg.points = [point]
-
-            self.joint_cmd_pub.publish(trajectory_msg)
+def control_loop(self):
+    """Main control loop - runs at 50 Hz"""
+    if self.model is None:
+        return
         
-            # Debug info
-            if self.get_clock().now().nanoseconds % 1000000000 < 20000000:  # Every ~1 second
-                self.get_logger().info(f'Action: {scaled_action[:4].round(3)}...')
-                
-        except Exception as e:
-            self.get_logger().error(f'Error in control loop: {e}')
+    try:
+        # Get observation
+        obs = self.get_observation()
+        obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
+        
+        # Get action from MLP
+        with torch.no_grad():
+            raw_action = self.model(obs_tensor).cpu().numpy()[0]
+        
+        # Scale action by learned std and apply safety scaling
+        position_action = raw_action * self.action_std * 0.5  # Scale down for safety
+        
+        # Safety: limit rate of change
+        if len(self.action_history) > 0:
+            action_diff = position_action - self.action_history[-1]
+            action_diff = np.clip(action_diff, -self.max_joint_change, self.max_joint_change)
+            position_action = self.action_history[-1] + action_diff
+        
+        # Store for next iteration
+        self.action_history.append(position_action.copy())
+        self.last_action = position_action.copy()
+        
+        # Apply to default positions (action is relative to default)
+        default_positions = np.array([
+            0.0, 0.52, -1.05,  # LF leg (hip, thigh, calf)
+            0.0, 0.52, -1.05,  # RF leg
+            0.0, 0.52, -1.05,  # LB leg  
+            0.0, 0.52, -1.05   # RB leg
+        ])
+        
+        target_positions = default_positions + position_action
+        
+        # Safety limits based on servo specs and mechanical constraints
+        joint_limits_low = np.array([
+            -0.5, 0.0, -2.09,  # LF leg limits (hip, thigh, calf)
+            -0.5, 0.0, -2.09,  # RF leg limits
+            -0.5, 0.0, -2.09,  # LB leg limits
+            -0.5, 0.0, -2.09   # RB leg limits
+        ])
+        
+        joint_limits_high = np.array([
+            0.5, 1.57, -0.52,  # LF leg limits (hip, thigh, calf)
+            0.5, 1.57, -0.52,  # RF leg limits  
+            0.5, 1.57, -0.52,  # LB leg limits
+            0.5, 1.57, -0.52   # RB leg limits
+        ])
+        
+        target_positions = np.clip(target_positions, joint_limits_low, joint_limits_high)
+        
+        # Create proper JointTrajectory message
+        trajectory_msg = JointTrajectory()
+        trajectory_msg.header.stamp = self.get_clock().now().to_msg()
+        
+        # Set joint names in the correct order
+        trajectory_msg.joint_names = [self.joint_mapping[i] for i in range(12)]
+        
+        # Create trajectory point
+        point = JointTrajectoryPoint()
+        point.positions = target_positions.tolist()
+        point.time_from_start.sec = 0
+        point.time_from_start.nanosec = 20000000  # 20ms
+        
+        trajectory_msg.points = [point]
+        
+        self.joint_cmd_pub.publish(trajectory_msg)
+        
+        # Debug info (every ~1 second)
+        if self.get_clock().now().nanoseconds % 1000000000 < 20000000:
+            self.get_logger().info(f'Raw action: {raw_action[:4].round(3)}...')
+            self.get_logger().info(f'Target pos: {target_positions[:4].round(3)}...')
+            
+    except Exception as e:
+        self.get_logger().error(f'Error in control loop: {e}')
 
 def main(args=None):
     rclpy.init(args=args)

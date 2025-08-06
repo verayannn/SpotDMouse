@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'mlp_control_pkg'
+package_name = 'mlp_controller_pkg'
 
 setup(
     name=package_name,
@@ -23,3 +23,12 @@ setup(
         ],
     },
 )
+
+entry_points={
+    'console_scripts': [
+        'mlp_controller = mlp_controller_pkg.mlp_controller:main',
+        'stationary_test = mlp_controller_pkg.test_scripts:run_stationary_test',
+        'walking_test = mlp_controller_pkg.test_scripts:run_walking_test',
+        'safety_monitor = mlp_controller_pkg.test_scripts:run_safety_monitor',
+    ],
+},

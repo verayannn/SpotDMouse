@@ -423,4 +423,6 @@ Wang, J. X., Kurth-Nelson, Z., Kumaran, D., Tirumala, D., Soyer, H., Leibo, J. Z
 
 This research builds upon foundational work by Lane and Niru demonstrating applications of biologically-inspired neural networks in naturalistic decision-making contexts. We thank the Stanford Neuroscience community and collaborators who have supported this interdisciplinary research over the past six years.
 
+Collaborators: Joshua B Melander, David Au, Youseff Faragalia, Zaki Alaoui, Shenghua Liu with a special thanks to Bob, the Imagineer.
+
 **Funding:** Stanford Bio-X Bowes Fellowship, NSF Graduate Research Fellowship

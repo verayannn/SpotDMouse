@@ -8,6 +8,7 @@ from rclpy.node import Node
 from geometry_msgs.msg import Twist
 import time
 import numpy as np
+from sensor_msgs.msg import JointState
 
 class StationaryTest(Node):
     """Test 1: Keep robot stationary to verify basic control"""

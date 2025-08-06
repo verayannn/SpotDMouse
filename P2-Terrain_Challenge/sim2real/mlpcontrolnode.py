@@ -5,6 +5,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float64MultiArray
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import torch
 import numpy as np
 import threading
@@ -25,7 +26,7 @@ class MLPController(Node):
         self.base_lin_vel = np.zeros(3)
         self.base_ang_vel = np.zeros(3)
         self.projected_gravity = np.array([0.0, 0.0, -1.0])  # Initial guess
-        self.velocity_commands = np.array([2.0, 0.0, 0.0])  # Forward command
+        self.velocity_commands = np.array([0.8, 0.0, 0.0])  # Forward command
         self.last_action = np.zeros(12)
         
         # Action history for smoothing
@@ -33,18 +34,19 @@ class MLPController(Node):
         
         # Joint mapping (Isaac -> ROS2 topic names)
         self.joint_mapping = {
-            0: 'base_lf1',    # Left front hip
-            1: 'lf1_lf2',    # Right front hip  
-            2: 'lf2_lf3',    # Left back hip
-            3: 'base_rf1',    # Right back hip
-            4: 'rf1_rf2',     # Left front thigh
-            5: 'rf2_rf3',     # Right front thigh
-            6: 'base_lb1',     # Left back thigh
-            7: 'lb1_lb2',     # Right back thigh
-            8: 'lb2_lb3',     # Left front calf
-            9: 'base_rb1',     # Right front calf
-            10: 'rb1_rb2',    # Left back calf
-            11: 'rb2_rb3'     # Right back calf
+            # Isaac Lab order from your config
+            0: 'base_lf1',    # LF leg (front-left) hip
+            1: 'lf1_lf2',     # LF thigh  
+            2: 'lf2_lf3',     # LF calf
+            3: 'base_rf1',    # RF leg (front-right) hip
+            4: 'rf1_rf2',     # RF thigh
+            5: 'rf2_rf3',     # RF calf
+            6: 'base_lb1',    # LB leg (back-left) hip
+            7: 'lb1_lb2',     # LB thigh
+            8: 'lb2_lb3',     # LB calf
+            9: 'base_rb1',    # RB leg (back-right) hip
+            10: 'rb1_rb2',    # RB thigh
+            11: 'rb2_rb3'     # RB calf
         }
         
         # ROS2 subscribers
@@ -64,8 +66,8 @@ class MLPController(Node):
         
         # ROS2 publisher for joint commands
         self.joint_cmd_pub = self.create_publisher(
-            Float64MultiArray,
-            '/joint_group_effort_controller/commands', #this needs to be reconciled with "/joint_group_effort_controller/joint_trajectory"
+            JointTrajectory,
+            '/joint_group_effort_controller/joint_trajectory', #this needs to be reconciled with "/joint_group_effort_controller/joint_trajectory"
             10
         )
         
@@ -196,6 +198,27 @@ class MLPController(Node):
             # Get action from MLP
             with torch.no_grad():
                 raw_action = self.model(obs_tensor).cpu().numpy()[0]
+
+                position_action = raw_action * self.action_std * 0.5  # Scale down for safety
+    
+            # Apply to default positions
+            default_positions = np.array([
+                0.0, 0.52, -1.05,  # LF leg
+                0.0, 0.52, -1.05,  # RF leg  
+                0.0, 0.52, -1.05,  # LB leg
+                0.0, 0.52, -1.05   # RB leg
+            ])
+            
+            target_positions = default_positions + position_action
+            
+            # Safety limits based on your servo specs
+            joint_limits = np.array([
+                [-0.5, 0.5],     # Hip joints
+                [0.0, 1.57],     # Thigh joints (0 to 90 degrees)
+                [-2.09, -0.52]   # Calf joints (-120 to -30 degrees)
+            ] * 4).flatten()  # Repeat for all 4 legs
+            
+            target_positions = np.clip(target_positions, joint_limits[::2], joint_limits[1::2])
             
             # Scale action by learned std
             scaled_action = raw_action * self.action_std
@@ -223,10 +246,22 @@ class MLPController(Node):
             target_positions = default_positions + scaled_action
             
             # Publish joint commands
-            cmd_msg = Float64MultiArray()
-            cmd_msg.data = target_positions.tolist()
-            self.joint_cmd_pub.publish(cmd_msg)
+            trajectory_msg = JointTrajectory()
+            trajectory_msg.header.stamp = self.get_clock().now().to_msg()
             
+            trajectory_msg.header.stamp = self.get_clock().now().to_msg()
+
+            trajectory_msg.joint_names = [self.joint_mapping[i] for i in range(12)]
+
+            point = JointTrajectoryPoint()
+            point.positions =  target_positions.tolist()
+            point.time_from_start.sec = 0
+            point.time_from_start.nanosec = 20000000
+
+            trajectory_msg.points = [point]
+
+            self.joint_cmd_pub.publish(trajectory_msg)
+        
             # Debug info
             if self.get_clock().now().nanoseconds % 1000000000 < 20000000:  # Every ~1 second
                 self.get_logger().info(f'Action: {scaled_action[:4].round(3)}...')

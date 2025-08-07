@@ -2,8 +2,9 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, Imu
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import torch
@@ -26,8 +27,16 @@ class MLPController(Node):
         self.base_lin_vel = np.zeros(3)
         self.base_ang_vel = np.zeros(3)
         self.projected_gravity = np.array([0.0, 0.0, -1.0])  # Initial guess
-        self.velocity_commands = np.array([0.8, 0.0, 0.0])  # Forward command
+        self.velocity_commands = np.array([0.05, 0.0, 0.0])  # Forward command
         self.last_action = np.zeros(12)
+        
+        # Joint velocity estimation
+        self.prev_joint_positions = np.zeros(12)
+        self.prev_joint_time = None
+        self.estimated_joint_velocities = np.zeros(12)
+        
+        # Use a moving average filter for smoother velocity estimates
+        self.velocity_history = deque(maxlen=3)  # Keep last 3 velocity estimates
         
         # Action history for smoothing
         self.action_history = deque(maxlen=3)
@@ -64,19 +73,41 @@ class MLPController(Node):
             10
         )
         
+        # Additional sensor subscribers for real sensor data
+        self.odom_sub = self.create_subscription(
+            Odometry, '/odom', self.odom_callback, 10
+        )
+        
+        self.imu_sub = self.create_subscription(
+            Imu, '/imu/data', self.imu_callback, 10
+        )
+        
+        # Store real sensor data
+        self.base_lin_vel_real = np.zeros(3)
+        self.base_ang_vel_real = np.zeros(3) 
+        self.gravity_real = np.array([0.0, 0.0, -1.0])
+        
         # ROS2 publisher for joint commands
         self.joint_cmd_pub = self.create_publisher(
             JointTrajectory,
-            '/joint_group_effort_controller/joint_trajectory', #this needs to be reconciled with "/joint_group_effort_controller/joint_trajectory"
+            '/joint_group_effort_controller/joint_trajectory',
             10
         )
         
-        # Control timer (50 Hz to match training)
-        self.control_timer = self.create_timer(0.02, self.control_loop)
+        # Control timer (5 Hz for servo compatibility)
+        self.control_timer = self.create_timer(0.2, self.control_loop)
+        self.command_counter = 0
         
         # Safety limits
         self.max_joint_change = 0.05  # Max change per timestep (rad)
-        self.torque_scale = 0.5      # Scale down actions for real servos
+        
+        # Debug flag
+        self._joint_mapping_success = False
+        
+        # Print expected joint mapping for verification
+        self.get_logger().info('Expected joint mapping:')
+        for idx, name in self.joint_mapping.items():
+            self.get_logger().info(f'  {idx}: {name}')
         
         self.get_logger().info('MLP Controller initialized')
         
@@ -95,7 +126,7 @@ class MLPController(Node):
             )
             
             # Load your trained weights
-            checkpoint_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/sim2real/walkingmlp.pt"  # Update this path
+            checkpoint_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/sim2real/walkingmlp.pt"
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
             
             # Extract actor weights
@@ -120,25 +151,84 @@ class MLPController(Node):
             return None
     
     def joint_state_callback(self, msg):
-        """Update robot state from joint feedback"""
+        """Update robot state with estimated joint velocities"""
         try:
+            current_time = time.time()
+            
             # Map joint names to our internal representation
+            name_to_index = {name: idx for idx, name in self.joint_mapping.items()}
+            temp_positions = np.zeros(12)
+            
+            # Extract current positions
             for i, joint_name in enumerate(msg.name):
-                if joint_name in [self.joint_mapping[j] for j in range(12)]:
-                    # Find the index in our mapping
-                    joint_idx = None
-                    for idx, mapped_name in self.joint_mapping.items():
-                        if mapped_name == joint_name:
-                            joint_idx = idx
-                            break
+                if joint_name in name_to_index:
+                    joint_idx = name_to_index[joint_name]
+                    if i < len(msg.position):
+                        temp_positions[joint_idx] = msg.position[i]
+            
+            # Estimate velocities if we have previous data
+            if self.prev_joint_time is not None:
+                dt = current_time - self.prev_joint_time
+                
+                if dt > 0.001:  # Avoid division by zero and too-small time steps
+                    # Calculate raw velocity estimates
+                    raw_velocities = (temp_positions - self.prev_joint_positions) / dt
                     
-                    if joint_idx is not None:
-                        self.joint_positions[joint_idx] = msg.position[i]
-                        if len(msg.velocity) > i:
-                            self.joint_velocities[joint_idx] = msg.velocity[i]
-                            
+                    # Apply smoothing filter
+                    self.velocity_history.append(raw_velocities)
+                    
+                    if len(self.velocity_history) > 0:
+                        # Use moving average for smoother estimates
+                        self.estimated_joint_velocities = np.mean(
+                            list(self.velocity_history), axis=0
+                        )
+                    else:
+                        self.estimated_joint_velocities = raw_velocities
+            
+            # Update stored values
+            self.joint_positions = temp_positions.copy()
+            self.joint_velocities = self.estimated_joint_velocities.copy()
+            self.prev_joint_positions = temp_positions.copy()
+            self.prev_joint_time = current_time
+            
         except Exception as e:
             self.get_logger().error(f'Error in joint state callback: {e}')
+    
+    def odom_callback(self, msg):
+        """Get real base velocity from odometry"""
+        try:
+            self.base_lin_vel_real = np.array([
+                msg.twist.twist.linear.x,
+                msg.twist.twist.linear.y,
+                msg.twist.twist.linear.z
+            ])
+            
+            self.base_ang_vel_real = np.array([
+                msg.twist.twist.angular.x,
+                msg.twist.twist.angular.y,
+                msg.twist.twist.angular.z
+            ])
+        except Exception as e:
+            self.get_logger().error(f'Error in odometry callback: {e}')
+
+    def imu_callback(self, msg):
+        """Get real gravity vector from IMU"""
+        try:
+            # Extract gravity from linear acceleration (when robot is stationary)
+            # Note: This is approximate - real gravity extraction needs proper filtering
+            self.gravity_real = np.array([
+                msg.linear_acceleration.x,
+                msg.linear_acceleration.y, 
+                msg.linear_acceleration.z
+            ])
+            
+            # Normalize to unit vector
+            gravity_norm = np.linalg.norm(self.gravity_real)
+            if gravity_norm > 0.1:  # Avoid division by zero
+                self.gravity_real = self.gravity_real / gravity_norm
+                
+        except Exception as e:
+            self.get_logger().error(f'Error in IMU callback: {e}')
     
     def cmd_vel_callback(self, msg):
         """Update velocity commands from teleop or high-level planner"""
@@ -149,76 +239,58 @@ class MLPController(Node):
         self.get_logger().info(f'Velocity command: {self.velocity_commands}')
     
     def estimate_base_velocity(self):
-        """Estimate base velocity from joint states (simplified)"""
-        # This is a placeholder - in reality you'd use IMU + odometry
-        # For now, assume we're achieving the commanded velocity
-        return self.velocity_commands[:3], np.array([0.0, 0.0, 0.0])
-    
-    # def get_observation(self):
-    #     """Construct the 76-dimensional observation vector matching training"""
-        
-    #     # Get estimated base velocities (placeholder)
-    #     lin_vel, ang_vel = self.estimate_base_velocity()
-        
-    #     # Construct observation (same order as training)
-    #     obs = np.concatenate([
-    #         lin_vel,                    # base_lin_vel (3)
-    #         ang_vel,                    # base_ang_vel (3) 
-    #         self.projected_gravity,     # projected_gravity (3)
-    #         self.velocity_commands,     # velocity_commands (3)
-    #         self.joint_positions,       # joint_pos (12)
-    #         self.joint_velocities,      # joint_vel (12)
-    #         self.last_action           # last_action (12)
-    #     ])
-        
-    #     # Add noise (matching training config)
-    #     noise_scales = np.array([0.1, 0.1, 0.1,     # lin_vel noise
-    #                             0.1, 0.1, 0.1,      # ang_vel noise  
-    #                             0.05, 0.05, 0.05,   # gravity noise
-    #                             0.0, 0.0, 0.0,      # no noise on commands
-    #                             *([0.05] * 12),     # joint pos noise
-    #                             *([0.5] * 12),      # joint vel noise
-    #                             *([0.0] * 12)])     # no noise on last action
-        
-    #     # Add small amount of noise for robustness
-    #     obs += np.random.uniform(-0.01, 0.01, obs.shape) * noise_scales
-        
-    #     return obs.astype(np.float32)
+        """Use real odometry data instead of estimates"""
+        return self.base_lin_vel_real, self.base_ang_vel_real
 
     def get_observation(self):
-        """Construct the 76-dimensional observation vector matching training"""
+        """Construct observation using real sensors + estimates"""
         
-        # Get estimated base velocities
+        # Get real base velocities from odometry
         lin_vel, ang_vel = self.estimate_base_velocity()
         
-        # Build observation step by step
-        obs_parts = []
-        obs_parts.append(lin_vel)                    # Should be 3
-        obs_parts.append(ang_vel)                    # Should be 3
-        obs_parts.append(self.projected_gravity)     # Should be 3
-        obs_parts.append(self.velocity_commands)     # Should be 3
-        obs_parts.append(self.joint_positions)       # Should be 12
-        obs_parts.append(self.joint_velocities)      # Should be 12
-        obs_parts.append(self.last_action)           # Should be 12
+        # Use real gravity from IMU (or default if not available)
+        projected_gravity = self.gravity_real
         
-        # Debug: print sizes
-        current_size = sum(part.shape[0] for part in obs_parts)
-        self.get_logger().info(f'Current obs size: {current_size}, need 76')
+        # Core observations (48 dims) with real sensor data
+        core_obs = np.concatenate([
+            lin_vel,                        # Real base linear velocity (3)
+            ang_vel,                        # Real base angular velocity (3)
+            projected_gravity,              # Real gravity from IMU (3)
+            self.velocity_commands,         # Velocity commands (3)
+            self.joint_positions,           # Real joint positions (12)
+            self.estimated_joint_velocities, # Estimated joint velocities (12)
+            self.last_action               # Last action (12)
+        ])
         
-        # Pad with zeros to reach 76
-        obs = np.concatenate(obs_parts)
-        if obs.shape[0] < 76:
-            padding = np.zeros(76 - obs.shape[0])
-            obs = np.concatenate([obs, padding])
+        # Add 28 dimensions to reach 76 - using minimal padding
+        padding = np.zeros(28)
+        full_obs = np.concatenate([core_obs, padding])
         
-        return obs[:76].astype(np.float32)
+        # Apply minimal noise for robustness
+        noise_scales = np.concatenate([
+            [0.01] * 3,    # lin_vel noise  
+            [0.01] * 3,    # ang_vel noise
+            [0.01] * 3,    # gravity noise
+            [0.0] * 3,     # no noise on commands
+            [0.01] * 12,   # joint pos noise
+            [0.1] * 12,    # joint vel noise  
+            [0.0] * 12,    # no noise on last action
+            [0.0] * 28     # no noise on padding
+        ])
+        
+        # Add minimal noise
+        full_obs += np.random.uniform(-0.001, 0.001, full_obs.shape) * noise_scales
+        
+        return full_obs.astype(np.float32)
 
     def control_loop(self):
-        """Main control loop - runs at 50 Hz"""
+        """Enhanced control loop with velocity estimation debugging"""
         if self.model is None:
             return
             
         try:
+            self.command_counter += 1
+            
             # Get observation
             obs = self.get_observation()
             obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
@@ -228,7 +300,7 @@ class MLPController(Node):
                 raw_action = self.model(obs_tensor).cpu().numpy()[0]
             
             # Scale action by learned std and apply safety scaling
-            position_action = raw_action * self.action_std * 0.5  # Scale down for safety
+            position_action = raw_action * self.action_std * 0.02  # Increased from 0.01
             
             # Safety: limit rate of change
             if len(self.action_history) > 0:
@@ -267,27 +339,28 @@ class MLPController(Node):
             
             target_positions = np.clip(target_positions, joint_limits_low, joint_limits_high)
             
-            # Create proper JointTrajectory message
+            # Create trajectory message (remove effort commands - let controller handle internally)
             trajectory_msg = JointTrajectory()
             trajectory_msg.header.stamp = self.get_clock().now().to_msg()
-            
-            # Set joint names in the correct order
             trajectory_msg.joint_names = [self.joint_mapping[i] for i in range(12)]
             
-            # Create trajectory point
             point = JointTrajectoryPoint()
             point.positions = target_positions.tolist()
             point.time_from_start.sec = 0
-            point.time_from_start.nanosec = 20000000  # 20ms
+            point.time_from_start.nanosec = 500000000  # 500ms
             
             trajectory_msg.points = [point]
-            
             self.joint_cmd_pub.publish(trajectory_msg)
             
-            # Debug info (every ~1 second)
-            if self.get_clock().now().nanoseconds % 1000000000 < 20000000:
-                self.get_logger().info(f'Raw action: {raw_action[:4].round(3)}...')
-                self.get_logger().info(f'Target pos: {target_positions[:4].round(3)}...')
+            # Enhanced debug info with velocity estimates
+            self.get_logger().info(f'Command #{self.command_counter}')
+            self.get_logger().info(f'Velocity cmd: {self.velocity_commands}')
+            self.get_logger().info(f'Target pos: {target_positions[:4].round(3)}...')
+            self.get_logger().info(f'Current pos: {self.joint_positions[:4].round(3)}...')
+            self.get_logger().info(f'Est. velocities: {self.estimated_joint_velocities[:4].round(3)}...')
+            self.get_logger().info(f'Max |velocity|: {np.max(np.abs(self.estimated_joint_velocities)):.3f} rad/s')
+            self.get_logger().info(f'Raw action: {raw_action[:4].round(3)}...')
+            self.get_logger().info('---')
                 
         except Exception as e:
             self.get_logger().error(f'Error in control loop: {e}')

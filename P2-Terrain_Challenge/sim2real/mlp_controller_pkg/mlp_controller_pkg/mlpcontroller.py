@@ -381,6 +381,7 @@ def main(args=None):
     # Print startup info
     controller.get_logger().info('='*50)
     controller.get_logger().info('MLP Controller Started')
+    controller.get_logger().info('TEST INPUT')
     controller.get_logger().info('Commands: ros2 topic pub /cmd_vel geometry_msgs/Twist')
     controller.get_logger().info('Stop: Ctrl+C')
     controller.get_logger().info('='*50)

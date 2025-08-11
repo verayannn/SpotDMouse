@@ -2,8 +2,9 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, Imu
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64MultiArray
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 import torch
@@ -18,7 +19,7 @@ class MLPController(Node):
         
         # Load the trained model
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = self.load_model()
+        self.model, self.obs_mean, self.obs_var = self.load_model()
         
         # State variables
         self.joint_positions = np.zeros(12)
@@ -26,15 +27,28 @@ class MLPController(Node):
         self.base_lin_vel = np.zeros(3)
         self.base_ang_vel = np.zeros(3)
         self.projected_gravity = np.array([0.0, 0.0, -1.0])  # Initial guess
-        self.velocity_commands = np.array([0.8, 0.0, 0.0])  # Forward command
+        self.velocity_commands = np.zeros(3)  # Start with zero command
         self.last_action = np.zeros(12)
         
         # Action history for smoothing
         self.action_history = deque(maxlen=3)
+        self.filtered_action = np.zeros(12)
+        
+        # Joint velocity estimation
+        self.prev_joint_positions = None
+        self.prev_joint_time = None
+        self.velocity_history = deque(maxlen=5)
+        
+        # Default positions for Mini Pupper
+        self.default_positions = np.array([
+            0.0, 0.8, -1.6,  # LF leg (hip, thigh, calf)
+            0.0, 0.8, -1.6,  # RF leg
+            0.0, 0.8, -1.6,  # LB leg  
+            0.0, 0.8, -1.6   # RB leg
+        ])
         
         # Joint mapping (Isaac -> ROS2 topic names)
         self.joint_mapping = {
-            # Isaac Lab order from your config
             0: 'base_lf1',    # LF leg (front-left) hip
             1: 'lf1_lf2',     # LF thigh  
             2: 'lf2_lf3',     # LF calf
@@ -48,6 +62,9 @@ class MLPController(Node):
             10: 'rb1_rb2',    # RB thigh
             11: 'rb2_rb3'     # RB calf
         }
+        
+        # Create inverse mapping for faster lookup
+        self.name_to_idx = {name: idx for idx, name in self.joint_mapping.items()}
         
         # ROS2 subscribers
         self.joint_state_sub = self.create_subscription(
@@ -64,24 +81,49 @@ class MLPController(Node):
             10
         )
         
-        # ROS2 publisher for joint commands
-        self.joint_cmd_pub = self.create_publisher(
-            JointTrajectory,
-            '/joint_group_effort_controller/joint_trajectory', #this needs to be reconciled with "/joint_group_effort_controller/joint_trajectory"
+        # Add IMU subscriber for better gravity vector
+        self.imu_sub = self.create_subscription(
+            Imu,
+            '/imu/data',
+            self.imu_callback,
             10
         )
         
-        # Control timer (50 Hz to match training)
-        self.control_timer = self.create_timer(0.02, self.control_loop)
+        # Add odometry subscriber for base velocities
+        self.odom_sub = self.create_subscription(
+            Odometry,
+            '/odom',
+            self.odom_callback,
+            10
+        )
         
-        # Safety limits
-        self.max_joint_change = 0.05  # Max change per timestep (rad)
-        self.torque_scale = 0.5      # Scale down actions for real servos
+        # ROS2 publisher for joint commands
+        self.joint_cmd_pub = self.create_publisher(
+            JointTrajectory,
+            '/joint_group_effort_controller/joint_trajectory',
+            10
+        )
         
-        self.get_logger().info('MLP Controller initialized')
+        # Control parameters
+        self.control_frequency = 50.0  # Hz
+        self.control_timer = self.create_timer(1.0/self.control_frequency, self.control_loop)
+        
+        # Safety and tuning parameters
+        self.action_scale = 0.25  # Scale factor for actions
+        self.filter_alpha = 0.8   # Action smoothing (0.8 = 80% old, 20% new)
+        self.max_joint_change = 0.1  # Max change per timestep (rad)
+        self.cmd_vel_deadzone = 0.05  # Deadzone for velocity commands
+        
+        # Control step counter
+        self.step_count = 0
+        
+        self.get_logger().info('MLP Controller initialized with normalization')
+        if self.obs_mean is not None:
+            self.get_logger().info(f'Obs mean range: [{self.obs_mean.min():.3f}, {self.obs_mean.max():.3f}]')
+            self.get_logger().info(f'Obs var range: [{self.obs_var.min():.3f}, {self.obs_var.max():.3f}]')
         
     def load_model(self):
-        """Load the trained MLP model"""
+        """Load the trained MLP model with normalization statistics"""
         try:
             # Define the model architecture (matching your training)
             model = torch.nn.Sequential(
@@ -94,8 +136,8 @@ class MLPController(Node):
                 torch.nn.Linear(128, 12)
             )
             
-            # Load your trained weights
-            checkpoint_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/sim2real/walkingmlp.pt"  # Update this path
+            # Load your trained weights WITH STATS
+            checkpoint_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/sim2real/newwalkingmlp.pt"
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
             
             # Extract actor weights
@@ -112,78 +154,137 @@ class MLPController(Node):
             # Load the std values for action scaling
             self.action_std = checkpoint['model_state_dict']['std'].cpu().numpy()
             
+            # CRITICAL: Load observation normalization statistics
+            obs_mean = None
+            obs_var = None
+            
+            if 'obs_rms_mean' in checkpoint:
+                obs_mean = checkpoint['obs_rms_mean']
+                obs_var = checkpoint['obs_rms_var']
+                self.get_logger().info('✓ Loaded observation normalization statistics')
+            else:
+                self.get_logger().warn('⚠️ No normalization stats in checkpoint!')
+                # Use default values as fallback
+                obs_mean = np.zeros(48, dtype=np.float32)
+                obs_var = np.ones(48, dtype=np.float32)
+            
             self.get_logger().info('Model loaded successfully')
-            return model
+            return model, obs_mean, obs_var
             
         except Exception as e:
             self.get_logger().error(f'Failed to load model: {e}')
-            return None
+            return None, None, None
     
     def joint_state_callback(self, msg):
-        """Update robot state from joint feedback"""
+        """Update robot state from joint feedback with velocity estimation"""
         try:
-            # Map joint names to our internal representation
-            for i, joint_name in enumerate(msg.name):
-                if joint_name in [self.joint_mapping[j] for j in range(12)]:
-                    # Find the index in our mapping
-                    joint_idx = None
-                    for idx, mapped_name in self.joint_mapping.items():
-                        if mapped_name == joint_name:
-                            joint_idx = idx
-                            break
+            current_time = time.time()
+            current_positions = np.zeros(12)
+            
+            # Map joint positions
+            for joint_name, position in zip(msg.name, msg.position):
+                if joint_name in self.name_to_idx:
+                    idx = self.name_to_idx[joint_name]
+                    current_positions[idx] = position
+            
+            # Update positions
+            self.joint_positions = current_positions
+            
+            # Estimate velocities using finite differences
+            if self.prev_joint_positions is not None and self.prev_joint_time is not None:
+                dt = current_time - self.prev_joint_time
+                if dt > 0.001:  # Avoid division by very small numbers
+                    instantaneous_vel = (current_positions - self.prev_joint_positions) / dt
+                    self.velocity_history.append(instantaneous_vel)
                     
-                    if joint_idx is not None:
-                        self.joint_positions[joint_idx] = msg.position[i]
-                        if len(msg.velocity) > i:
-                            self.joint_velocities[joint_idx] = msg.velocity[i]
+                    # Use average of recent velocities for smoothing
+                    if len(self.velocity_history) > 0:
+                        self.joint_velocities = np.mean(self.velocity_history, axis=0)
+            
+            # If velocities are provided in the message, use them
+            if len(msg.velocity) == len(msg.position):
+                for joint_name, velocity in zip(msg.name, msg.velocity):
+                    if joint_name in self.name_to_idx:
+                        idx = self.name_to_idx[joint_name]
+                        # Blend estimated and provided velocities
+                        self.joint_velocities[idx] = 0.7 * self.joint_velocities[idx] + 0.3 * velocity
+            
+            self.prev_joint_positions = current_positions.copy()
+            self.prev_joint_time = current_time
                             
         except Exception as e:
             self.get_logger().error(f'Error in joint state callback: {e}')
     
     def cmd_vel_callback(self, msg):
-        """Update velocity commands from teleop or high-level planner"""
-        self.velocity_commands[0] = msg.linear.x
-        self.velocity_commands[1] = msg.linear.y  
-        self.velocity_commands[2] = msg.angular.z
+        """Update velocity commands with deadzone"""
+        # Apply deadzone to reduce noise when standing still
+        if abs(msg.linear.x) < self.cmd_vel_deadzone:
+            self.velocity_commands[0] = 0.0
+        else:
+            self.velocity_commands[0] = np.clip(msg.linear.x, -1.0, 1.0)
         
-        self.get_logger().info(f'Velocity command: {self.velocity_commands}')
+        if abs(msg.linear.y) < self.cmd_vel_deadzone:
+            self.velocity_commands[1] = 0.0
+        else:
+            self.velocity_commands[1] = np.clip(msg.linear.y, -0.5, 0.5)
+        
+        if abs(msg.angular.z) < self.cmd_vel_deadzone:
+            self.velocity_commands[2] = 0.0
+        else:
+            self.velocity_commands[2] = np.clip(msg.angular.z, -1.0, 1.0)
+        
+        # Log only when commands change significantly
+        if np.linalg.norm(self.velocity_commands) > 0.1:
+            self.get_logger().info(f'Velocity command: {self.velocity_commands.round(2)}')
     
-    def estimate_base_velocity(self):
-        """Estimate base velocity from joint states (simplified)"""
-        # This is a placeholder - in reality you'd use IMU + odometry
-        # For now, assume we're achieving the commanded velocity
-        return self.velocity_commands[:3], np.array([0.0, 0.0, 0.0])
+    def imu_callback(self, msg):
+        """Update gravity vector from IMU"""
+        # Extract gravity direction from IMU orientation
+        q = msg.orientation
+        # Convert quaternion to gravity vector in body frame
+        gx = 2 * (q.x * q.z - q.w * q.y)
+        gy = 2 * (q.y * q.z + q.w * q.x)
+        gz = q.w * q.w - q.x * q.x - q.y * q.y + q.z * q.z
+        
+        # Normalize
+        norm = np.sqrt(gx*gx + gy*gy + gz*gz)
+        if norm > 0.01:
+            self.projected_gravity[0] = gx / norm
+            self.projected_gravity[1] = gy / norm
+            self.projected_gravity[2] = gz / norm
+    
+    def odom_callback(self, msg):
+        """Update base velocities from odometry"""
+        self.base_lin_vel[0] = msg.twist.twist.linear.x
+        self.base_lin_vel[1] = msg.twist.twist.linear.y
+        self.base_lin_vel[2] = msg.twist.twist.linear.z
+        
+        self.base_ang_vel[0] = msg.twist.twist.angular.x
+        self.base_ang_vel[1] = msg.twist.twist.angular.y
+        self.base_ang_vel[2] = msg.twist.twist.angular.z
     
     def get_observation(self):
-        """Construct the 76-dimensional observation vector matching training"""
+        """Construct the 48-dimensional observation vector matching training"""
         
-        # Get estimated base velocities (placeholder)
-        lin_vel, ang_vel = self.estimate_base_velocity()
-        
-        # Construct observation (same order as training)
+        # Build raw observation
         obs = np.concatenate([
-            lin_vel,                    # base_lin_vel (3)
-            ang_vel,                    # base_ang_vel (3) 
-            self.projected_gravity,     # projected_gravity (3)
-            self.velocity_commands,     # velocity_commands (3)
-            self.joint_positions,       # joint_pos (12)
-            self.joint_velocities,      # joint_vel (12)
-            self.last_action           # last_action (12)
+            self.base_lin_vel,                              # base_lin_vel (3)
+            self.base_ang_vel,                              # base_ang_vel (3) 
+            self.projected_gravity,                         # projected_gravity (3)
+            self.velocity_commands,                         # velocity_commands (3)
+            self.joint_positions - self.default_positions,  # joint_pos relative to default (12)
+            self.joint_velocities,                          # joint_vel (12)
+            self.last_action                               # last_action (12)
         ])
         
-        # Add noise (matching training config)
-        noise_scales = np.array([0.1, 0.1, 0.1,     # lin_vel noise
-                                0.1, 0.1, 0.1,      # ang_vel noise  
-                                0.05, 0.05, 0.05,   # gravity noise
-                                0.0, 0.0, 0.0,      # no noise on commands
-                                *([0.05] * 12),     # joint pos noise
-                                *([0.5] * 12),      # joint vel noise
-                                *([0.0] * 12)])     # no noise on last action
-        
-        # Add small amount of noise for robustness
-        obs += np.random.uniform(-0.01, 0.01, obs.shape) * noise_scales
-        
-        return obs.astype(np.float32)
+        # CRITICAL: Normalize observation using training statistics
+        if self.obs_mean is not None and self.obs_var is not None:
+            eps = 1e-8
+            obs_normalized = (obs - self.obs_mean) / np.sqrt(self.obs_var + eps)
+            obs_normalized = np.clip(obs_normalized, -10.0, 10.0)
+            return obs_normalized.astype(np.float32)
+        else:
+            return obs.astype(np.float32)
     
     def control_loop(self):
         """Main control loop - runs at 50 Hz"""
@@ -191,7 +292,9 @@ class MLPController(Node):
             return
             
         try:
-            # Get observation
+            self.step_count += 1
+            
+            # Get normalized observation
             obs = self.get_observation()
             obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
             
@@ -199,8 +302,15 @@ class MLPController(Node):
             with torch.no_grad():
                 raw_action = self.model(obs_tensor).cpu().numpy()[0]
             
-            # Scale action by learned std and apply safety scaling
-            position_action = raw_action * self.action_std * 0.5  # Scale down for safety
+            # Scale action
+            scaled_action = raw_action * self.action_scale
+            
+            # Apply exponential smoothing filter for stability
+            self.filtered_action = (self.filter_alpha * self.filtered_action + 
+                                   (1 - self.filter_alpha) * scaled_action)
+            
+            # Use filtered action
+            position_action = self.filtered_action
             
             # Safety: limit rate of change
             if len(self.action_history) > 0:
@@ -213,53 +323,52 @@ class MLPController(Node):
             self.last_action = position_action.copy()
             
             # Apply to default positions (action is relative to default)
-            default_positions = np.array([
-                0.0, 0.52, -1.05,  # LF leg (hip, thigh, calf)
-                0.0, 0.52, -1.05,  # RF leg
-                0.0, 0.52, -1.05,  # LB leg  
-                0.0, 0.52, -1.05   # RB leg
-            ])
+            target_positions = self.default_positions + position_action
             
-            target_positions = default_positions + position_action
-            
-            # Safety limits based on servo specs and mechanical constraints
+            # Safety limits for Mini Pupper
             joint_limits_low = np.array([
-                -0.5, 0.0, -2.09,  # LF leg limits (hip, thigh, calf)
-                -0.5, 0.0, -2.09,  # RF leg limits
-                -0.5, 0.0, -2.09,  # LB leg limits
-                -0.5, 0.0, -2.09   # RB leg limits
+                -0.5, 0.0, -2.36,  # LF leg limits
+                -0.5, 0.0, -2.36,  # RF leg limits
+                -0.5, 0.0, -2.36,  # LB leg limits
+                -0.5, 0.0, -2.36   # RB leg limits
             ])
             
             joint_limits_high = np.array([
-                0.5, 1.57, -0.52,  # LF leg limits (hip, thigh, calf)
-                0.5, 1.57, -0.52,  # RF leg limits  
-                0.5, 1.57, -0.52,  # LB leg limits
-                0.5, 1.57, -0.52   # RB leg limits
+                0.5, 1.57, -0.7,   # LF leg limits
+                0.5, 1.57, -0.7,   # RF leg limits
+                0.5, 1.57, -0.7,   # LB leg limits
+                0.5, 1.57, -0.7    # RB leg limits
             ])
             
             target_positions = np.clip(target_positions, joint_limits_low, joint_limits_high)
             
-            # Create proper JointTrajectory message
+            # Create JointTrajectory message
             trajectory_msg = JointTrajectory()
             trajectory_msg.header.stamp = self.get_clock().now().to_msg()
-            
-            # Set joint names in the correct order
             trajectory_msg.joint_names = [self.joint_mapping[i] for i in range(12)]
             
-            # Create trajectory point
             point = JointTrajectoryPoint()
             point.positions = target_positions.tolist()
             point.time_from_start.sec = 0
-            point.time_from_start.nanosec = 20000000  # 20ms
+            point.time_from_start.nanosec = int(1e9 / self.control_frequency)
             
             trajectory_msg.points = [point]
             
             self.joint_cmd_pub.publish(trajectory_msg)
             
-            # Debug info (every ~1 second)
-            if self.get_clock().now().nanoseconds % 1000000000 < 20000000:
-                self.get_logger().info(f'Raw action: {raw_action[:4].round(3)}...')
-                self.get_logger().info(f'Target pos: {target_positions[:4].round(3)}...')
+            # Debug info (every second)
+            if self.step_count % int(self.control_frequency) == 0:
+                self.get_logger().info(
+                    f'cmd_vel={self.velocity_commands.round(2)} | '
+                    f'raw_act[0:3]={raw_action[:3].round(3)} | '
+                    f'joint_vel_norm={np.linalg.norm(self.joint_velocities):.3f}'
+                )
+                
+                # Check if observations are changing
+                if self.step_count > self.control_frequency:
+                    obs_norm = np.linalg.norm(obs)
+                    if abs(obs_norm) < 0.001:
+                        self.get_logger().warn('WARNING: Observations near zero!')
                 
         except Exception as e:
             self.get_logger().error(f'Error in control loop: {e}')
@@ -269,10 +378,17 @@ def main(args=None):
     
     controller = MLPController()
     
+    # Print startup info
+    controller.get_logger().info('='*50)
+    controller.get_logger().info('MLP Controller Started')
+    controller.get_logger().info('Commands: ros2 topic pub /cmd_vel geometry_msgs/Twist')
+    controller.get_logger().info('Stop: Ctrl+C')
+    controller.get_logger().info('='*50)
+    
     try:
         rclpy.spin(controller)
     except KeyboardInterrupt:
-        pass
+        controller.get_logger().info('Shutting down controller...')
     finally:
         controller.destroy_node()
         rclpy.shutdown()

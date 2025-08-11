@@ -85,7 +85,7 @@ class MLPController(Node):
         try:
             # Define the model architecture (matching your training)
             model = torch.nn.Sequential(
-                torch.nn.Linear(76, 512),
+                torch.nn.Linear(48, 512),
                 torch.nn.ELU(),
                 torch.nn.Linear(512, 256),
                 torch.nn.ELU(),

@@ -109,9 +109,9 @@ class MLPController(Node):
         self.control_timer = self.create_timer(1.0/self.control_frequency, self.control_loop)
         
         # Safety and tuning parameters
-        self.action_scale = 0.25  # Scale factor for actions
-        self.filter_alpha = 0.8   # Action smoothing (0.8 = 80% old, 20% new)
-        self.max_joint_change = 0.1  # Max change per timestep (rad)
+        self.action_scale = 0.1  # Scale factor for actions
+        self.filter_alpha = 0.85   # Action smoothing (0.8 = 80% old, 20% new)
+        self.max_joint_change = 0.15  # Max change per timestep (rad)
         self.cmd_vel_deadzone = 0.05  # Deadzone for velocity commands
         
         # Control step counter
@@ -138,7 +138,7 @@ class MLPController(Node):
             
             # Load your trained weights WITH STATS
             checkpoint_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/sim2real/newwalkingmlp.pt"
-            checkpoint = torch.load(checkpoint_path, map_location=self.device)
+            checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
             
             # Extract actor weights
             state_dict = {}
@@ -209,12 +209,26 @@ class MLPController(Node):
                         # Blend estimated and provided velocities
                         self.joint_velocities[idx] = 0.7 * self.joint_velocities[idx] + 0.3 * velocity
             
+            # FIX: Convert from degrees/sec to radians/sec if values are too high
+            # Check before clamping to detect if conversion is needed
+            max_vel = np.max(np.abs(self.joint_velocities))
+            if max_vel > 10:  # Values > 10 rad/s are unrealistic for Mini Pupper
+                self.joint_velocities = np.deg2rad(self.joint_velocities)
+                if self.step_count % 100 == 0:  # Log occasionally
+                    self.get_logger().info(f'Converting joint velocities from deg/s to rad/s')
+            
+            # SAFETY: Clamp to reasonable range after conversion
+            self.joint_velocities = np.clip(self.joint_velocities, -10.0, 10.0)
+                
             self.prev_joint_positions = current_positions.copy()
             self.prev_joint_time = current_time
-                            
+            
         except Exception as e:
             self.get_logger().error(f'Error in joint state callback: {e}')
-    
+            
+        except Exception as e:
+            self.get_logger().error(f'Error in joint state callback: {e}')
+
     def cmd_vel_callback(self, msg):
         """Update velocity commands with deadzone"""
         # Apply deadzone to reduce noise when standing still
@@ -237,22 +251,36 @@ class MLPController(Node):
         if np.linalg.norm(self.velocity_commands) > 0.1:
             self.get_logger().info(f'Velocity command: {self.velocity_commands.round(2)}')
     
+    # Add this debug code to your imu_callback:
     def imu_callback(self, msg):
         """Update gravity vector from IMU"""
-        # Extract gravity direction from IMU orientation
-        q = msg.orientation
-        # Convert quaternion to gravity vector in body frame
-        gx = 2 * (q.x * q.z - q.w * q.y)
-        gy = 2 * (q.y * q.z + q.w * q.x)
-        gz = q.w * q.w - q.x * q.x - q.y * q.y + q.z * q.z
+
+        self.projected_gravity = np.array([0.0, 0.0, -1.0])
+
+        # q = msg.orientation
         
-        # Normalize
-        norm = np.sqrt(gx*gx + gy*gy + gz*gz)
-        if norm > 0.01:
-            self.projected_gravity[0] = gx / norm
-            self.projected_gravity[1] = gy / norm
-            self.projected_gravity[2] = gz / norm
-    
+        # # Your existing conversion
+        # gx = 2 * (q.x * q.z - q.w * q.y)
+        # gy = 2 * (q.y * q.z + q.w * q.x)
+        # gz = q.w * q.w - q.x * q.x - q.y * q.y + q.z * q.z
+        
+        # # Debug: Show raw IMU data
+        # self.get_logger().info(f'IMU quaternion: [{q.w:.2f}, {q.x:.2f}, {q.y:.2f}, {q.z:.2f}]')
+        # self.get_logger().info(f'Gravity vector: [{gx:.2f}, {gy:.2f}, {gz:.2f}]')
+        
+        # # Also check linear acceleration (might be more reliable)
+        # if hasattr(msg, 'linear_acceleration'):
+        #     acc_norm = np.sqrt(msg.linear_acceleration.x**2 + 
+        #                     msg.linear_acceleration.y**2 + 
+        #                     msg.linear_acceleration.z**2)
+        #     if acc_norm > 0.1:
+        #         gx_acc = msg.linear_acceleration.x / acc_norm
+        #         gy_acc = msg.linear_acceleration.y / acc_norm
+        #         gz_acc = msg.linear_acceleration.z / acc_norm
+        #         self.get_logger().info(f'Gravity from accel: [{gx_acc:.2f}, {gy_acc:.2f}, {gz_acc:.2f}]')
+
+        return
+
     def odom_callback(self, msg):
         """Update base velocities from odometry"""
         self.base_lin_vel[0] = msg.twist.twist.linear.x
@@ -277,11 +305,21 @@ class MLPController(Node):
             self.last_action                               # last_action (12)
         ])
         
+        if self.step_count % 50 == 0:
+            self.get_logger().info(f'RAW OBS vel_commands (9:12): {obs[9:12].round(2)}')
+            self.get_logger().info(f'ACTUAL velocity_commands: {self.velocity_commands.round(2)}')
+        
+        # CRITICAL: Normalize observation using training statistics
         # CRITICAL: Normalize observation using training statistics
         if self.obs_mean is not None and self.obs_var is not None:
             eps = 1e-8
             obs_normalized = (obs - self.obs_mean) / np.sqrt(self.obs_var + eps)
             obs_normalized = np.clip(obs_normalized, -10.0, 10.0)
+            
+            # FIX: Don't normalize velocity commands - keep them raw!
+            # The network expects raw commands, not normalized ones
+            obs_normalized[9:12] = self.velocity_commands
+            
             return obs_normalized.astype(np.float32)
         else:
             return obs.astype(np.float32)
@@ -290,29 +328,68 @@ class MLPController(Node):
         """Main control loop - runs at 50 Hz"""
         if self.model is None:
             return
-            
+        
         try:
             self.step_count += 1
+            
+            # OVERRIDE: Ensure clean sensor values
+            # Since IMU is broken, force correct gravity
+            self.projected_gravity = np.array([0.0, 0.0, -1.0])
             
             # Get normalized observation
             obs = self.get_observation()
             obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
+
+            # Debug output showing corrected values
+            if self.step_count % 50 == 0:  # Every second
+                # Show normalized obs values (what the network sees)
+                self.get_logger().info(
+                    f'OBS (normalized): vel_cmd={obs[9:12].round(2)} | '
+                    f'joint_vel_norm={np.linalg.norm(obs[24:36]):.2f} | '
+                    f'gravity={obs[6:9].round(2)}'
+                )
+                # Also show raw sensor values for debugging
+                self.get_logger().info(
+                    f'RAW sensors: joint_vel_max={np.max(np.abs(self.joint_velocities)):.2f} rad/s | '
+                    f'gravity={self.projected_gravity.round(2)}'
+                )
+
+            # Check if we should be standing still
+            is_standing = np.allclose(self.velocity_commands, 0, atol=0.01)
             
-            # Get action from MLP
-            with torch.no_grad():
-                raw_action = self.model(obs_tensor).cpu().numpy()[0]
+            if is_standing:
+                # STANDING MODE: Decay actions to zero when velocity command is zero
+                self.filtered_action *= 0.95  # Exponential decay
+                
+                # If actions are very small, set to exactly zero
+                if np.linalg.norm(self.filtered_action) < 0.01:
+                    self.filtered_action = np.zeros(12)
+                
+                position_action = self.filtered_action
+                
+                # Debug output for standing mode
+                if self.step_count % 50 == 0:  # Every second
+                    with torch.no_grad():
+                        raw_action = self.model(obs_tensor).cpu().numpy()[0]
+                    self.get_logger().info(
+                        f'STANDING MODE | filtered_action_norm={np.linalg.norm(self.filtered_action):.4f} | '
+                        f'raw_network_output_max={np.abs(raw_action).max():.4f}'
+                    )
+            else:
+                # WALKING MODE: Use network output normally
+                with torch.no_grad():
+                    raw_action = self.model(obs_tensor).cpu().numpy()[0]
+                
+                # Scale action
+                scaled_action = raw_action * self.action_scale
+                
+                # Apply exponential smoothing filter for stability
+                self.filtered_action = (self.filter_alpha * self.filtered_action + 
+                                    (1 - self.filter_alpha) * scaled_action)
+                
+                position_action = self.filtered_action
             
-            # Scale action
-            scaled_action = raw_action * self.action_scale
-            
-            # Apply exponential smoothing filter for stability
-            self.filtered_action = (self.filter_alpha * self.filtered_action + 
-                                   (1 - self.filter_alpha) * scaled_action)
-            
-            # Use filtered action
-            position_action = self.filtered_action
-            
-            # Safety: limit rate of change
+            # Safety: limit rate of change (applies to both standing and walking)
             if len(self.action_history) > 0:
                 action_diff = position_action - self.action_history[-1]
                 action_diff = np.clip(action_diff, -self.max_joint_change, self.max_joint_change)
@@ -358,18 +435,28 @@ class MLPController(Node):
             
             # Debug info (every second)
             if self.step_count % int(self.control_frequency) == 0:
-                self.get_logger().info(
-                    f'cmd_vel={self.velocity_commands.round(2)} | '
-                    f'raw_act[0:3]={raw_action[:3].round(3)} | '
-                    f'joint_vel_norm={np.linalg.norm(self.joint_velocities):.3f}'
-                )
-                
-                # Check if observations are changing
-                if self.step_count > self.control_frequency:
-                    obs_norm = np.linalg.norm(obs)
-                    if abs(obs_norm) < 0.001:
-                        self.get_logger().warn('WARNING: Observations near zero!')
-                
+                if is_standing:
+                    self.get_logger().info(
+                        f'STANDING: cmd_vel={self.velocity_commands.round(2)} | '
+                        f'filtered_norm={np.linalg.norm(self.filtered_action):.4f} | '
+                        f'joint_vel_norm={np.linalg.norm(self.joint_velocities):.3f}'
+                    )
+                else:
+                    with torch.no_grad():
+                        raw_action = self.model(obs_tensor).cpu().numpy()[0]
+                    self.get_logger().info(
+                        f'WALKING: cmd_vel={self.velocity_commands.round(2)} | '
+                        f'raw_act[0:3]={raw_action[:3].round(3)} | '
+                        f'joint_vel_norm={np.linalg.norm(self.joint_velocities):.3f}'
+                    )
+            
+            # Sanity check
+            if self.step_count > self.control_frequency:
+                # Check gravity is correct
+                if not np.allclose(self.projected_gravity, [0, 0, -1], atol=0.1):
+                    self.get_logger().warn(f'WARNING: Gravity vector incorrect: {self.projected_gravity}')
+                    self.projected_gravity = np.array([0.0, 0.0, -1.0])  # Force correct
+                    
         except Exception as e:
             self.get_logger().error(f'Error in control loop: {e}')
 

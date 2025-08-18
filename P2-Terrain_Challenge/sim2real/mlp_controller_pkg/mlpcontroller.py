@@ -109,9 +109,9 @@ class MLPController(Node):
         self.control_timer = self.create_timer(1.0/self.control_frequency, self.control_loop)
         
         # Safety and tuning parameters
-        self.action_scale = 0.1  # Scale factor for actions
-        self.filter_alpha = 0.85   # Action smoothing (0.8 = 80% old, 20% new)
-        self.max_joint_change = 0.15  # Max change per timestep (rad)
+        self.action_scale = 0.05  # Scale factor for actions
+        self.filter_alpha = 0.90   # Action smoothing (0.8 = 80% old, 20% new)
+        self.max_joint_change = 0.08  # Max change per timestep (rad)
         self.cmd_vel_deadzone = 0.05  # Deadzone for velocity commands
         
         # Control step counter

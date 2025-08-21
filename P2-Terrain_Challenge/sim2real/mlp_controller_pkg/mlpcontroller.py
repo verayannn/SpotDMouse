@@ -41,10 +41,10 @@ class MLPController(Node):
         
         # Default positions for Mini Pupper
         self.default_positions = np.array([
-            0.0, 0.8, -1.6,  # LF leg (hip, thigh, calf)
-            0.0, 0.8, -1.6,  # RF leg
-            0.0, 0.8, -1.6,  # LB leg  
-            0.0, 0.8, -1.6   # RB leg
+            0.0, 0.52, -1.05,  # LF leg (hip=0°, thigh=30°, calf=-60°)
+            0.0, 0.52, -1.05,  # RF leg
+            0.0, 0.52, -1.05,  # LB leg  
+            0.0, 0.52, -1.05   # RB leg
         ])
         
         # Joint mapping (Isaac -> ROS2 topic names)
@@ -62,6 +62,10 @@ class MLPController(Node):
             10: 'rb1_rb2',    # RB thigh
             11: 'rb2_rb3'     # RB calf
         }
+
+        self.get_logger().info('Expected joint order for model:')
+        for idx, name in self.joint_mapping.items():
+            self.get_logger().info(f'  [{idx}] = {name}')        
         
         # Create inverse mapping for faster lookup
         self.name_to_idx = {name: idx for idx, name in self.joint_mapping.items()}
@@ -109,9 +113,9 @@ class MLPController(Node):
         self.control_timer = self.create_timer(1.0/self.control_frequency, self.control_loop)
         
         # Safety and tuning parameters
-        self.action_scale = 0.05  # Scale factor for actions
-        self.filter_alpha = 0.90   # Action smoothing (0.8 = 80% old, 20% new)
-        self.max_joint_change = 0.08  # Max change per timestep (rad)
+        self.action_scale = 0.02  # Scale factor for actions
+        self.filter_alpha = 0.85   # Action smoothing (0.8 = 80% old, 20% new)
+        self.max_joint_change = 0.12  # Max change per timestep (rad)
         self.cmd_vel_deadzone = 0.05  # Deadzone for velocity commands
         
         # Control step counter
@@ -178,6 +182,25 @@ class MLPController(Node):
     def joint_state_callback(self, msg):
         """Update robot state from joint feedback with velocity estimation"""
         try:
+            # DEBUG: Print joint ordering from ROS (only once)
+            if not hasattr(self, '_printed_ros_joints'):
+                self.get_logger().info('ROS Joint States Order:')
+                for i, name in enumerate(msg.name):
+                    self.get_logger().info(f'  [{i}] = {name}')
+                self._printed_ros_joints = True
+            
+            current_time = time.time()
+            current_positions = np.zeros(12)
+            
+            # Map joint positions
+            for joint_name, position in zip(msg.name, msg.position):
+                if joint_name in self.name_to_idx:
+                    idx = self.name_to_idx[joint_name]
+                    current_positions[idx] = position
+            
+            # Update positions
+            self.joint_positions = current_positions
+            # ^ DEBUG
             current_time = time.time()
             current_positions = np.zeros(12)
             
@@ -229,27 +252,52 @@ class MLPController(Node):
         except Exception as e:
             self.get_logger().error(f'Error in joint state callback: {e}')
 
+    # def cmd_vel_callback(self, msg):
+    #     """Update velocity commands with deadzone"""
+    #     # Apply deadzone to reduce noise when standing still
+    #     if abs(msg.linear.x) < self.cmd_vel_deadzone:
+    #         self.velocity_commands[0] = 0.0
+    #     else:
+    #         self.velocity_commands[0] = np.clip(msg.linear.x, -1.0, 1.0)
+        
+    #     if abs(msg.linear.y) < self.cmd_vel_deadzone:
+    #         self.velocity_commands[1] = 0.0
+    #     else:
+    #         self.velocity_commands[1] = np.clip(msg.linear.y, -0.5, 0.5)
+        
+    #     if abs(msg.angular.z) < self.cmd_vel_deadzone:
+    #         self.velocity_commands[2] = 0.0
+    #     else:
+    #         self.velocity_commands[2] = np.clip(msg.angular.z, -1.0, 1.0)
+        
+    #     # Log only when commands change significantly
+    #     if np.linalg.norm(self.velocity_commands) > 0.1:
+    #         self.get_logger().info(f'Velocity command: {self.velocity_commands.round(2)}')       
+    # 
     def cmd_vel_callback(self, msg):
-        """Update velocity commands with deadzone"""
+        """Update velocity commands with deadzone and proper training ranges"""
         # Apply deadzone to reduce noise when standing still
         if abs(msg.linear.x) < self.cmd_vel_deadzone:
             self.velocity_commands[0] = 0.0
         else:
-            self.velocity_commands[0] = np.clip(msg.linear.x, -1.0, 1.0)
+            # Match training range: lin_vel_x=(-0.8, 3.5)
+            self.velocity_commands[0] = np.clip(msg.linear.x, -0.8, 3.5)
         
         if abs(msg.linear.y) < self.cmd_vel_deadzone:
             self.velocity_commands[1] = 0.0
         else:
-            self.velocity_commands[1] = np.clip(msg.linear.y, -0.5, 0.5)
+            # Match training range: lin_vel_y=(-0.3, 0.3)
+            self.velocity_commands[1] = np.clip(msg.linear.y, -0.3, 0.3)
         
         if abs(msg.angular.z) < self.cmd_vel_deadzone:
             self.velocity_commands[2] = 0.0
         else:
+            # Match training range: ang_vel_z=(-1.0, 1.0)
             self.velocity_commands[2] = np.clip(msg.angular.z, -1.0, 1.0)
         
         # Log only when commands change significantly
         if np.linalg.norm(self.velocity_commands) > 0.1:
-            self.get_logger().info(f'Velocity command: {self.velocity_commands.round(2)}')
+            self.get_logger().info(f'Velocity command: {self.velocity_commands.round(2)}')  
     
     # Add this debug code to your imu_callback:
     def imu_callback(self, msg):
@@ -309,21 +357,55 @@ class MLPController(Node):
             self.get_logger().info(f'RAW OBS vel_commands (9:12): {obs[9:12].round(2)}')
             self.get_logger().info(f'ACTUAL velocity_commands: {self.velocity_commands.round(2)}')
         
+            raw_vel_cmd = self.velocity_commands
+            norm_vel_cmd = obs[9:12]
+            
+            self.get_logger().info(
+                f'Velocity Command Debug:\n'
+                f'  Raw: {raw_vel_cmd.round(3)}\n'
+                f'  After norm: {norm_vel_cmd.round(3)}\n'
+                f'  Mean[9:12]: {self.obs_mean[9:12].round(3)}\n'
+                f'  Std[9:12]: {np.sqrt(self.obs_var[9:12]).round(3)}'
+            )
+            
+            # Show normalized obs values (what the network sees)
+            self.get_logger().info(
+                f'OBS (normalized): vel_cmd={obs[9:12].round(2)} | '
+                f'joint_vel_norm={np.linalg.norm(obs[24:36]):.2f} | '
+                f'gravity={obs[6:9].round(2)}'
+            )
+
         # CRITICAL: Normalize observation using training statistics
+        # CRITICAL: Normalize observation using training statistics
+        # if self.obs_mean is not None and self.obs_var is not None:
+        #     eps = 1e-8
+        #     obs_normalized = (obs - self.obs_mean) / np.sqrt(self.obs_var + eps)
+        #     obs_normalized = np.clip(obs_normalized, -10.0, 10.0)
+            
+        #     # FIX: Don't normalize velocity commands - keep them raw!
+        #     # The network expects raw commands, not normalized ones
+        #     obs_normalized[9:12] = self.velocity_commands
+            
+        #     return obs_normalized.astype(np.float32)
+        # else:
+        #     return obs.astype(np.float32)
         # CRITICAL: Normalize observation using training statistics
         if self.obs_mean is not None and self.obs_var is not None:
             eps = 1e-8
             obs_normalized = (obs - self.obs_mean) / np.sqrt(self.obs_var + eps)
             obs_normalized = np.clip(obs_normalized, -10.0, 10.0)
             
-            # FIX: Don't normalize velocity commands - keep them raw!
-            # The network expects raw commands, not normalized ones
-            obs_normalized[9:12] = self.velocity_commands
+            # # FIX: Don't normalize velocity commands - keep them raw!
+            # obs_normalized[9:12] = self.velocity_commands
+            
+            # # FIX: Don't normalize gravity vector - it should stay as unit vector
+            # obs_normalized[6:9] = self.projected_gravity
             
             return obs_normalized.astype(np.float32)
         else:
-            return obs.astype(np.float32)
-    
+            return obs.astype(np.float32)   
+        
+
     def control_loop(self):
         """Main control loop - runs at 50 Hz"""
         if self.model is None:
@@ -379,6 +461,37 @@ class MLPController(Node):
                 # WALKING MODE: Use network output normally
                 with torch.no_grad():
                     raw_action = self.model(obs_tensor).cpu().numpy()[0]
+
+                if hasattr(self, 'action_std'):
+                    scaled_action = raw_action * self.action_std * self.action_scale
+                else:
+                    scaled_action = raw_action * self.action_scale
+                
+                # Apply exponential smoothing filter for stability
+                self.filtered_action = (self.filter_alpha * self.filtered_action + 
+                                    (1 - self.filter_alpha) * scaled_action)
+                
+                position_action = self.filtered_action
+
+                # DEBUG: Show which joints are getting large actions
+                if self.step_count % 50 == 0:
+                    # Group actions by leg
+                    self.get_logger().info('Actions by leg (hip, thigh, calf):')
+                    self.get_logger().info(f'  LF: [{raw_action[0]:+.3f}, {raw_action[1]:+.3f}, {raw_action[2]:+.3f}]')
+                    self.get_logger().info(f'  RF: [{raw_action[3]:+.3f}, {raw_action[4]:+.3f}, {raw_action[5]:+.3f}]')
+                    self.get_logger().info(f'  LB: [{raw_action[6]:+.3f}, {raw_action[7]:+.3f}, {raw_action[8]:+.3f}]')
+                    self.get_logger().info(f'  RB: [{raw_action[9]:+.3f}, {raw_action[10]:+.3f}, {raw_action[11]:+.3f}]')
+                    
+                    # Show the effect of std scaling
+                    if hasattr(self, 'action_std'):
+                        self.get_logger().info(f'Action std values: {self.action_std.round(3)}')
+                        self.get_logger().info(f'Scaled actions (with std): {scaled_action[:3].round(3)}')
+                    
+                    # Identify problematic joints
+                    hip_indices = [0, 3, 6, 9]  # All hip joints
+                    hip_actions = raw_action[hip_indices]
+                    if np.any(np.abs(hip_actions) > 0.5):  # Large hip actions
+                        self.get_logger().warn(f'Large hip actions detected: LF={raw_action[0]:.3f}, RF={raw_action[3]:.3f}, LB={raw_action[6]:.3f}, RB={raw_action[9]:.3f}')                    
                 
                 # Scale action
                 scaled_action = raw_action * self.action_scale
@@ -388,7 +501,22 @@ class MLPController(Node):
                                     (1 - self.filter_alpha) * scaled_action)
                 
                 position_action = self.filtered_action
-            
+
+                # DEBUG: Show which joints are getting large actions
+                if self.step_count % 50 == 0:
+                    # Group actions by leg
+                    self.get_logger().info('Actions by leg (hip, thigh, calf):')
+                    self.get_logger().info(f'  LF: [{raw_action[0]:+.3f}, {raw_action[1]:+.3f}, {raw_action[2]:+.3f}]')
+                    self.get_logger().info(f'  RF: [{raw_action[3]:+.3f}, {raw_action[4]:+.3f}, {raw_action[5]:+.3f}]')
+                    self.get_logger().info(f'  LB: [{raw_action[6]:+.3f}, {raw_action[7]:+.3f}, {raw_action[8]:+.3f}]')
+                    self.get_logger().info(f'  RB: [{raw_action[9]:+.3f}, {raw_action[10]:+.3f}, {raw_action[11]:+.3f}]')
+                    
+                    # Identify problematic joints
+                    hip_indices = [0, 3, 6, 9]  # All hip joints
+                    hip_actions = raw_action[hip_indices]
+                    if np.any(np.abs(hip_actions) > 0.5):  # Large hip actions
+                        self.get_logger().warn(f'Large hip actions detected: LF={raw_action[0]:.3f}, RF={raw_action[3]:.3f}, LB={raw_action[6]:.3f}, RB={raw_action[9]:.3f}')            
+
             # Safety: limit rate of change (applies to both standing and walking)
             if len(self.action_history) > 0:
                 action_diff = position_action - self.action_history[-1]
@@ -404,17 +532,17 @@ class MLPController(Node):
             
             # Safety limits for Mini Pupper
             joint_limits_low = np.array([
-                -0.5, 0.0, -2.36,  # LF leg limits
-                -0.5, 0.0, -2.36,  # RF leg limits
-                -0.5, 0.0, -2.36,  # LB leg limits
-                -0.5, 0.0, -2.36   # RB leg limits
+                -0.5, 0.3, -2.36,  # LF leg limits
+                -0.5, 0.3, -2.36,  # RF leg limits
+                -0.5, 0.3, -2.36,  # LB leg limits
+                -0.5, 0.3, -2.36   # RB leg limits
             ])
             
             joint_limits_high = np.array([
-                0.5, 1.57, -0.7,   # LF leg limits
-                0.5, 1.57, -0.7,   # RF leg limits
-                0.5, 1.57, -0.7,   # LB leg limits
-                0.5, 1.57, -0.7    # RB leg limits
+                0.5, 1.57, -0.3,   # LF leg limits
+                0.5, 1.57, -0.3,   # RF leg limits
+                0.5, 1.57, -0.3,   # LB leg limits
+                0.5, 1.57, -0.3    # RB leg limits
             ])
             
             target_positions = np.clip(target_positions, joint_limits_low, joint_limits_high)

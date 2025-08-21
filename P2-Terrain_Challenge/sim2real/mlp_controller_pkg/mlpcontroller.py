@@ -113,7 +113,7 @@ class MLPController(Node):
         self.control_timer = self.create_timer(1.0/self.control_frequency, self.control_loop)
         
         # Safety and tuning parameters
-        self.action_scale = 0.02  # Scale factor for actions
+        self.action_scale = 0.2 # Scale factor for actions
         self.filter_alpha = 0.85   # Action smoothing (0.8 = 80% old, 20% new)
         self.max_joint_change = 0.12  # Max change per timestep (rad)
         self.cmd_vel_deadzone = 0.05  # Deadzone for velocity commands
@@ -323,10 +323,10 @@ class MLPController(Node):
             
             # CRITICAL FIXES:
             # 1. Velocity commands should NOT be normalized in Isaac Gym
-            obs_normalized[9:12] = self.velocity_commands
+            # obs_normalized[9:12] = self.velocity_commands
             
             # 2. Gravity should remain as unit vector
-            obs_normalized[6:9] = self.projected_gravity
+            # obs_normalized[6:9] = self.projected_gravity
             
             # 3. Check if joint velocities need clamping before normalization
             if np.linalg.norm(obs[24:36]) > 10.0:
@@ -383,7 +383,7 @@ class MLPController(Node):
                     scaled_action = raw_action * 0.05
                 
                 # Apply smoothing
-                alpha = 0.7  # Less aggressive smoothing for better responsiveness
+                alpha = 0.1  # Less aggressive smoothing for better responsiveness
                 self.filtered_action = alpha * self.filtered_action + (1 - alpha) * scaled_action
                 
                 position_action = self.filtered_action

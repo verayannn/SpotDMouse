@@ -353,58 +353,29 @@ class MLPController(Node):
             self.last_action                               # last_action (12)
         ])
         
-        if self.step_count % 50 == 0:
-            self.get_logger().info(f'RAW OBS vel_commands (9:12): {obs[9:12].round(2)}')
-            self.get_logger().info(f'ACTUAL velocity_commands: {self.velocity_commands.round(2)}')
-        
-            raw_vel_cmd = self.velocity_commands
-            norm_vel_cmd = obs[9:12]
-            
-            self.get_logger().info(
-                f'Velocity Command Debug:\n'
-                f'  Raw: {raw_vel_cmd.round(3)}\n'
-                f'  After norm: {norm_vel_cmd.round(3)}\n'
-                f'  Mean[9:12]: {self.obs_mean[9:12].round(3)}\n'
-                f'  Std[9:12]: {np.sqrt(self.obs_var[9:12]).round(3)}'
-            )
-            
-            # Show normalized obs values (what the network sees)
-            self.get_logger().info(
-                f'OBS (normalized): vel_cmd={obs[9:12].round(2)} | '
-                f'joint_vel_norm={np.linalg.norm(obs[24:36]):.2f} | '
-                f'gravity={obs[6:9].round(2)}'
-            )
-
-        # CRITICAL: Normalize observation using training statistics
-        # CRITICAL: Normalize observation using training statistics
-        # if self.obs_mean is not None and self.obs_var is not None:
-        #     eps = 1e-8
-        #     obs_normalized = (obs - self.obs_mean) / np.sqrt(self.obs_var + eps)
-        #     obs_normalized = np.clip(obs_normalized, -10.0, 10.0)
-            
-        #     # FIX: Don't normalize velocity commands - keep them raw!
-        #     # The network expects raw commands, not normalized ones
-        #     obs_normalized[9:12] = self.velocity_commands
-            
-        #     return obs_normalized.astype(np.float32)
-        # else:
-        #     return obs.astype(np.float32)
-        # CRITICAL: Normalize observation using training statistics
+        # CRITICAL: Apply normalization correctly
         if self.obs_mean is not None and self.obs_var is not None:
             eps = 1e-8
             obs_normalized = (obs - self.obs_mean) / np.sqrt(self.obs_var + eps)
             obs_normalized = np.clip(obs_normalized, -10.0, 10.0)
             
-            # # FIX: Don't normalize velocity commands - keep them raw!
-            # obs_normalized[9:12] = self.velocity_commands
+            # CRITICAL FIXES:
+            # 1. Velocity commands should NOT be normalized in Isaac Gym
+            obs_normalized[9:12] = self.velocity_commands
             
-            # # FIX: Don't normalize gravity vector - it should stay as unit vector
-            # obs_normalized[6:9] = self.projected_gravity
+            # 2. Gravity should remain as unit vector
+            obs_normalized[6:9] = self.projected_gravity
+            
+            # 3. Check if joint velocities need clamping before normalization
+            if np.linalg.norm(obs[24:36]) > 10.0:
+                self.get_logger().warn(f'Joint velocities too high: {obs[24:36]}')
+                # Clamp joint velocities before they affect normalization
+                obs[24:36] = np.clip(obs[24:36], -5.0, 5.0)
+                obs_normalized[24:36] = (obs[24:36] - self.obs_mean[24:36]) / np.sqrt(self.obs_var[24:36] + eps)
             
             return obs_normalized.astype(np.float32)
         else:
-            return obs.astype(np.float32)   
-        
+            return obs.astype(np.float32)        
 
     def control_loop(self):
         """Main control loop - runs at 50 Hz"""
@@ -462,11 +433,21 @@ class MLPController(Node):
                 with torch.no_grad():
                     raw_action = self.model(obs_tensor).cpu().numpy()[0]
 
+                # The model outputs normalized actions, scale by std
                 if hasattr(self, 'action_std'):
-                    scaled_action = raw_action * self.action_std * self.action_scale
+                    # Scale by std first, then by your action_scale
+                    scaled_action = raw_action * self.action_std
+                    
+                    # Further reduce scale to prevent extreme movements
+                    scaled_action = scaled_action * 0.1  # Reduced from action_scale
                 else:
-                    scaled_action = raw_action * self.action_scale
+                    scaled_action = raw_action * 0.02  # Very small scale
                 
+                # SPECIAL HANDLING FOR HIPS - they need even smaller actions
+                hip_indices = [0, 3, 6, 9]
+                for idx in hip_indices:
+                    scaled_action[idx] *= 0.3  # Further reduce hip actions by 70%
+                                    
                 # Apply exponential smoothing filter for stability
                 self.filtered_action = (self.filter_alpha * self.filtered_action + 
                                     (1 - self.filter_alpha) * scaled_action)

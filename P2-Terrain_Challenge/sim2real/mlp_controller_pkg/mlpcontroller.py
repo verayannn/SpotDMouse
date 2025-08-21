@@ -182,25 +182,6 @@ class MLPController(Node):
     def joint_state_callback(self, msg):
         """Update robot state from joint feedback with velocity estimation"""
         try:
-            # DEBUG: Print joint ordering from ROS (only once)
-            if not hasattr(self, '_printed_ros_joints'):
-                self.get_logger().info('ROS Joint States Order:')
-                for i, name in enumerate(msg.name):
-                    self.get_logger().info(f'  [{i}] = {name}')
-                self._printed_ros_joints = True
-            
-            current_time = time.time()
-            current_positions = np.zeros(12)
-            
-            # Map joint positions
-            for joint_name, position in zip(msg.name, msg.position):
-                if joint_name in self.name_to_idx:
-                    idx = self.name_to_idx[joint_name]
-                    current_positions[idx] = position
-            
-            # Update positions
-            self.joint_positions = current_positions
-            # ^ DEBUG
             current_time = time.time()
             current_positions = np.zeros(12)
             
@@ -213,41 +194,22 @@ class MLPController(Node):
             # Update positions
             self.joint_positions = current_positions
             
-            # Estimate velocities using finite differences
+            # Better velocity estimation with proper filtering
             if self.prev_joint_positions is not None and self.prev_joint_time is not None:
                 dt = current_time - self.prev_joint_time
-                if dt > 0.001:  # Avoid division by very small numbers
+                if dt > 0.001 and dt < 0.1:  # Sanity check on dt
+                    # Calculate instantaneous velocity
                     instantaneous_vel = (current_positions - self.prev_joint_positions) / dt
-                    self.velocity_history.append(instantaneous_vel)
                     
-                    # Use average of recent velocities for smoothing
-                    if len(self.velocity_history) > 0:
-                        self.joint_velocities = np.mean(self.velocity_history, axis=0)
+                    # Apply aggressive low-pass filter to remove noise
+                    alpha = 0.1  # Lower = more filtering
+                    self.joint_velocities = alpha * instantaneous_vel + (1 - alpha) * self.joint_velocities
+                    
+                    # Hard clamp to reasonable values
+                    self.joint_velocities = np.clip(self.joint_velocities, -5.0, 5.0)
             
-            # If velocities are provided in the message, use them
-            if len(msg.velocity) == len(msg.position):
-                for joint_name, velocity in zip(msg.name, msg.velocity):
-                    if joint_name in self.name_to_idx:
-                        idx = self.name_to_idx[joint_name]
-                        # Blend estimated and provided velocities
-                        self.joint_velocities[idx] = 0.7 * self.joint_velocities[idx] + 0.3 * velocity
-            
-            # FIX: Convert from degrees/sec to radians/sec if values are too high
-            # Check before clamping to detect if conversion is needed
-            max_vel = np.max(np.abs(self.joint_velocities))
-            if max_vel > 10:  # Values > 10 rad/s are unrealistic for Mini Pupper
-                self.joint_velocities = np.deg2rad(self.joint_velocities)
-                if self.step_count % 100 == 0:  # Log occasionally
-                    self.get_logger().info(f'Converting joint velocities from deg/s to rad/s')
-            
-            # SAFETY: Clamp to reasonable range after conversion
-            self.joint_velocities = np.clip(self.joint_velocities, -10.0, 10.0)
-                
             self.prev_joint_positions = current_positions.copy()
             self.prev_joint_time = current_time
-            
-        except Exception as e:
-            self.get_logger().error(f'Error in joint state callback: {e}')
             
         except Exception as e:
             self.get_logger().error(f'Error in joint state callback: {e}')
@@ -386,149 +348,83 @@ class MLPController(Node):
             self.step_count += 1
             
             # OVERRIDE: Ensure clean sensor values
-            # Since IMU is broken, force correct gravity
             self.projected_gravity = np.array([0.0, 0.0, -1.0])
+            
+            # Clean joint velocities if they're too high
+            if np.linalg.norm(self.joint_velocities) > 10.0:
+                self.joint_velocities = np.clip(self.joint_velocities, -3.0, 3.0)
             
             # Get normalized observation
             obs = self.get_observation()
             obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
 
-            # Debug output showing corrected values
-            if self.step_count % 50 == 0:  # Every second
-                # Show normalized obs values (what the network sees)
-                self.get_logger().info(
-                    f'OBS (normalized): vel_cmd={obs[9:12].round(2)} | '
-                    f'joint_vel_norm={np.linalg.norm(obs[24:36]):.2f} | '
-                    f'gravity={obs[6:9].round(2)}'
-                )
-                # Also show raw sensor values for debugging
-                self.get_logger().info(
-                    f'RAW sensors: joint_vel_max={np.max(np.abs(self.joint_velocities)):.2f} rad/s | '
-                    f'gravity={self.projected_gravity.round(2)}'
-                )
-
             # Check if we should be standing still
             is_standing = np.allclose(self.velocity_commands, 0, atol=0.01)
             
             if is_standing:
-                # STANDING MODE: Decay actions to zero when velocity command is zero
-                self.filtered_action *= 0.95  # Exponential decay
-                
-                # If actions are very small, set to exactly zero
+                # STANDING MODE: Decay actions to zero
+                self.filtered_action *= 0.95
                 if np.linalg.norm(self.filtered_action) < 0.01:
                     self.filtered_action = np.zeros(12)
-                
                 position_action = self.filtered_action
-                
-                # Debug output for standing mode
-                if self.step_count % 50 == 0:  # Every second
-                    with torch.no_grad():
-                        raw_action = self.model(obs_tensor).cpu().numpy()[0]
-                    self.get_logger().info(
-                        f'STANDING MODE | filtered_action_norm={np.linalg.norm(self.filtered_action):.4f} | '
-                        f'raw_network_output_max={np.abs(raw_action).max():.4f}'
-                    )
             else:
-                # WALKING MODE: Use network output normally
+                # WALKING MODE
                 with torch.no_grad():
                     raw_action = self.model(obs_tensor).cpu().numpy()[0]
-
-                # The model outputs normalized actions, scale by std
+                
+                # CRITICAL: Clamp raw network output first
+                raw_action = np.clip(raw_action, -1.0, 1.0)
+                
+                # Scale by action std if available
                 if hasattr(self, 'action_std'):
-                    # Scale by std first, then by your action_scale
-                    scaled_action = raw_action * self.action_std
-                    
-                    # Further reduce scale to prevent extreme movements
-                    scaled_action = scaled_action * 0.1  # Reduced from action_scale
+                    # The action scale in training was 0.2
+                    scaled_action = raw_action * self.action_std * 0.2  # Match training scale
                 else:
-                    scaled_action = raw_action * 0.02  # Very small scale
+                    scaled_action = raw_action * 0.05
                 
-                # SPECIAL HANDLING FOR HIPS - they need even smaller actions
-                hip_indices = [0, 3, 6, 9]
-                for idx in hip_indices:
-                    scaled_action[idx] *= 0.3  # Further reduce hip actions by 70%
-                                    
-                # Apply exponential smoothing filter for stability
-                self.filtered_action = (self.filter_alpha * self.filtered_action + 
-                                    (1 - self.filter_alpha) * scaled_action)
+                # Apply smoothing
+                alpha = 0.7  # Less aggressive smoothing for better responsiveness
+                self.filtered_action = alpha * self.filtered_action + (1 - alpha) * scaled_action
                 
                 position_action = self.filtered_action
-
-                # DEBUG: Show which joints are getting large actions
+                
+                # Debug output
                 if self.step_count % 50 == 0:
-                    # Group actions by leg
-                    self.get_logger().info('Actions by leg (hip, thigh, calf):')
-                    self.get_logger().info(f'  LF: [{raw_action[0]:+.3f}, {raw_action[1]:+.3f}, {raw_action[2]:+.3f}]')
-                    self.get_logger().info(f'  RF: [{raw_action[3]:+.3f}, {raw_action[4]:+.3f}, {raw_action[5]:+.3f}]')
-                    self.get_logger().info(f'  LB: [{raw_action[6]:+.3f}, {raw_action[7]:+.3f}, {raw_action[8]:+.3f}]')
-                    self.get_logger().info(f'  RB: [{raw_action[9]:+.3f}, {raw_action[10]:+.3f}, {raw_action[11]:+.3f}]')
-                    
-                    # Show the effect of std scaling
-                    if hasattr(self, 'action_std'):
-                        self.get_logger().info(f'Action std values: {self.action_std.round(3)}')
-                        self.get_logger().info(f'Scaled actions (with std): {scaled_action[:3].round(3)}')
-                    
-                    # Identify problematic joints
-                    hip_indices = [0, 3, 6, 9]  # All hip joints
-                    hip_actions = raw_action[hip_indices]
-                    if np.any(np.abs(hip_actions) > 0.5):  # Large hip actions
-                        self.get_logger().warn(f'Large hip actions detected: LF={raw_action[0]:.3f}, RF={raw_action[3]:.3f}, LB={raw_action[6]:.3f}, RB={raw_action[9]:.3f}')                    
-                
-                # Scale action
-                scaled_action = raw_action * self.action_scale
-                
-                # Apply exponential smoothing filter for stability
-                self.filtered_action = (self.filter_alpha * self.filtered_action + 
-                                    (1 - self.filter_alpha) * scaled_action)
-                
-                position_action = self.filtered_action
-
-                # DEBUG: Show which joints are getting large actions
-                if self.step_count % 50 == 0:
-                    # Group actions by leg
-                    self.get_logger().info('Actions by leg (hip, thigh, calf):')
-                    self.get_logger().info(f'  LF: [{raw_action[0]:+.3f}, {raw_action[1]:+.3f}, {raw_action[2]:+.3f}]')
-                    self.get_logger().info(f'  RF: [{raw_action[3]:+.3f}, {raw_action[4]:+.3f}, {raw_action[5]:+.3f}]')
-                    self.get_logger().info(f'  LB: [{raw_action[6]:+.3f}, {raw_action[7]:+.3f}, {raw_action[8]:+.3f}]')
-                    self.get_logger().info(f'  RB: [{raw_action[9]:+.3f}, {raw_action[10]:+.3f}, {raw_action[11]:+.3f}]')
-                    
-                    # Identify problematic joints
-                    hip_indices = [0, 3, 6, 9]  # All hip joints
-                    hip_actions = raw_action[hip_indices]
-                    if np.any(np.abs(hip_actions) > 0.5):  # Large hip actions
-                        self.get_logger().warn(f'Large hip actions detected: LF={raw_action[0]:.3f}, RF={raw_action[3]:.3f}, LB={raw_action[6]:.3f}, RB={raw_action[9]:.3f}')            
-
-            # Safety: limit rate of change (applies to both standing and walking)
-            if len(self.action_history) > 0:
-                action_diff = position_action - self.action_history[-1]
-                action_diff = np.clip(action_diff, -self.max_joint_change, self.max_joint_change)
-                position_action = self.action_history[-1] + action_diff
+                    self.get_logger().info(f'Raw action range: [{raw_action.min():.3f}, {raw_action.max():.3f}]')
+                    self.get_logger().info(f'Scaled action range: [{scaled_action.min():.3f}, {scaled_action.max():.3f}]')
+                    self.get_logger().info(f'Filtered action range: [{position_action.min():.3f}, {position_action.max():.3f}]')
             
-            # Store for next iteration
-            self.action_history.append(position_action.copy())
+            # Apply rate limiting
+            if hasattr(self, 'last_position_action'):
+                max_change = 0.1  # radians per timestep
+                action_diff = position_action - self.last_position_action
+                action_diff = np.clip(action_diff, -max_change, max_change)
+                position_action = self.last_position_action + action_diff
+            
+            self.last_position_action = position_action.copy()
             self.last_action = position_action.copy()
             
-            # Apply to default positions (action is relative to default)
+            # Apply to default positions
             target_positions = self.default_positions + position_action
             
-            # Safety limits for Mini Pupper
+            # Updated joint limits for better gait
             joint_limits_low = np.array([
-                -0.5, 0.3, -2.36,  # LF leg limits
-                -0.5, 0.3, -2.36,  # RF leg limits
-                -0.5, 0.3, -2.36,  # LB leg limits
-                -0.5, 0.3, -2.36   # RB leg limits
+                -0.4, -0.2, -2.36,  # LF leg (reduced hip/thigh range)
+                -0.4, -0.2, -2.36,  # RF leg
+                -0.4, -0.2, -2.36,  # LB leg
+                -0.4, -0.2, -2.36   # RB leg
             ])
             
             joint_limits_high = np.array([
-                0.5, 1.57, -0.3,   # LF leg limits
-                0.5, 1.57, -0.3,   # RF leg limits
-                0.5, 1.57, -0.3,   # LB leg limits
-                0.5, 1.57, -0.3    # RB leg limits
+                0.4, 1.2, -0.5,   # LF leg (adjusted for gait)
+                0.4, 1.2, -0.5,   # RF leg
+                0.4, 1.2, -0.5,   # LB leg
+                0.4, 1.2, -0.5    # RB leg
             ])
             
             target_positions = np.clip(target_positions, joint_limits_low, joint_limits_high)
             
-            # Create JointTrajectory message
+            # Publish joint commands
             trajectory_msg = JointTrajectory()
             trajectory_msg.header.stamp = self.get_clock().now().to_msg()
             trajectory_msg.joint_names = [self.joint_mapping[i] for i in range(12)]
@@ -539,32 +435,7 @@ class MLPController(Node):
             point.time_from_start.nanosec = int(1e9 / self.control_frequency)
             
             trajectory_msg.points = [point]
-            
             self.joint_cmd_pub.publish(trajectory_msg)
-            
-            # Debug info (every second)
-            if self.step_count % int(self.control_frequency) == 0:
-                if is_standing:
-                    self.get_logger().info(
-                        f'STANDING: cmd_vel={self.velocity_commands.round(2)} | '
-                        f'filtered_norm={np.linalg.norm(self.filtered_action):.4f} | '
-                        f'joint_vel_norm={np.linalg.norm(self.joint_velocities):.3f}'
-                    )
-                else:
-                    with torch.no_grad():
-                        raw_action = self.model(obs_tensor).cpu().numpy()[0]
-                    self.get_logger().info(
-                        f'WALKING: cmd_vel={self.velocity_commands.round(2)} | '
-                        f'raw_act[0:3]={raw_action[:3].round(3)} | '
-                        f'joint_vel_norm={np.linalg.norm(self.joint_velocities):.3f}'
-                    )
-            
-            # Sanity check
-            if self.step_count > self.control_frequency:
-                # Check gravity is correct
-                if not np.allclose(self.projected_gravity, [0, 0, -1], atol=0.1):
-                    self.get_logger().warn(f'WARNING: Gravity vector incorrect: {self.projected_gravity}')
-                    self.projected_gravity = np.array([0.0, 0.0, -1.0])  # Force correct
                     
         except Exception as e:
             self.get_logger().error(f'Error in control loop: {e}')

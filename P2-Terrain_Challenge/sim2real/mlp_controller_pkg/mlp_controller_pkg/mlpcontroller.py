@@ -29,6 +29,7 @@ class MLPController(Node):
         self.projected_gravity = np.array([0.0, 0.0, -1.0])  # Initial guess
         self.velocity_commands = np.zeros(3)  # Start with zero command
         self.last_action = np.zeros(12)
+        self.initialized = False
         
         # Action history for smoothing
         self.action_history = deque(maxlen=3)
@@ -113,7 +114,7 @@ class MLPController(Node):
         self.control_timer = self.create_timer(1.0/self.control_frequency, self.control_loop)
         
         # Safety and tuning parameters
-        self.action_scale = 0.2 # Scale factor for actions
+        self.action_scale = 0.20  # Scale factor for actions
         self.filter_alpha = 0.85   # Action smoothing (0.8 = 80% old, 20% new)
         self.max_joint_change = 0.12  # Max change per timestep (rad)
         self.cmd_vel_deadzone = 0.05  # Deadzone for velocity commands
@@ -141,7 +142,7 @@ class MLPController(Node):
             )
             
             # Load your trained weights WITH STATS
-            checkpoint_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/sim2real/newwalkingmlp.pt"
+            checkpoint_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/sim2real/model_9999_with_stats.pt"#newwalkingmlp.pt
             checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
             
             # Extract actor weights
@@ -172,7 +173,7 @@ class MLPController(Node):
                 obs_mean = np.zeros(48, dtype=np.float32)
                 obs_var = np.ones(48, dtype=np.float32)
             
-            self.get_logger().info('Model loaded successfully')
+            self.get_logger().info('Model loaded successfully (model_9999.pt--action scale .10)')
             return model, obs_mean, obs_var
             
         except Exception as e:
@@ -193,6 +194,14 @@ class MLPController(Node):
             
             # Update positions
             self.joint_positions = current_positions
+
+            # After updating self.joint_positions:
+            if not self.initialized and np.any(self.joint_positions != 0):
+                # Initialize last_action to current position offset
+                self.last_action = self.joint_positions - self.default_positions
+                self.filtered_action = self.last_action.copy()
+                self.initialized = True
+                self.get_logger().info('Initialized last_action to current joint positions')            
             
             # Better velocity estimation with proper filtering
             if self.prev_joint_positions is not None and self.prev_joint_time is not None:
@@ -212,30 +221,8 @@ class MLPController(Node):
             self.prev_joint_time = current_time
             
         except Exception as e:
-            self.get_logger().error(f'Error in joint state callback: {e}')
-
-    # def cmd_vel_callback(self, msg):
-    #     """Update velocity commands with deadzone"""
-    #     # Apply deadzone to reduce noise when standing still
-    #     if abs(msg.linear.x) < self.cmd_vel_deadzone:
-    #         self.velocity_commands[0] = 0.0
-    #     else:
-    #         self.velocity_commands[0] = np.clip(msg.linear.x, -1.0, 1.0)
-        
-    #     if abs(msg.linear.y) < self.cmd_vel_deadzone:
-    #         self.velocity_commands[1] = 0.0
-    #     else:
-    #         self.velocity_commands[1] = np.clip(msg.linear.y, -0.5, 0.5)
-        
-    #     if abs(msg.angular.z) < self.cmd_vel_deadzone:
-    #         self.velocity_commands[2] = 0.0
-    #     else:
-    #         self.velocity_commands[2] = np.clip(msg.angular.z, -1.0, 1.0)
-        
-    #     # Log only when commands change significantly
-    #     if np.linalg.norm(self.velocity_commands) > 0.1:
-    #         self.get_logger().info(f'Velocity command: {self.velocity_commands.round(2)}')       
-    # 
+            self.get_logger().error(f'Error in joint state callback: {e}')      
+     
     def cmd_vel_callback(self, msg):
         """Update velocity commands with deadzone and proper training ranges"""
         # Apply deadzone to reduce noise when standing still
@@ -266,28 +253,6 @@ class MLPController(Node):
         """Update gravity vector from IMU"""
 
         self.projected_gravity = np.array([0.0, 0.0, -1.0])
-
-        # q = msg.orientation
-        
-        # # Your existing conversion
-        # gx = 2 * (q.x * q.z - q.w * q.y)
-        # gy = 2 * (q.y * q.z + q.w * q.x)
-        # gz = q.w * q.w - q.x * q.x - q.y * q.y + q.z * q.z
-        
-        # # Debug: Show raw IMU data
-        # self.get_logger().info(f'IMU quaternion: [{q.w:.2f}, {q.x:.2f}, {q.y:.2f}, {q.z:.2f}]')
-        # self.get_logger().info(f'Gravity vector: [{gx:.2f}, {gy:.2f}, {gz:.2f}]')
-        
-        # # Also check linear acceleration (might be more reliable)
-        # if hasattr(msg, 'linear_acceleration'):
-        #     acc_norm = np.sqrt(msg.linear_acceleration.x**2 + 
-        #                     msg.linear_acceleration.y**2 + 
-        #                     msg.linear_acceleration.z**2)
-        #     if acc_norm > 0.1:
-        #         gx_acc = msg.linear_acceleration.x / acc_norm
-        #         gy_acc = msg.linear_acceleration.y / acc_norm
-        #         gz_acc = msg.linear_acceleration.z / acc_norm
-        #         self.get_logger().info(f'Gravity from accel: [{gx_acc:.2f}, {gy_acc:.2f}, {gz_acc:.2f}]')
 
         return
 
@@ -323,10 +288,10 @@ class MLPController(Node):
             
             # CRITICAL FIXES:
             # 1. Velocity commands should NOT be normalized in Isaac Gym
-            # obs_normalized[9:12] = self.velocity_commands
+            obs_normalized[9:12] = self.velocity_commands
             
             # 2. Gravity should remain as unit vector
-            # obs_normalized[6:9] = self.projected_gravity
+            obs_normalized[6:9] = self.projected_gravity
             
             # 3. Check if joint velocities need clamping before normalization
             if np.linalg.norm(obs[24:36]) > 10.0:
@@ -337,7 +302,7 @@ class MLPController(Node):
             
             return obs_normalized.astype(np.float32)
         else:
-            return obs.astype(np.float32)        
+            return obs.astype(np.float32)
 
     def control_loop(self):
         """Main control loop - runs at 50 Hz"""
@@ -361,66 +326,111 @@ class MLPController(Node):
             # Check if we should be standing still
             is_standing = np.allclose(self.velocity_commands, 0, atol=0.01)
             
+            # Track when we start walking
+            if not hasattr(self, 'walking_start_time'):
+                self.walking_start_time = None
+            
             if is_standing:
                 # STANDING MODE: Decay actions to zero
                 self.filtered_action *= 0.95
                 if np.linalg.norm(self.filtered_action) < 0.01:
                     self.filtered_action = np.zeros(12)
                 position_action = self.filtered_action
+                self.walking_start_time = None  # Reset walking timer
             else:
                 # WALKING MODE
-                with torch.no_grad():
-                    raw_action = self.model(obs_tensor).cpu().numpy()[0]
+                # Track when we started walking
+                if self.walking_start_time is None:
+                    self.walking_start_time = time.time()
+                    self.get_logger().info("Starting to walk - applying startup constraints")
                 
-                # CRITICAL: Clamp raw network output first
-                raw_action = np.clip(raw_action, -1.0, 1.0)
+                walking_duration = time.time() - self.walking_start_time
+                
+                with torch.no_grad():
+                    # raw_action = self.model(obs_tensor).cpu().numpy()[0]
+                    raw_action = self.model(obs_tensor).cpu().numpy()[0]
                 
                 # Scale by action std if available
                 if hasattr(self, 'action_std'):
-                    # The action scale in training was 0.2
-                    scaled_action = raw_action * self.action_std * 0.2  # Match training scale
+                    action_with_std = raw_action * self.action_std
                 else:
-                    scaled_action = raw_action * 0.05
+                    action_with_std = raw_action
+                
+                # Apply action_scale
+                scaled_action = action_with_std * self.action_scale
+
+                # Normal operation - still reduce hip actions
+                hip_indices = [0, 3, 6, 9]
+                hip_scale = 0.1
+                for idx in hip_indices:
+                    scaled_action[idx] *= hip_scale
                 
                 # Apply smoothing
-                alpha = 0.1  # Less aggressive smoothing for better responsiveness
-                self.filtered_action = alpha * self.filtered_action + (1 - alpha) * scaled_action
+                alpha = 0.3
+                self.filtered_action = alpha * scaled_action + (1 - alpha) * self.filtered_action
                 
                 position_action = self.filtered_action
+                position_action[10] *= -1
                 
                 # Debug output
                 if self.step_count % 50 == 0:
-                    self.get_logger().info(f'Raw action range: [{raw_action.min():.3f}, {raw_action.max():.3f}]')
-                    self.get_logger().info(f'Scaled action range: [{scaled_action.min():.3f}, {scaled_action.max():.3f}]')
-                    self.get_logger().info(f'Filtered action range: [{position_action.min():.3f}, {position_action.max():.3f}]')
+                    self.get_logger().info(f'Walking for {walking_duration:.1f}s')
+                    self.get_logger().info(f'Scaled action: [{scaled_action.min():.3f}, {scaled_action.max():.3f}]')
+                    
+                    # Show rear leg actions specifically
+                    rear_actions = [position_action[i] for i in [6, 7, 8, 9, 10, 11]]
+                    self.get_logger().info(f'Rear leg actions: LB={rear_actions[0:3]}, RB={rear_actions[3:6]}')
+                
+                # In your control loop, add this comparison
+                if self.step_count % 50 == 0 and not is_standing:
+                    # Compare left vs right back legs
+                    lb_actions = position_action[6:9]   # LB: hip, thigh, calf
+                    rb_actions = position_action[9:12]  # RB: hip, thigh, calf
+                    
+                    self.get_logger().info(f'Back legs - LB: {lb_actions.round(3)}, RB: {rb_actions.round(3)}')
+                    
+                    # Check if RB hip is consistently different
+                    if abs(rb_actions[0]) > abs(lb_actions[0]) * 1.5:  # RB hip 50% larger than LB
+                        self.get_logger().warn(f'RB hip action unusually large: {rb_actions[0]:.3f} vs LB: {lb_actions[0]:.3f}')
             
-            # Apply rate limiting
-            if hasattr(self, 'last_position_action'):
-                max_change = 0.1  # radians per timestep
-                action_diff = position_action - self.last_position_action
-                action_diff = np.clip(action_diff, -max_change, max_change)
-                position_action = self.last_position_action + action_diff
-            
+            # Store for next iteration
             self.last_position_action = position_action.copy()
             self.last_action = position_action.copy()
             
             # Apply to default positions
             target_positions = self.default_positions + position_action
             
-            # Updated joint limits for better gait
-            joint_limits_low = np.array([
-                -0.4, -0.2, -2.36,  # LF leg (reduced hip/thigh range)
-                -0.4, -0.2, -2.36,  # RF leg
-                -0.4, -0.2, -2.36,  # LB leg
-                -0.4, -0.2, -2.36   # RB leg
-            ])
-            
-            joint_limits_high = np.array([
-                0.4, 1.2, -0.5,   # LF leg (adjusted for gait)
-                0.4, 1.2, -0.5,   # RF leg
-                0.4, 1.2, -0.5,   # LB leg
-                0.4, 1.2, -0.5    # RB leg
-            ])
+            # Updated joint limits - even more restrictive for rear legs initially
+            if hasattr(self, 'walking_start_time') and self.walking_start_time and (time.time() - self.walking_start_time) < 1.0:
+                # Tighter limits during startup
+                joint_limits_low = np.array([
+                    -0.3, -0.2, -2.36,  # LF leg
+                    -0.3, -0.2, -2.36,  # RF leg
+                    -0.15, -0.2, -2.36,  # LB leg - very restricted hip
+                    -0.15, -0.2, -2.36   # RB leg - very restricted hip
+                ])
+                
+                joint_limits_high = np.array([
+                    0.3, 1.2, -0.5,   # LF leg
+                    0.3, 1.2, -0.5,   # RF leg
+                    0.15, 1.2, -0.5,  # LB leg - very restricted hip
+                    0.15, 1.2, -0.5   # RB leg - very restricted hip
+                ])
+            else:
+                # Normal limits
+                joint_limits_low = np.array([
+                    -0.3, -0.2, -2.36,  # LF leg
+                    -0.3, -0.2, -2.36,  # RF leg
+                    -0.3, -0.2, -2.36,  # LB leg
+                    -0.3, -0.2, -2.36   # RB leg
+                ])
+                
+                joint_limits_high = np.array([
+                    0.3, 1.2, -0.5,   # LF leg
+                    0.3, 1.2, -0.5,   # RF leg
+                    0.3, 1.2, -0.5,   # LB leg
+                    0.3, 1.2, -0.5    # RB leg
+                ])
             
             target_positions = np.clip(target_positions, joint_limits_low, joint_limits_high)
             
@@ -440,6 +450,7 @@ class MLPController(Node):
         except Exception as e:
             self.get_logger().error(f'Error in control loop: {e}')
 
+            
 def main(args=None):
     rclpy.init(args=args)
     

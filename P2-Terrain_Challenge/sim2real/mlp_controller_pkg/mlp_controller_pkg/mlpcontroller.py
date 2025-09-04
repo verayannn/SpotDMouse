@@ -114,7 +114,7 @@ class MLPController(Node):
         self.control_timer = self.create_timer(1.0/self.control_frequency, self.control_loop)
         
         # Safety and tuning parameters
-        self.action_scale = 0.20  # Scale factor for actions
+        self.action_scale = 0.13 # Scale factor for actions
         self.filter_alpha = 0.85   # Action smoothing (0.8 = 80% old, 20% new)
         self.max_joint_change = 0.12  # Max change per timestep (rad)
         self.cmd_vel_deadzone = 0.05  # Deadzone for velocity commands
@@ -361,16 +361,18 @@ class MLPController(Node):
 
                 # Normal operation - still reduce hip actions
                 hip_indices = [0, 3, 6, 9]
-                hip_scale = 0.1
+                hip_scale = 0.25
                 for idx in hip_indices:
                     scaled_action[idx] *= hip_scale
-                
+            
+                scaled_action[10] += 0.45
+                scaled_action[9] -= 0.10
+
                 # Apply smoothing
                 alpha = 0.3
                 self.filtered_action = alpha * scaled_action + (1 - alpha) * self.filtered_action
                 
                 position_action = self.filtered_action
-                position_action[10] *= -1
                 
                 # Debug output
                 if self.step_count % 50 == 0:
@@ -392,7 +394,11 @@ class MLPController(Node):
                     # Check if RB hip is consistently different
                     if abs(rb_actions[0]) > abs(lb_actions[0]) * 1.5:  # RB hip 50% larger than LB
                         self.get_logger().warn(f'RB hip action unusually large: {rb_actions[0]:.3f} vs LB: {lb_actions[0]:.3f}')
-            
+                
+                if self.step_count % 25 == 0 and not is_standing:
+
+                    self.get_logger().info(f'CMD_VEL: x={self.velocity_commands[0]:.2f}, y={self.velocity_commands[1]:.2f}, z={self.velocity_commands[2]:.2f}')
+                    self.get_logger().info(f'Raw MLP output range: [{raw_action.min():.3f}, {raw_action.max():.3f}]')
             # Store for next iteration
             self.last_position_action = position_action.copy()
             self.last_action = position_action.copy()

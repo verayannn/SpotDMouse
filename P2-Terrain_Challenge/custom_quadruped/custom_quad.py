@@ -114,9 +114,16 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
     actuators={
     # Main leg joints (the ones that do the real work)
     "leg_joints": DCMotorCfg(
-        joint_names_expr=["base_lf1", "base_rf1", "base_lb1", "base_rb1", 
-                        "lf1_lf2", "rf1_rf2", "lb1_lb2", "rb1_rb2",
-                        "lf2_lf3", "rf2_rf3", "lb2_lb3", "rb2_rb3"],
+        joint_names_expr=[
+            # LF leg (front-left)
+            "base_lf1", "lf1_lf2", "lf2_lf3",
+            # RF leg (front-right)  
+            "base_rf1", "rf1_rf2", "rf2_rf3",
+            # LB leg (back-left)
+            "base_lb1", "lb1_lb2", "lb2_lb3",
+            # RB leg (back-right)
+            "base_rb1", "rb1_rb2", "rb2_rb3"
+        ],
         saturation_effort=2.5,
         velocity_limit=1.5,
         stiffness=50.0,#35.0        

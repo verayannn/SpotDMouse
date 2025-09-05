@@ -15,7 +15,7 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-
+from dataclasses import fields
 import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
@@ -63,7 +63,7 @@ class SpotActionsCfg:
             # RB leg (back-right)
             "base_rb1", "rb1_rb2", "rb2_rb3"
         ], 
-        scale=0.65,#0.20 
+        scale=0.2,#first_train:2025-08-07_18-42-54=0.5, second_train:0.20 
         use_default_offset=True
     )
 
@@ -74,13 +74,13 @@ class SpotCommandsCfg:
 
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
-        resampling_time_range=(4.0, 8.0),#for 2025-08-03_23-37-43 (next)resampling_time_range=(10.0, 10.0)
-        rel_standing_envs=0.05,
+        resampling_time_range=(10.0, 10.0),##first_train:2025-08-07_18-42-54=(4.0, 8.0)(next) second run resampling_time_range=(10.0, 10.0)
+        rel_standing_envs=0.25,
         rel_heading_envs=0.0,
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.8, 3.5), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-1.0, 1.0)
+            lin_vel_x=(0.8, 0.8), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0)#lin_vel_x=(-0.8, 3.5), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-1.0, 1.0)
         ),
     )
 
@@ -106,12 +106,37 @@ class SpotObservationsCfg:
             noise=Unoise(n_min=-0.05, n_max=0.05),
         )
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
+        # joint_pos = ObsTerm(
+        #     func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
+        # )
+        # joint_vel = ObsTerm(
+        #     func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
+        # )
+        # SPECIFY JOINT NAMES HERE
         joint_pos = ObsTerm(
-            func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
+            func=mdp.joint_pos_rel, 
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=[
+                    "base_lf1", "lf1_lf2", "lf2_lf3",
+                    "base_rf1", "rf1_rf2", "rf2_rf3",
+                    "base_lb1", "lb1_lb2", "lb2_lb3",
+                    "base_rb1", "rb1_rb2", "rb2_rb3"
+                ])
+            }, 
+            noise=Unoise(n_min=-0.05, n_max=0.05)
         )
         joint_vel = ObsTerm(
-            func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
-        )
+            func=mdp.joint_vel_rel, 
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=[
+                    "base_lf1", "lf1_lf2", "lf2_lf3",
+                    "base_rf1", "rf1_rf2", "rf2_rf3",
+                    "base_lb1", "lb1_lb2", "lb2_lb3",
+                    "base_rb1", "rb1_rb2", "rb2_rb3"
+                ])
+            }, 
+            noise=Unoise(n_min=-0.5, n_max=0.5)
+        )    
         actions = ObsTerm(func=mdp.last_action)
 
         def __post_init__(self):
@@ -217,18 +242,19 @@ class SpotRewardsCfg:
         weight=2.0,#5.0
         params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
     )
-    #for 2025-08-03_23-37-43 (below)
-    # base_linear_velocity = RewardTermCfg(
-    #     func=spot_mdp.base_linear_velocity_reward,
-    #     weight=10.0,#5.0
-    #     params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
-    # )
-
+    #second_train
     base_linear_velocity = RewardTermCfg(
         func=spot_mdp.base_linear_velocity_reward,
         weight=10.0,#5.0
-        params={"std": 1.0, "ramp_rate": 0.4, "ramp_at_vel": 3.25, "asset_cfg": SceneEntityCfg("robot")},
+        params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
     )
+
+    #first_train:2025-08-07_18-42-54
+    # base_linear_velocity = RewardTermCfg(
+    #     func=spot_mdp.base_linear_velocity_reward,
+    #     weight=10.0,#5.0
+    #     params={"std": 1.0, "ramp_rate": 0.4, "ramp_at_vel": 2.0, "asset_cfg": SceneEntityCfg("robot")},
+    # )
 
 
     foot_clearance = RewardTermCfg(
@@ -279,25 +305,28 @@ class SpotRewardsCfg:
     base_orientation = RewardTermCfg(
         func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")}
     )
-    #for 2025-08-03_23-37-43 (below)
+    
+    #second_train: 
+    foot_slip = RewardTermCfg(
+        func=spot_mdp.foot_slip_penalty,
+        weight=-0.5,#-0.5
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
+            "threshold": 1.0,
+        },
+    )
+    
+    #first_train:2025-08-07_18-42-54
     # foot_slip = RewardTermCfg(
     #     func=spot_mdp.foot_slip_penalty,
-    #     weight=-0.5,#-0.5
+    #     weight=-0.5,#for 2025-08-03_23-37-43 (next)-0.5
     #     params={
     #         "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
     #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
     #         "threshold": 0.5,#1.0
     #     },
     # )
-    foot_slip = RewardTermCfg(
-        func=spot_mdp.foot_slip_penalty,
-        weight=-0.25,#for 2025-08-03_23-37-43 (next)-0.5
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
-            "threshold": 0.5,#1.0
-        },
-    )
 
     joint_acc = RewardTermCfg(
         func=spot_mdp.joint_acceleration_penalty,
@@ -360,10 +389,6 @@ class SpotTerminationsCfg:
                     # leg segments
                     "lf1","lf2","lf3","lb1","lb2","lb3",
                     "rf1","rf2","rf3","rb1","rb2","rb3",
-                    # foot plates you already had
-                    # "lf1_plate","lf2_plate","lb1_plate","lb2_plate",
-                    # "rf1_plate","rf2_plate","rb1_plate","rb2_plate",
-                    # **front/back plate links you just mentioned**
                     "lpf1","lpf2","lpb1","lpb2",
                     "rpf1","rpf2","rpb1","rpb2",
                 ],
@@ -395,9 +420,9 @@ class SpotFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
     viewer = ViewerCfg(eye=(10.5, 10.5, 0.3), origin_type="world", env_index=0, asset_name="robot")
 
     def __post_init__(self):
+        
         # post init of parent
         super().__post_init__()
-
         # general settings
         self.decimation = 10  # 50 Hz
         self.episode_length_s = 20.0
@@ -439,6 +464,10 @@ class SpotFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         # no height scan
         self.scene.height_scanner = None
 
+        # Check if there are any height-related observations
+        if hasattr(self.observations.policy, 'height_scan'):
+            delattr(self.observations.policy, 'height_scan')
+
 
 class SpotFlatEnvCfg_PLAY(SpotFlatEnvCfg):
     def __post_init__(self) -> None:
@@ -459,4 +488,4 @@ class SpotFlatEnvCfg_PLAY(SpotFlatEnvCfg):
 
         # disable randomization for play
         self.observations.policy.enable_corruption = False
-        # remove random pushing event
+            # remove random pushing event

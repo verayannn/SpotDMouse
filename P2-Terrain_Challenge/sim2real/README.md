@@ -8,11 +8,11 @@ The project successfully transfers a walking policy trained in Isaac Gym simulat
 
 ## Key Achievements
 
-- ✅ **Successful sim2real transfer** of MLP locomotion policy
-- ✅ **Coordinated quadruped gait** with proper leg phasing
-- ✅ **Robust joint-specific corrections** for hardware differences
-- ✅ **Real-time control** at 50Hz with ROS2 integration
-- ✅ **Observation normalization** preservation from training
+- **Successful sim2real transfer** of MLP locomotion policy
+- **Coordinated quadruped gait** with proper leg phasing
+- **Robust joint-specific corrections** for hardware differences
+- **Real-time control** at 50Hz with ROS2 integration
+- **Observation normalization** preservation from training
 
 ## Architecture
 

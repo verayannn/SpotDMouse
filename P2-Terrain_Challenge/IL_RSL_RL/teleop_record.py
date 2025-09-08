@@ -98,21 +98,21 @@ demos = [
     # Demo 1: Standing still (baseline)
     {
         "name": "standing_still",
-        "duration": 30,
+        "duration": 36,
         "commands": [
-            (30, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
+            (36, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
     },
     
     # Demo 2: Forward walking
     {
         "name": "forward_walk",
-        "duration": 30,
+        "duration": 36,
         "commands": [
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.4, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.4, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
     },
@@ -120,12 +120,12 @@ demos = [
     # Demo 3: Backward walking
     {
         "name": "backward_walk",
-        "duration": 30,
+        "duration": 36,
         "commands": [
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: -0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: -0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: -0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: -0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: -0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: -0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
     },
@@ -133,12 +133,12 @@ demos = [
     # Demo 4: Sideways walking (left and right)
     {
         "name": "sideways_walk", 
-        "duration": 30,
+        "duration": 36,
         "commands": [
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.0, y: 0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.0, y: -0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.0, y: 0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.0, y: 0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.0, y: -0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.0, y: 0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
     },
@@ -146,12 +146,12 @@ demos = [
     # Demo 5: Turning in place
     {
         "name": "turning",
-        "duration": 30,
+        "duration": 36,
         "commands": [
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.3}}'),
-            (8, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: -0.3}}'),
-            (8, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.3}}'),
+            (10, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.3}}'),
+            (10, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: -0.3}}'),
+            (10, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.3}}'),
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
     },
@@ -159,12 +159,12 @@ demos = [
     # Demo 6: Combined motion (forward + turn)
     {
         "name": "forward_and_turn",
-        "duration": 30,
+        "duration": 36,
         "commands": [
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.2}}'),
-            (8, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: -0.2}}'),
-            (8, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.2}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.2}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: -0.2}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.2}}'),
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
     },
@@ -172,12 +172,12 @@ demos = [
     # Demo 7: Diagonal walking (forward-left, forward-right)
     {
         "name": "diagonal_walk",
-        "duration": 30,
+        "duration": 36,
         "commands": [
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.2, y: 0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.2, y: -0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.2, y: 0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: 0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: -0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: 0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
     },
@@ -185,12 +185,12 @@ demos = [
     # Demo 8: Mixed velocities (slow to fast)
     {
         "name": "speed_variations",
-        "duration": 30,
+        "duration": 36,
         "commands": [
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
-            (8, '{linear: {x: 0.15, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.15, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
             (3, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
     }

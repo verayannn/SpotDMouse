@@ -21,15 +21,18 @@ def check_topics():
         "/joint_states",
         "/joint_group_effort_controller/joint_trajectory", 
         "/cmd_vel",
-        "/imu/data",
-        "/odom"
+    ]
+
+    optional_topics = [
+        "/body_pose", 
+        "/foot_contacts"
     ]
     
     print("\nChecking topic availability...")
     result = subprocess.run(["ros2", "topic", "list"], capture_output=True, text=True)
     available_topics = result.stdout.strip().split('\n')
     
-    missing = []
+    missing_required = []
     for topic in required_topics:
         if topic in available_topics:
             print(f"✓ {topic}")
@@ -37,10 +40,9 @@ def check_topics():
             print(f"✗ {topic} - MISSING")
             missing.append(topic)
     
-    if missing:
-        print(f"\nWarning: Missing topics: {missing}")
-        response = input("Continue anyway? (y/n): ")
-        return response.lower() == 'y'
+    if missing_required:
+        print(f"\nError: Missing required topics: {missing_required}")
+        return False
     
     print("\nAll required topics available!")
     return True
@@ -50,8 +52,9 @@ def check_topic_rates():
     print("\nChecking topic publishing rates (5 second sample)...")
     topics_to_check = [
         "/joint_states",
-        "/imu/data",
-        "/odom"
+        "/joint_group_effort_controller/joint_trajectory",
+        "/body_pose",
+        "/foot_contacts"
     ]
     
     for topic in topics_to_check:
@@ -118,6 +121,12 @@ class ObservationLogger(Node):
         self.gravity_vec = np.array([0., 0., -9.81])
         self.ang_vel = np.zeros(3)
         self.cmd_vel = np.zeros(3)
+
+        self.body_position = np.zeros(3)
+        self.body_orientation = np.array([1., 0., 0., 0.])  # quaternion w,x,y,z
+
+        # Foot contacts (if available)
+        self.foot_contacts = np.ones(4) 
         
         # Gait tracking
         self.gait_freq = 3.0  # Hz - should match your controller
@@ -130,8 +139,6 @@ class ObservationLogger(Node):
         # Subscribe to all necessary topics
         self.joint_sub = self.create_subscription(
             JointState, '/joint_states', self.joint_callback, 10)
-        self.imu_sub = self.create_subscription(
-            Imu, '/imu/data', self.imu_callback, 10)
         self.cmd_sub = self.create_subscription(
             Twist, '/cmd_vel', self.cmd_callback, 10)
             
@@ -337,18 +344,31 @@ class SynchronizedRecorder(Node):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         bag_name = f"{demo_name}_{timestamp}"
         
-        # Record with compression to save space
-        self.bag_process = subprocess.Popen([
-            "ros2", "bag", "record",
-            "-o", os.path.join(self.record_dir, bag_name),
-            "--compression-mode", "message",
-            "--compression-format", "zstd",
+        # Record all available topics
+        topics_to_record = [
             "/joint_states",
             "/joint_group_effort_controller/joint_trajectory",
             "/cmd_vel",
-            "/imu/data",
-            "/odom"
-        ])
+            "/body_pose",
+            "/foot_contacts"
+        ]
+        
+        # Check which topics actually exist
+        result = subprocess.run(["ros2", "topic", "list"], capture_output=True, text=True)
+        available_topics = result.stdout.strip().split('\n')
+        topics_to_record = [t for t in topics_to_record if t in available_topics]
+        
+        self.get_logger().info(f"Recording topics: {topics_to_record}")
+        
+        # Record with compression to save space
+        cmd = [
+            "ros2", "bag", "record",
+            "-o", os.path.join(self.record_dir, bag_name),
+            "--compression-mode", "message",
+            "--compression-format", "zstd"
+        ] + topics_to_record
+        
+        self.bag_process = subprocess.Popen(cmd)
         
         return bag_name, self.record_dir
 

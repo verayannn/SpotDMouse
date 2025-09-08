@@ -322,6 +322,8 @@ ros2 topic pub /cmd_vel geometry_msgs/Twist "{linear: {x: 0.2, y: 0.0, z: 0.0}, 
 ros2 topic pub /cmd_vel geometry_msgs/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"
 ```
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/GSlZWJL2XRE?si=qOnWErCTHdMMtZx8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 ### Testing Sequence
 1. **Start stationary** - Verify stable standing
 2. **Small forward command** - `x: 0.1` to test basic forward motion

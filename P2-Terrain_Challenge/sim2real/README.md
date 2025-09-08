@@ -322,11 +322,12 @@ ros2 topic pub /cmd_vel geometry_msgs/Twist "{linear: {x: 0.2, y: 0.0, z: 0.0}, 
 ros2 topic pub /cmd_vel geometry_msgs/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"
 ```
 
-### Testing Sequence
-1. **Start stationary** - Verify stable standing
-2. **Small forward command** - `x: 0.1` to test basic forward motion
-3. **Increase gradually** - Build up to `x: 0.3` for full walking
-4. **Test directions** - Try backward (`x: -0.2`), side-to-side (`y: ±0.1`), rotation (`z: ±0.3`)
+# MLP Controller Demo
+
+[Watch the video demonstration on YouTube](https://www.youtube.com/watch?v=GSlZWJL2XRE)
+
+Notes
+The current implementation produces more of a hopping motion than a traditional gait, but successfully moves the robot in the faced direction using a somewhat diagonal walking pattern. The end-to-end trained MLP is computationally intensive and would benefit from either extended training for more stable behavior, or a teleoperation-recorded startup phase to improve early learning stability and long-term robustness.
 
 ## Future Improvements
 

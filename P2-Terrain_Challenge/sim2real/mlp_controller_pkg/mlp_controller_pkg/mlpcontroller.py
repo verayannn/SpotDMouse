@@ -26,7 +26,7 @@ class MLPController(Node):
         self.joint_velocities = np.zeros(12)
         self.base_lin_vel = np.zeros(3)
         self.base_ang_vel = np.zeros(3)
-        self.projected_gravity = np.array([0.0, 0.0, -1.0])  # Initial guess
+        self.projected_gravity = np.array([0.0, 0.0, -9.81])  # Initial guess
         self.velocity_commands = np.zeros(3)  # Start with zero command
         self.last_action = np.zeros(12)
         self.initialized = False
@@ -252,7 +252,7 @@ class MLPController(Node):
     def imu_callback(self, msg):
         """Update gravity vector from IMU"""
 
-        self.projected_gravity = np.array([0.0, 0.0, -1.0])
+        self.projected_gravity = np.array([0.0, 0.0, -9.81])
 
         return
 
@@ -313,7 +313,7 @@ class MLPController(Node):
             self.step_count += 1
             
             # OVERRIDE: Ensure clean sensor values
-            self.projected_gravity = np.array([0.0, 0.0, -1.0])
+            self.projected_gravity = np.array([0.0, 0.0, -9.81])
             
             # Clean joint velocities if they're too high
             if np.linalg.norm(self.joint_velocities) > 10.0:

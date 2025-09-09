@@ -577,6 +577,93 @@ demos = [
             (20, '{linear: {x: 0.15, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
             (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
         ]
+    },
+    
+    # Demo 9: Walk to turn smooth transition
+    {
+        "name": "walk_to_turn_smooth",
+        "duration": 66,
+        "commands": [
+            (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.1}}'),
+            (10, '{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.2}}'),
+            (10, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.3}}'),
+            (10, '{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.1}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
+        ]
+    },
+    
+    # Demo 10: Turn to walk smooth transition
+    {
+        "name": "turn_to_walk_smooth",
+        "duration": 66,
+        "commands": [
+            (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.3}}'),
+            (10, '{linear: {x: 0.05, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.2}}'),
+            (10, '{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.1}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
+        ]
+    },
+    
+    # Demo 11: Sideways to forward transition
+    {
+        "name": "sideways_to_forward",
+        "duration": 66,
+        "commands": [
+            (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.0, y: 0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.05, y: 0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.1, y: 0.1, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.15, y: 0.05, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (10, '{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
+        ]
+    },
+    
+    # Demo 12: Complex multi-directional transition
+    {
+        "name": "complex_transition",
+        "duration": 66,
+        "commands": [
+            (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: 0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: 0.15, y: 0.1, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.1}}'),
+            (8, '{linear: {x: 0.1, y: 0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.15}}'),
+            (8, '{linear: {x: 0.0, y: 0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.2}}'),
+            (8, '{linear: {x: -0.1, y: 0.15, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.15}}'),
+            (8, '{linear: {x: -0.15, y: 0.1, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.1}}'),
+            (8, '{linear: {x: -0.2, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
+        ]
+    },
+    
+    # Demo 13: Emergency stop from various motions
+    {
+        "name": "emergency_stops",
+        "duration": 66,
+        "commands": [
+            (4, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: 0.4, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (2, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: 0.0, y: 0.3, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (2, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.4}}'),
+            (2, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: 0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.2}}'),
+            (2, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: -0.3, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (2, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (8, '{linear: {x: 0.2, y: 0.2, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (2, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}'),
+            (6, '{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}')
+        ]
     }
 ]
 
@@ -602,10 +689,66 @@ if __name__ == "__main__":
     
     # Get user selection
     try:
-        choice = input("\nSelect demo number (or 'a' for all): ").strip().lower()
+        choice = input("\nSelect demo number (or 'a' for all, 'r' for all with repetitions): ").strip().lower()
         
-        if choice == 'a':
-            confirm = input(f"This will record all {len(demos)} demos (~{len(demos) * 66 / 60:.1f} minutes). Continue? (y/n): ")
+        if choice == 'r':
+            # Record with repetitions
+            num_repetitions = 3
+            total_demos = len(demos) * num_repetitions
+            total_time = total_demos * 66 / 60
+            total_size_mb = total_demos * 15.5  # Estimated MB per demo
+            
+            confirm = input(f"\nThis will record {total_demos} demos ({num_repetitions} reps × {len(demos)} types)")
+            confirm += input(f"\nTotal time: ~{total_time:.1f} minutes")
+            confirm += input(f"\nEstimated size: ~{total_size_mb:.0f} MB")
+            confirm = input("\nContinue? (y/n): ")
+            
+            if confirm.lower() == 'y':
+                all_recordings = []
+                
+                for rep in range(num_repetitions):
+                    print(f"\n{'='*60}")
+                    print(f"REPETITION {rep+1}/{num_repetitions}")
+                    print(f"{'='*60}")
+                    
+                    for i, demo in enumerate(demos):
+                        demo_copy = demo.copy()
+                        demo_copy['name'] = f"{demo['name']}_rep{rep+1}"
+                        
+                        demo_num = i + 1 + (rep * len(demos))
+                        print(f"\n[{demo_num}/{total_demos}] Recording {demo_copy['name']}...")
+                        
+                        try:
+                            bag_path = record_demo_synchronized(demo_copy)
+                            all_recordings.append(bag_path)
+                        except Exception as e:
+                            print(f"Error recording {demo_copy['name']}: {e}")
+                            continue
+                        
+                        # Break between demos within repetition
+                        if i < len(demos) - 1:
+                            print("\nWaiting 3 seconds before next demo...")
+                            time.sleep(3)
+                    
+                    # Longer break between repetitions
+                    if rep < num_repetitions - 1:
+                        print(f"\n{'='*60}")
+                        print(f"Completed repetition {rep+1}/{num_repetitions}")
+                        print("Taking 10 second break before next repetition...")
+                        print(f"{'='*60}")
+                        time.sleep(10)
+                
+                # Summary
+                print(f"\n{'='*60}")
+                print("RECORDING COMPLETE!")
+                print(f"{'='*60}")
+                print(f"Total recordings: {len(all_recordings)}")
+                print(f"Total time: {total_demos * 66 / 60:.1f} minutes")
+                print(f"Recordings saved to: ~/rosbag_recordings/")
+                
+        elif choice == 'a':
+            # Record all demos once
+            confirm = input(f"\nThis will record all {len(demos)} demos (~{len(demos) * 66 / 60:.1f} minutes). Continue? (y/n): ")
             if confirm.lower() == 'y':
                 for i, demo in enumerate(demos):
                     print(f"\n[{i+1}/{len(demos)}] Recording {demo['name']}...")
@@ -613,11 +756,28 @@ if __name__ == "__main__":
                     if i < len(demos) - 1:
                         print("\nWaiting 3 seconds before next recording...")
                         time.sleep(3)
+                        
         else:
+            # Record single demo
             idx = int(choice) - 1
             if 0 <= idx < len(demos):
                 demo = demos[idx]
-                record_demo_synchronized(demo)
+                
+                # Ask for repetitions for single demo
+                reps = input("How many times to record? (default: 1): ").strip()
+                num_reps = int(reps) if reps.isdigit() else 1
+                
+                for rep in range(num_reps):
+                    demo_copy = demo.copy()
+                    if num_reps > 1:
+                        demo_copy['name'] = f"{demo['name']}_rep{rep+1}"
+                    
+                    print(f"\n[{rep+1}/{num_reps}] Recording {demo_copy['name']}...")
+                    record_demo_synchronized(demo_copy)
+                    
+                    if rep < num_reps - 1:
+                        print("\nWaiting 3 seconds before next repetition...")
+                        time.sleep(3)
             else:
                 print("Invalid selection")
                 
@@ -625,3 +785,5 @@ if __name__ == "__main__":
         print("\nRecording cancelled")
     except Exception as e:
         print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()

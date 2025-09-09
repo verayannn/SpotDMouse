@@ -38,7 +38,7 @@ def check_topics():
             print(f"✓ {topic}")
         else:
             print(f"✗ {topic} - MISSING")
-            missing.append(topic)
+            missing_required.append(topic)
     
     if missing_required:
         print(f"\nError: Missing required topics: {missing_required}")

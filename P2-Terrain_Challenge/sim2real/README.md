@@ -327,6 +327,7 @@ ros2 topic pub /cmd_vel geometry_msgs/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, 
 [Watch the video demonstration on YouTube](https://www.youtube.com/watch?v=GSlZWJL2XRE)
 
 Notes
+
 The current implementation produces more of a hopping motion than a traditional gait, but successfully moves the robot in the faced direction using a somewhat diagonal walking pattern. The end-to-end trained MLP is computationally intensive and would benefit from either extended training for more stable behavior, or a teleoperation-recorded startup phase to improve early learning stability and long-term robustness.
 
 ## Future Improvements

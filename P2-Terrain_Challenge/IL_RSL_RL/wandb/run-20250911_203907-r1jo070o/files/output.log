@@ -1,0 +1,23 @@
+
+Epoch 1/100
+Training:   0%|                                                                                                                       | 0/468 [00:01<?, ?it/s]
+Traceback (most recent call last):
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 281, in <module>
+    main()
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 268, in main
+    trainer.train(
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 163, in train
+    train_loss = self.train_epoch(train_loader)
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 98, in train_epoch
+    actions = batch['actions'].to(self.device)
+KeyError: 'actions'
+Traceback (most recent call last):
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 281, in <module>
+    main()
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 268, in main
+    trainer.train(
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 163, in train
+    train_loss = self.train_epoch(train_loader)
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 98, in train_epoch
+    actions = batch['actions'].to(self.device)
+KeyError: 'actions'

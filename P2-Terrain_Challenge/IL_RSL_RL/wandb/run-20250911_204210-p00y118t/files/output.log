@@ -1,0 +1,75 @@
+
+Training:   1%|█▏                                                                                                             | 5/468 [00:01<01:51,  4.15it/s]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Training:  62%|███████████████████████████████████████████████████████████████████                                          | 288/468 [00:51<00:32,  5.59it/s]
+Traceback (most recent call last):
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 281, in <module>
+    main()
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 268, in main
+    trainer.train(
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 163, in train
+    train_loss = self.train_epoch(train_loader)
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 96, in train_epoch
+    for batch in tqdm(dataloader, desc="Training"):
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 701, in __next__
+    data = self._next_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1448, in _next_data
+    idx, data = self._get_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1402, in _get_data
+    success, data = self._try_get_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1243, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/queue.py", line 180, in get
+    self.not_empty.wait(remaining)
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/threading.py", line 324, in wait
+    gotit = waiter.acquire(True, timeout)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 281, in <module>
+    main()
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 268, in main
+    trainer.train(
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 163, in train
+    train_loss = self.train_epoch(train_loader)
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_il.py", line 96, in train_epoch
+    for batch in tqdm(dataloader, desc="Training"):
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 701, in __next__
+    data = self._next_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1448, in _next_data
+    idx, data = self._get_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1402, in _get_data
+    success, data = self._try_get_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1243, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/queue.py", line 180, in get
+    self.not_empty.wait(remaining)
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/threading.py", line 324, in wait
+    gotit = waiter.acquire(True, timeout)
+KeyboardInterrupt

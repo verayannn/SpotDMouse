@@ -14,7 +14,7 @@ import wandb
 from tqdm import tqdm
 import argparse
 
-from il_dataset import ILDataset
+from il_dataset import MiniPupperILDataset
 
 class MLPPolicy(nn.Module):
     """MLP policy matching your deployed controller architecture"""
@@ -27,7 +27,7 @@ class MLPPolicy(nn.Module):
         for hidden_dim in hidden_dims:
             layers.extend([
                 nn.Linear(in_dim, hidden_dim),
-                nn.ReLU(),
+                nn.ELU(),
                 nn.LayerNorm(hidden_dim)
             ])
             in_dim = hidden_dim
@@ -58,8 +58,8 @@ class ILTrainer:
         
         # Load dataset
         print(f"Loading dataset from {dataset_path}")
-        self.train_dataset = ILDataset(dataset_path, split='train')
-        self.val_dataset = ILDataset(dataset_path, split='val')
+        self.train_dataset = MiniPupperILDataset(dataset_path, split='train')
+        self.val_dataset = MiniPupperILDataset(dataset_path, split='val')
         
         print(f"Train samples: {len(self.train_dataset)}")
         print(f"Val samples: {len(self.val_dataset)}")
@@ -95,7 +95,7 @@ class ILTrainer:
         
         for batch in tqdm(dataloader, desc="Training"):
             obs = batch['obs'].to(self.device)
-            actions = batch['actions'].to(self.device)
+            actions = batch['action'].to(self.device)  # Changed from 'actions' to 'action'
             
             # Forward pass
             pred_actions = self.model(obs)
@@ -124,7 +124,7 @@ class ILTrainer:
         with torch.no_grad():
             for batch in tqdm(dataloader, desc="Validation"):
                 obs = batch['obs'].to(self.device)
-                actions = batch['actions'].to(self.device)
+                actions = batch['action'].to(self.device)  # Changed from 'actions' to 'action'
                 
                 pred_actions = self.model(obs)
                 loss = self.criterion(pred_actions, actions)
@@ -239,7 +239,7 @@ class ILTrainer:
 
 def main():
     parser = argparse.ArgumentParser(description="Train IL policy")
-    parser.add_argument("--dataset", default="~/rosbag_recordings/minipupper_demos.hdf5",
+    parser.add_argument("--dataset", default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250910_202558.hdf5",
                         help="Path to HDF5 dataset")
     parser.add_argument("--epochs", type=int, default=100,
                         help="Number of training epochs")

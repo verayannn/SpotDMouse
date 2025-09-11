@@ -48,7 +48,7 @@ class MLPPolicy(nn.Module):
 class ILTrainer:
     def __init__(self, 
                  dataset_path,
-                 save_dir="~/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models",
+                 save_dir="/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models",
                  device="cuda",
                  use_wandb=True):
         

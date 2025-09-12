@@ -18,7 +18,7 @@ from il_dataset import MiniPupperILDataset
 
 class MLPPolicy(nn.Module):
     """MLP policy matching your deployed controller architecture"""
-    def __init__(self, obs_dim=48, action_dim=12, hidden_dims=[256, 128, 64]):
+    def __init__(self, obs_dim=48, action_dim=12, hidden_dims=[512, 256, 128]):
         super().__init__()
         
         layers = []

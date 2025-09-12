@@ -1,214 +1,214 @@
 #!/usr/bin/env python3
+# filepath: /workspace/SpotDMouse/P2-Terrain_Challenge/sim2real/extract_stats.py
 """
-Extract and add observation normalization statistics to an existing trained model.
-Run this AFTER training or on any existing checkpoint.
+Extract normalization statistics from a trained model checkpoint
+without requiring the full IsaacLab environment
 """
 
-import argparse
-import sys
-import os
 import torch
+import argparse
+import os
 import numpy as np
-from pathlib import Path
 
-# Add isaaclab to path if needed
-sys.path.append('/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl')
-
-from isaaclab.app import AppLauncher
-
-# Parse arguments
-parser = argparse.ArgumentParser(description="Add observation stats to existing checkpoint")
-parser.add_argument("--checkpoint", type=str, required=True, help="Path to model checkpoint")
-parser.add_argument("--task", type=str, default="Isaac-Velocity-Flat-Spot-v0", help="Task name")
-parser.add_argument("--num_envs", type=int, default=64, help="Number of envs for stats collection")
-parser.add_argument("--num_steps", type=int, default=1000, help="Number of steps to collect stats")
-# AppLauncher will add its own headless argument
-AppLauncher.add_app_launcher_args(parser)
-args = parser.parse_args()
-
-# Launch Isaac Sim
-app_launcher = AppLauncher(args)
-simulation_app = app_launcher.app
-
-"""Rest of the script after sim is launched"""
-
-import gymnasium as gym
-import isaaclab_tasks
-from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper
-from rsl_rl.modules import ActorCritic
-
-
-def extract_stats_from_trained_model(checkpoint_path, task_name, num_envs=64, num_steps=1000):
-    """
-    Load a trained model and collect observation statistics by running it in the environment.
+def extract_stats_from_checkpoint(checkpoint_path, output_path=None):
+    """Extract normalization statistics from a checkpoint file"""
     
-    Args:
-        checkpoint_path: Path to the trained model checkpoint
-        task_name: Name of the Isaac Lab task
-        num_envs: Number of environments to run in parallel
-        num_steps: Number of steps to collect statistics
-    """
+    # Load the checkpoint
+    print(f"Loading checkpoint from: {checkpoint_path}")
+    checkpoint = torch.load(checkpoint_path, map_location='cpu')
     
-    print(f"\n{'='*60}")
-    print(f"EXTRACTING OBSERVATION STATISTICS")
-    print(f"{'='*60}")
-    print(f"Checkpoint: {checkpoint_path}")
-    print(f"Task: {task_name}")
-    print(f"Num envs: {num_envs}")
-    print(f"Collection steps: {num_steps}")
+    # Check what's in the checkpoint
+    print("\nCheckpoint contents:")
+    for key in checkpoint.keys():
+        if isinstance(checkpoint[key], torch.Tensor):
+            print(f"  {key}: shape {checkpoint[key].shape}")
+        elif isinstance(checkpoint[key], dict):
+            print(f"  {key}: dict with {len(checkpoint[key])} items")
+        else:
+            print(f"  {key}: {type(checkpoint[key])}")
     
-    # Check if checkpoint exists
-    if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    # Extract observation normalization stats
+    stats = {}
     
-    # Determine device - use same device as the checkpoint
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Using device: {device}")
+    # Check for different possible keys for normalization stats
+    if 'obs_rms_mean' in checkpoint and checkpoint['obs_rms_mean'] is not None:
+        stats['obs_mean'] = checkpoint['obs_rms_mean']
+        stats['obs_var'] = checkpoint['obs_rms_var']
+        stats['obs_std'] = torch.sqrt(checkpoint['obs_rms_var'] + 1e-8)
+        print("\nFound RMS normalization stats")
+    elif 'obs_mean' in checkpoint and checkpoint['obs_mean'] is not None:
+        stats['obs_mean'] = checkpoint['obs_mean']
+        stats['obs_std'] = checkpoint['obs_std']
+        print("\nFound standard normalization stats")
+    else:
+        print("\nWARNING: No observation normalization stats found or they are None!")
+        print("Creating default normalization stats (mean=0, std=1)")
+        stats['obs_mean'] = torch.zeros(48)
+        stats['obs_std'] = torch.ones(48)
     
-    # Load checkpoint on the appropriate device
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    print(f"Checkpoint keys: {list(checkpoint.keys())[:5]}...")  # Show first 5 keys
+    # Check for action normalization
+    if 'action_mean' in checkpoint and checkpoint['action_mean'] is not None:
+        stats['action_mean'] = checkpoint['action_mean']
+        stats['action_std'] = checkpoint['action_std']
+    else:
+        print("WARNING: No action normalization stats found or they are None!")
+        print("Creating default action normalization (mean=0, std=1)")
+        stats['action_mean'] = torch.zeros(12)
+        stats['action_std'] = torch.ones(12)
     
-    # Check if stats already exist
-    if 'obs_rms_mean' in checkpoint and 'obs_rms_var' in checkpoint:
-        print("\nWARNING: Checkpoint already contains observation statistics!")
-        print(f"Existing mean range: [{checkpoint['obs_rms_mean'].min():.3f}, {checkpoint['obs_rms_mean'].max():.3f}]")
-        print(f"Existing var range: [{checkpoint['obs_rms_var'].min():.3f}, {checkpoint['obs_rms_var'].max():.3f}]")
-        response = input("Overwrite? (y/n): ")
-        if response.lower() != 'y':
-            print("Aborted.")
-            return
-    
-    # Create environment
-    print(f"\nCreating environment...")
-    env_cfg = gym.spec(task_name).kwargs['cfg']
-    env_cfg.scene.num_envs = num_envs
-    env_cfg.sim.device = device
-    
-    env = gym.make(task_name, cfg=env_cfg)
-    env = RslRlVecEnvWrapper(env)
-    
-    print(f"Environment created:")
-    print(f"  - Num observations: {env.num_obs}")
-    print(f"  - Num actions: {env.num_actions}")
-    
-    # Create and load the policy
-    print(f"\nLoading policy...")
-    actor_critic = ActorCritic(
-        num_obs=env.num_obs,
-        num_actions=env.num_actions,
-        hidden_dims=[512, 256, 128]  # Match your architecture
-    ).to(device)
-    
-    # Load the model weights
-    actor_critic.load_state_dict(checkpoint['model_state_dict'])
-    actor_critic.eval()
-    print("Policy loaded successfully!")
-    
-    # Collect observations using Welford's algorithm for numerical stability
-    print(f"\nCollecting observation statistics...")
-    
-    class WelfordStats:
-        """Online mean and variance calculation"""
-        def __init__(self, shape):
-            self.n = 0
-            self.mean = np.zeros(shape, dtype=np.float64)
-            self.M2 = np.zeros(shape, dtype=np.float64)
+    # Get observation and action dimensions
+    if 'num_obs' in checkpoint:
+        stats['num_obs'] = checkpoint['num_obs']
+        print(f"\nObservation dimension: {checkpoint['num_obs']}")
+    else:
+        stats['num_obs'] = 48  # Default for Mini Pupper
         
-        def update(self, batch):
-            # batch shape: (num_envs, obs_dim)
-            batch_np = batch.cpu().numpy().astype(np.float64)
-            for x in batch_np:
-                self.n += 1
-                delta = x - self.mean
-                self.mean += delta / self.n
-                delta2 = x - self.mean
-                self.M2 += delta * delta2
+    if 'num_actions' in checkpoint:
+        stats['num_actions'] = checkpoint['num_actions']
+        print(f"Action dimension: {checkpoint['num_actions']}")
+    else:
+        stats['num_actions'] = 12  # Default for Mini Pupper
+    
+    # Save extracted stats if output path provided
+    if output_path:
+        # Create a new checkpoint with proper stats
+        output_checkpoint = {
+            'model_state_dict': checkpoint.get('model_state_dict', {}),
+            'obs_mean': stats['obs_mean'],
+            'obs_std': stats['obs_std'],
+            'action_mean': stats['action_mean'],
+            'action_std': stats['action_std'],
+            'num_obs': stats['num_obs'],
+            'num_actions': stats['num_actions']
+        }
         
-        def get_stats(self):
-            variance = self.M2 / (self.n - 1) if self.n > 1 else self.M2
-            return self.mean.astype(np.float32), variance.astype(np.float32)
-    
-    # Initialize statistics collector
-    stats_collector = WelfordStats(env.num_obs)
-    
-    # Reset environment
-    obs, _ = env.reset()
-    
-    # Collect observations
-    with torch.no_grad():
-        for step in range(num_steps):
-            # Update statistics with current observations
-            stats_collector.update(obs)
+        # Copy other useful fields if they exist
+        for key in ['epoch', 'val_loss']:
+            if key in checkpoint:
+                output_checkpoint[key] = checkpoint[key]
             
-            # Get actions from policy
-            actions = actor_critic.act_inference(obs)
-            
-            # Step environment
-            obs, _, dones, _, _ = env.step(actions)
-            
-            # Progress bar
-            if step % 100 == 0:
-                print(f"  Step {step}/{num_steps}...")
+        torch.save(output_checkpoint, output_path)
+        print(f"\nSaved extracted stats to: {output_path}")
     
-    # Get final statistics
-    obs_mean, obs_var = stats_collector.get_stats()
-    
-    print(f"\nStatistics collected from {stats_collector.n} observations")
-    print(f"  Mean shape: {obs_mean.shape}")
-    print(f"  Mean range: [{obs_mean.min():.3f}, {obs_mean.max():.3f}]")
-    print(f"  Var range: [{obs_var.min():.3f}, {obs_var.max():.3f}]")
-    
-    # Add statistics to checkpoint
-    checkpoint['obs_rms_mean'] = obs_mean
-    checkpoint['obs_rms_var'] = obs_var
-    checkpoint['num_obs'] = env.num_obs
-    checkpoint['num_actions'] = env.num_actions
-    
-    # Save enhanced checkpoint
-    output_path = checkpoint_path.replace('.pt', '_with_stats.pt')
-    torch.save(checkpoint, output_path)
-    
-    print(f"\n{'='*60}")
-    print(f"SUCCESS: Saved enhanced checkpoint")
-    print(f"Output: {output_path}")
-    print(f"{'='*60}\n")
-    
-    # Clean up
-    env.close()
-    
-    return output_path
+    return stats
 
+def print_stats_summary(stats):
+    """Print a summary of the normalization statistics"""
+    
+    print("\n=== Normalization Statistics Summary ===")
+    
+    if 'obs_mean' in stats and stats['obs_mean'] is not None:
+        obs_mean = stats['obs_mean'].numpy()
+        obs_std = stats['obs_std'].numpy()
+        
+        print(f"\nObservation stats (shape: {obs_mean.shape}):")
+        print(f"  Mean range: [{obs_mean.min():.3f}, {obs_mean.max():.3f}]")
+        print(f"  Std range: [{obs_std.min():.3f}, {obs_std.max():.3f}]")
+        
+        # Print per-component stats for key observation elements
+        print("\nPer-component observation stats (first 30):")
+        print("  Index | Mean    | Std     | Description")
+        print("  ------|---------|---------|-------------")
+        
+        descriptions = [
+            "Linear vel X", "Linear vel Y", "Linear vel Z",
+            "Angular vel X", "Angular vel Y", "Angular vel Z",
+            "Joint 0 pos (FR_hip)", "Joint 1 pos (FR_thigh)", "Joint 2 pos (FR_calf)", 
+            "Joint 3 pos (FL_hip)", "Joint 4 pos (FL_thigh)", "Joint 5 pos (FL_calf)",
+            "Joint 6 pos (RR_hip)", "Joint 7 pos (RR_thigh)", "Joint 8 pos (RR_calf)", 
+            "Joint 9 pos (RL_hip)", "Joint 10 pos (RL_thigh)", "Joint 11 pos (RL_calf)",
+            "Joint 0 vel (FR_hip)", "Joint 1 vel (FR_thigh)", "Joint 2 vel (FR_calf)", 
+            "Joint 3 vel (FL_hip)", "Joint 4 vel (FL_thigh)", "Joint 5 vel (FL_calf)",
+            "Joint 6 vel (RR_hip)", "Joint 7 vel (RR_thigh)", "Joint 8 vel (RR_calf)", 
+            "Joint 9 vel (RL_hip)", "Joint 10 vel (RL_thigh)", "Joint 11 vel (RL_calf)",
+        ]
+        
+        for i in range(min(30, len(obs_mean))):
+            desc = descriptions[i] if i < len(descriptions) else f"Feature {i}"
+            print(f"  {i:5d} | {obs_mean[i]:7.3f} | {obs_std[i]:7.3f} | {desc}")
+    
+    if 'action_mean' in stats and stats['action_mean'] is not None:
+        action_mean = stats['action_mean'].numpy()
+        action_std = stats['action_std'].numpy()
+        
+        print(f"\nAction stats (shape: {action_mean.shape}):")
+        print(f"  Mean range: [{action_mean.min():.3f}, {action_mean.max():.3f}]")
+        print(f"  Std range: [{action_std.min():.3f}, {action_std.max():.3f}]")
+        
+        print("\nPer-joint action stats:")
+        print("  Joint | Mean    | Std     | Name")
+        print("  ------|---------|---------|-------------")
+        
+        joint_names = [
+            "FR_hip", "FR_thigh", "FR_calf",
+            "FL_hip", "FL_thigh", "FL_calf",
+            "RR_hip", "RR_thigh", "RR_calf",
+            "RL_hip", "RL_thigh", "RL_calf"
+        ]
+        
+        for i in range(len(action_mean)):
+            name = joint_names[i] if i < len(joint_names) else f"Joint {i}"
+            print(f"  {i:5d} | {action_mean[i]:7.3f} | {action_std[i]:7.3f} | {name}")
 
-def main():
-    """Main function"""
+def fix_il_checkpoint(checkpoint_path):
+    """Fix an IL checkpoint that's missing normalization stats by loading from dataset"""
+    
+    print("\n=== Attempting to fix IL checkpoint by loading stats from dataset ===")
+    
+    # Try to load the dataset to get proper stats
     try:
-        # Run the stats extraction
-        output_path = extract_stats_from_trained_model(
-            checkpoint_path=args.checkpoint,
-            task_name=args.task,
-            num_envs=args.num_envs,
-            num_steps=args.num_steps
-        )
+        from il_dataset import MiniPupperILDataset
         
-        # Create a convenient symlink
-        if output_path:
-            symlink_path = Path(args.checkpoint).parent / "latest_with_stats.pt"
-            if symlink_path.exists():
-                symlink_path.unlink()
-            symlink_path.symlink_to(Path(output_path).name)
-            print(f"Created symlink: {symlink_path}")
+        # Common dataset paths to try
+        dataset_paths = [
+            "/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250910_202558.hdf5",
+            "/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_il_dataset.hdf5",
+            "../../../rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250910_202558.hdf5"
+        ]
+        
+        dataset = None
+        for path in dataset_paths:
+            if os.path.exists(path):
+                print(f"Found dataset at: {path}")
+                dataset = MiniPupperILDataset(path, split='train')
+                break
+        
+        if dataset:
+            stats = dataset.get_statistics()
+            print("Successfully loaded normalization stats from dataset!")
+            return stats
+        else:
+            print("Could not find dataset to load stats from")
             
     except Exception as e:
-        print(f"\nERROR: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
+        print(f"Could not load dataset: {e}")
     
-    return 0
+    return None
 
+def main():
+    parser = argparse.ArgumentParser(description="Extract normalization stats from checkpoint")
+    parser.add_argument("checkpoint", help="Path to checkpoint file")
+    parser.add_argument("--output", "-o", help="Output path for extracted stats")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Print detailed stats")
+    parser.add_argument("--fix", action="store_true", help="Try to fix missing stats from dataset")
+    
+    args = parser.parse_args()
+    
+    # Extract stats
+    stats = extract_stats_from_checkpoint(args.checkpoint, args.output)
+    
+    # If stats are missing and fix flag is set, try to load from dataset
+    if args.fix and (stats.get('obs_mean') is None or torch.allclose(stats['obs_mean'], torch.zeros(48))):
+        dataset_stats = fix_il_checkpoint(args.checkpoint)
+        if dataset_stats:
+            stats.update(dataset_stats)
+            # Re-save with proper stats
+            if args.output:
+                extract_stats_from_checkpoint(args.checkpoint, args.output)
+    
+    # Print summary
+    if args.verbose:
+        print_stats_summary(stats)
 
 if __name__ == "__main__":
-    exit_code = main()
-    simulation_app.close()
-    sys.exit(exit_code)
+    main()

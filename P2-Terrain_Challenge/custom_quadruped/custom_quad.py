@@ -33,86 +33,93 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
             fix_root_link=False,
         ),
     ),
+
+    ###
+    ### for RSL RL
+    ###
     # init_state=ArticulationCfg.InitialStateCfg(
-    #     pos=(0.0, 0.0, 0.08),  # Conservative standing height
+    #     pos=(0.0, 0.0, 0.10),  # Appropriate height for 45° leg angle
+    #     # In your init_state, try slightly straighter legs:
     #     joint_pos={
-    #         "base_lf1": -0.1181,
-    #         "lf1_lf2": 0.8360,
-    #         "lf2_lf3": -1.6081,
-    #         "base_rf1": 0.1066,
-    #         "rf1_rf2": 0.8202,
-    #         "rf2_rf3": -1.6161,
-    #         "base_lb1": -0.0522,
-    #         "lb1_lb2": 0.8198,
-    #         "lb2_lb3": -1.6220,
-    #         "base_rb1": 0.0663,
-    #         "rb1_rb2": 0.7983,
-    #         "rb2_rb3": -1.6382,
+    #         # Less bent legs (30° instead of 45°)
+    #         "base_lf1": 0.0,      
+    #         "lf1_lf2": 0.52,      # ~30° (π/6 radians)
+    #         "lf2_lf3": -1.05,     # ~60° to make foot flat
+            
+    #         "base_rf1": 0.0,      
+    #         "rf1_rf2": 0.52,      
+    #         "rf2_rf3": -1.05,     
+            
+    #         "base_lb1": 0.0,      
+    #         "lb1_lb2": 0.52,      
+    #         "lb2_lb3": -1.05,     
+            
+    #         "base_rb1": 0.0,      
+    #         "rb1_rb2": 0.52,      
+    #         "rb2_rb3": -1.05,     
     #     },
-        
     #     joint_vel={".*": 0.0},
     # ),
+    # soft_joint_pos_limit_factor=0.95,
+    ###
+    ### for RSL RL
+    ###
+
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.10),  # Appropriate height for 45° leg angle
         # In your init_state, try slightly straighter legs:
         joint_pos={
             # Less bent legs (30° instead of 45°)
-            "base_lf1": 0.0,      
-            "lf1_lf2": 0.52,      # ~30° (π/6 radians)
-            "lf2_lf3": -1.05,     # ~60° to make foot flat
+            "base_lf1": -0.214,      
+            "lf1_lf2": -1.940,      # ~30° (π/6 radians)
+            "lf2_lf3": 1.993,     # ~60° to make foot flat
             
-            "base_rf1": 0.0,      
-            "rf1_rf2": 0.52,      
-            "rf2_rf3": -1.05,     
+            "base_rf1": -0.260,      
+            "rf1_rf2": -0.891,      
+            "rf2_rf3": 1.047,     
             
-            "base_lb1": 0.0,      
-            "lb1_lb2": 0.52,      
-            "lb2_lb3": -1.05,     
+            "base_lb1": 0.387,      
+            "lb1_lb2": -0.233,      
+            "lb2_lb3":  0.907,     
             
-            "base_rb1": 0.0,      
-            "rb1_rb2": 0.52,      
-            "rb2_rb3": -1.05,     
+            "base_rb1": -0.038,      
+            "rb1_rb2": -1.247,      
+            "rb2_rb3": 1.945,     
         },
         joint_vel={".*": 0.0},
     ),
     soft_joint_pos_limit_factor=0.95,
 
-    # actuators={
-    #     "leg_actuators": ImplicitActuatorCfg(
-    #         joint_names_expr=[".*"],
-    #         stiffness=100.0,        # Was 60.0 - much stiffer!
-    #         damping=20.0,          # Was 12.0 - stronger damping
-    #         effort_limit=6.0,      # Was 4.0 - more torque available
-    #         velocity_limit=3.0,    # Was 2.0 - allow faster movements
-    #     )
-    # }
-    
-    # actuators={
-    #     "leg_actuators": DCMotorCfg(
-    #         joint_names_expr=[".*"],
-    #         saturation_effort=2.5,
-    #         velocity_limit=1.5,
-    #         stiffness=50.0,#35.0        
-    #         damping=7.0,#7.0          
-    #         friction=0.05,        
-    #         armature=0.001,       
-    #     )
-    # }
 
-    # actuators={
-    #     "leg_actuators": DCMotorCfg(
-    #         joint_names_expr=[".*"],
-    #         saturation_effort=3.0,
-    #         velocity_limit=1.5,
-    #         stiffness=50.0,        # Lower for more realistic servo response
-    #         damping=10.0,          # Lower for more realistic dynamics
-    #         friction=0.05,        # Servo friction
-    #         armature=0.001,       # Small servo inertia
-    #     )
-    # }
-        # soft_joint_pos_limit_factor=0.95,
     actuators={
+
+    ###
+    ### for RSL RL
+    ###
     # Main leg joints (the ones that do the real work)
+    # "leg_joints": DCMotorCfg(
+    #     joint_names_expr=[
+    #         # LF leg (front-left)
+    #         "base_lf1", "lf1_lf2", "lf2_lf3",
+    #         # RF leg (front-right)  
+    #         "base_rf1", "rf1_rf2", "rf2_rf3",
+    #         # LB leg (back-left)
+    #         "base_lb1", "lb1_lb2", "lb2_lb3",
+    #         # RB leg (back-right)
+    #         "base_rb1", "rb1_rb2", "rb2_rb3"
+    #     ],
+    #     saturation_effort=2.5,
+    #     velocity_limit=1.5,
+    #     stiffness=50.0,#35.0        
+    #     damping=7.0,#7.0          
+    #     friction=0.05,        
+    #     armature=0.001,      
+    # ),
+
+    ###
+    ### for RSL RL
+    ###
+
     "leg_joints": DCMotorCfg(
         joint_names_expr=[
             # LF leg (front-left)
@@ -124,13 +131,16 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
             # RB leg (back-right)
             "base_rb1", "rb1_rb2", "rb2_rb3"
         ],
-        saturation_effort=2.5,
-        velocity_limit=1.5,
-        stiffness=50.0,#35.0        
-        damping=7.0,#7.0          
+        saturation_effort=1.5,
+        velocity_limit=2.0,
+        stiffness=40.0,#35.0        
+        damping=5.0,#7.0          
         friction=0.05,        
         armature=0.001,      
     ),
+
+
+    
     # Foot joints (very tight, almost fixed)
     "foot_joints": DCMotorCfg(
         joint_names_expr=["lf3_foot", "rf3_foot", "lb3_foot", "rb3_foot"],

@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
+import torch
+
 import isaaclab.sim as sim_utils
 import isaaclab.terrains as terrain_gen
 from isaaclab.envs import ViewerCfg
@@ -63,8 +65,8 @@ class SpotActionsCfg:
             # RB leg (back-right)
             "base_rb1", "rb1_rb2", "rb2_rb3"
         ], 
-        scale=0.2,#first_train:2025-08-07_18-42-54=0.5, second_train:0.20 
-        use_default_offset=True
+        scale=1.0,#0.2,#first_train:2025-08-07_18-42-54=0.5, second_train:0.20 
+        use_default_offset=False
     )
 
 
@@ -80,7 +82,7 @@ class SpotCommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.8, 3.5), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-1.0, 1.0)
+            lin_vel_x=(0.3, 0.3), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0)#lin_vel_x=(-0.8, 3.5), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-1.0, 1.0)
         ),
     )
 
@@ -400,6 +402,11 @@ class SpotTerminationsCfg:
         func=mdp.terrain_out_of_bounds,
         params={"asset_cfg": SceneEntityCfg("robot"), "distance_buffer": 3.0},
         time_out=True,
+    )
+
+    success= DoneTerm(
+        func=lambda env: torch.zeros(env.num_envs, dtype=torch.bool, device=env.device),
+        time_out=False,
     )
 
 

@@ -1,6 +1,6 @@
 import gymnasium as gym
-
 from . import agents
+
 
 ##
 # Register Gym environments.
@@ -50,6 +50,10 @@ from . import agents
 #     },
 # )
 
+###############################
+###############################
+###############################
+
 gym.register(
     id="Isaac-Velocity-Flat-Custom-Quad-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
@@ -64,6 +68,7 @@ gym.register(
     },
 )
 
+
 # ─────────── Flat‑terrain PLAY (fewer envs, no randomization) ───────────
 gym.register(
     id="Isaac-Velocity-Flat-Custom-Quad-Play-v0",
@@ -77,3 +82,7 @@ gym.register(
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_flat_ppo_cfg.yaml",
     },
 )
+
+###############################
+###############################
+###############################

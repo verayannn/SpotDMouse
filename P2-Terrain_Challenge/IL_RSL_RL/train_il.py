@@ -33,7 +33,7 @@ class MLPPolicy(nn.Module):
             
         layers.append(nn.Linear(in_dim, action_dim))
         
-        self.net = nn.Sequential(*layers)
+        self.actor = nn.Sequential(*layers)
         
         # Initialize weights
         for m in self.modules():
@@ -42,7 +42,7 @@ class MLPPolicy(nn.Module):
                 nn.init.zeros_(m.bias)
                 
     def forward(self, obs):
-        return self.net(obs)
+        return self.actor(obs)
 
 class ILTrainer:
     def __init__(self, 

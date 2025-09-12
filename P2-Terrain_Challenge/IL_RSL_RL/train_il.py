@@ -28,7 +28,6 @@ class MLPPolicy(nn.Module):
             layers.extend([
                 nn.Linear(in_dim, hidden_dim),
                 nn.ELU(),
-                nn.LayerNorm(hidden_dim)
             ])
             in_dim = hidden_dim
             

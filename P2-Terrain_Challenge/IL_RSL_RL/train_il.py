@@ -80,7 +80,7 @@ class ILTrainer:
                 config={
                     "dataset": dataset_path,
                     "model": "MLP",
-                    "hidden_dims": [256, 128, 64],
+                    "hidden_dims": [512, 256, 128],
                     "lr": 3e-4,
                     "batch_size": 256
                 }

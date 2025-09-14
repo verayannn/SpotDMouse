@@ -1,7 +1,14 @@
 import h5py
 import json
+import numpy as np
+import matplotlib.pyplot as plt
+import os
 
 hdf5_path = "/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250910_202558.hdf5"
+
+# Create a directory for saving plots
+plot_dir = "/workspace/SpotDMouse/plots"
+os.makedirs(plot_dir, exist_ok=True)
 
 print("=== HDF5 File Structure ===")
 with h5py.File(hdf5_path, 'r') as f:
@@ -20,10 +27,64 @@ with h5py.File(hdf5_path, 'r') as f:
         print("\n=== 'data' group attributes ===")
         print(f"Attributes: {list(f['data'].attrs.keys())}")
         
-        # Check first demo
-        demo_keys = list(f['data'].keys())
-        if demo_keys:
-            first_demo = demo_keys[0]
-            print(f"\n=== First demo '{first_demo}' structure ===")
-            if 'obs' in f[f'data/{first_demo}']:
-                print("obs keys:", list(f[f'data/{first_demo}/obs'].keys()))
+        # Plot and save data from demos 0, 1, 2, 3
+        for demo_idx in range(4):
+            demo_key = f"demo_{demo_idx}"
+            if demo_key in f['data']:
+                print(f"\n=== Processing demo '{demo_key}' ===")
+                
+                # Get observation data
+                if 'obs' in f[f'data/{demo_key}']:
+                    obs_group = f[f'data/{demo_key}/obs']
+                    obs_keys = list(obs_group.keys())
+                    print(f"Observation keys: {obs_keys}")
+                    
+                    # Plot joint positions if available
+                    if 'joint_positions' in obs_keys:
+                        joint_positions = obs_group['joint_positions'][:]
+                        
+                        plt.figure(figsize=(12, 6))
+                        for i in range(joint_positions.shape[1]):
+                            plt.plot(joint_positions[:, i], label=f'Joint {i}')
+                        
+                        plt.title(f'Joint Positions - Demo {demo_idx}')
+                        plt.xlabel('Time step')
+                        plt.ylabel('Position')
+                        plt.legend()
+                        plt.tight_layout()
+                        
+                        # Save the plot
+                        plt.savefig(f"{plot_dir}/demo_{demo_idx}_joint_positions.png")
+                        plt.close()
+                        print(f"Saved joint positions plot for demo {demo_idx}")
+                    
+                    # Plot other numerical data (first few found)
+                    plotted = 0
+                    for key in obs_keys:
+                        if plotted >= 2:  # Limit to 2 additional plots per demo
+                            break
+                            
+                        data = obs_group[key][:]
+                        if isinstance(data, np.ndarray) and data.size > 0 and np.issubdtype(data.dtype, np.number):
+                            plt.figure(figsize=(12, 6))
+                            
+                            if data.ndim == 1:
+                                plt.plot(data)
+                                plt.title(f'{key} - Demo {demo_idx}')
+                            elif data.ndim == 2 and data.shape[1] <= 10:
+                                for i in range(data.shape[1]):
+                                    plt.plot(data[:, i], label=f'Dim {i}')
+                                plt.legend()
+                                plt.title(f'{key} - Demo {demo_idx}')
+                            
+                            plt.xlabel('Time step')
+                            plt.ylabel('Value')
+                            plt.tight_layout()
+                            
+                            # Save the plot
+                            plt.savefig(f"{plot_dir}/demo_{demo_idx}_{key}.png")
+                            plt.close()
+                            print(f"Saved {key} plot for demo {demo_idx}")
+                            plotted += 1
+
+print(f"\nPlots saved to {plot_dir}")

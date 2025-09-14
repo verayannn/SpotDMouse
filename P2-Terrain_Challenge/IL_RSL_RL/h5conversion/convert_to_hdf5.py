@@ -15,7 +15,7 @@ import argparse
 from tqdm import tqdm
 
 class RosbagToHDF5Converter:
-    def __init__(self, recordings_dir="~/rosbag_recordings"):
+    def __init__(self, recordings_dir="/workspace/rosbag_recordings"):
         self.recordings_dir = Path(recordings_dir).expanduser()
         self.output_dir = self.recordings_dir / "hdf5_datasets"
         self.output_dir.mkdir(exist_ok=True)
@@ -30,6 +30,11 @@ class RosbagToHDF5Converter:
         for obs_file in obs_files:
             # Extract demo name from observation file
             demo_name = "_".join(obs_file.stem.split("_")[:-2])  # Remove timestamp and 'observations'
+            
+            # Skip demos we don't want in training
+            if "standing_still" in demo_name or "emergency_stops" in demo_name:
+                print(f"Skipping demo: {demo_name}")
+                continue
             
             # Find matching rosbag directory
             rosbag_dirs = list(self.recordings_dir.glob(f"{demo_name}_*"))
@@ -284,7 +289,7 @@ def create_dataset_info(hdf5_file):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert rosbag recordings to HDF5 for IL")
-    parser.add_argument("--recordings-dir", default="~/rosbag_recordings", 
+    parser.add_argument("--recordings-dir", default="/workspace/rosbag_recordings", 
                        help="Directory containing rosbag recordings")
     parser.add_argument("--dataset-name", default="mini_pupper_demos",
                        help="Name for the output dataset")

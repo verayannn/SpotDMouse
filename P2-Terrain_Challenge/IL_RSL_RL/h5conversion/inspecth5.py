@@ -35,9 +35,17 @@ with h5py.File(hdf5_path, 'r') as f:
                 
                 # Get observation data
                 if 'obs' in f[f'data/{demo_key}']:
-                    obs_group = f[f'data/{demo_key}/obs']
-                    obs_keys = list(obs_group.keys())
-                    print(f"Observation keys: {obs_keys}")
+                    obs_path = f[f'data/{demo_key}/obs']
+                    if isinstance(obs_path, h5py.Dataset):
+                        # Handle 'obs' as a dataset
+                        print(f"Observation is a Dataset with shape: {obs_path.shape}, dtype: {obs_path.dtype}")
+                        # Directly process the dataset as needed
+                        continue
+                    else:
+                        # Handle 'obs' as a group
+                        obs_group = obs_path
+                        obs_keys = list(obs_group.keys())
+                        print(f"Observation keys: {obs_keys}")
                     
                     # Plot joint positions if available
                     if 'joint_positions' in obs_keys:

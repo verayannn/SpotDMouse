@@ -73,25 +73,11 @@ class ModelAnalyzer:
             
         self.model.eval()
         
-        # Load normalization stats with defaults if not present
-        self.obs_mean = checkpoint.get('obs_mean', None)
-        self.obs_std = checkpoint.get('obs_std', None)
-        self.action_mean = checkpoint.get('action_mean', None)
-        self.action_std = checkpoint.get('action_std', None)
-        
-        # Use defaults if stats are missing
-        if self.obs_mean is None:
-            print("Warning: obs_mean not found in checkpoint, using zeros")
-            self.obs_mean = np.zeros(48)
-        if self.obs_std is None:
-            print("Warning: obs_std not found in checkpoint, using ones")
-            self.obs_std = np.ones(48)
-        if self.action_mean is None:
-            print("Warning: action_mean not found in checkpoint, using zeros")
-            self.action_mean = np.zeros(12)
-        if self.action_std is None:
-            print("Warning: action_std not found in checkpoint, using ones")
-            self.action_std = np.ones(12)
+        # Load normalization stats
+        self.obs_mean = checkpoint.get('obs_mean', np.zeros(48))
+        self.obs_std = checkpoint.get('obs_std', np.ones(48))
+        self.action_mean = checkpoint.get('action_mean', np.zeros(12))
+        self.action_std = checkpoint.get('action_std', np.ones(12))
         
         # Convert to tensors
         self.obs_mean = torch.tensor(self.obs_mean, dtype=torch.float32).to(self.device)

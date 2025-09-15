@@ -41,10 +41,10 @@ if action_std is None:
     action_std = torch.ones(12)
 
 # Load demo 2 data (forward walk)
-print("\nLoading demo 2 data...")
+print("\nLoading demo 3 data...")
 with h5py.File('/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5', 'r') as f:
-    demo_obs = f['data/demo_4/obs'][:]
-    demo_actions = f['data/demo_4/actions'][:]
+    demo_obs = f['data/demo_3/obs'][:]
+    demo_actions = f['data/demo_3/actions'][:]
     demo_commands = demo_obs[:, :3]
 
 # Find a good forward walking segment (where vx=0.24)

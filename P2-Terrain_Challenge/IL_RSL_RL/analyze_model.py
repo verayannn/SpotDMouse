@@ -573,7 +573,7 @@ def main():
                        default="/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models/best_model.pt",
                        help="Path to model checkpoint")
     parser.add_argument("--dataset",
-                       default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5",
+                       default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_220933.hdf5",
                        help="Path to HDF5 dataset")
     parser.add_argument("--num-samples", type=int, default=1000,
                        help="Number of dataset samples to analyze")

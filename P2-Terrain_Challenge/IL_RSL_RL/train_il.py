@@ -43,12 +43,6 @@ class MLPPolicy(nn.Module):
                 
     def forward(self, obs):
         return self.actor(obs)
-    
-class PhaseAwareLoss(nn.Module):
-    def forward(self, pred, target, phase):
-        # Weight errors based on phase consistency
-        phase_weight = 1.0 + torch.abs(torch.sin(phase * 2))  # Higher weight at mid-stride
-        return torch.mean(phase_weight * (pred - target)**2)
 
 class ILTrainer:
     def __init__(self, 
@@ -76,7 +70,7 @@ class ILTrainer:
         # Training setup
         self.optimizer = optim.Adam(self.model.parameters(), lr=3e-4)
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=100)
-        self.criterion = PhaseAwareLoss()#nn.MSELoss()
+        self.criterion = nn.MSELoss()
         
         # Logging
         self.use_wandb = use_wandb
@@ -119,37 +113,6 @@ class ILTrainer:
             num_batches += 1
             
         return total_loss / num_batches
-
-    def train_epoch(self, dataloader):
-        self.model.train()
-        total_loss = 0
-        num_batches = 0
-        
-        for batch in tqdm(dataloader, desc="Training"):
-            obs = batch['obs'].to(self.device)
-            actions = batch['action'].to(self.device)
-            
-            # Extract phase from observations (indices 45:47 are sin/cos of phase)
-            phase_sin = obs[:, 45:46]  # Keep dims for broadcasting
-            phase_cos = obs[:, 46:47]
-            phase = torch.atan2(phase_sin, phase_cos)  # Reconstruct phase angle
-            
-            # Forward pass
-            pred_actions = self.model(obs)
-            
-            # Use phase-aware loss
-            loss = self.criterion(pred_actions, actions, phase)
-            
-            # Rest remains the same...
-            self.optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-            self.optimizer.step()
-            
-            total_loss += loss.item()
-            num_batches += 1
-            
-        return total_loss / num_batches
     
     def validate(self, dataloader):
         """Validate the model"""
@@ -169,7 +132,6 @@ class ILTrainer:
                 num_batches += 1
                 
         return total_loss / num_batches
-
     
     def train(self, num_epochs=100, batch_size=256, save_every=10):
         """Main training loop"""
@@ -276,7 +238,7 @@ class ILTrainer:
 
 def main():
     parser = argparse.ArgumentParser(description="Train IL policy")
-    parser.add_argument("--dataset", default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5",
+    parser.add_argument("--dataset", default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250910_202558.hdf5",
                         help="Path to HDF5 dataset")
     parser.add_argument("--epochs", type=int, default=100,
                         help="Number of training epochs")

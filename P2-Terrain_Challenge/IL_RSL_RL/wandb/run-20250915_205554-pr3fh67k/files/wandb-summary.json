@@ -1,1 +1,0 @@
-{"train_loss": 160.5220977177395, "train_actor_loss": 7.78555931676111e-05, "train_critic_loss": 642.0880788798368, "val_loss": 159.29031998071915, "val_actor_loss": 0.00012258223357956664, "val_critic_loss": 637.1607916416266, "lr": 0.0002876631938525971, "_timestamp": 1757970643, "_runtime": 889, "_step": 12}

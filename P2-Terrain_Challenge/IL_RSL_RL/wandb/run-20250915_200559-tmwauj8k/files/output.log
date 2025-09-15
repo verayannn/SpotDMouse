@@ -1,0 +1,169 @@
+
+Training:   1%|█▍                                                                                                             | 5/403 [00:01<01:21,  4.87it/s]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Training: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 403/403 [01:01<00:00,  6.59it/s]
+
+
+Validation:  74%|█████████████████████████████████████████████████████████████████████████████████                            | 29/39 [00:04<00:01,  6.84it/s]
+Train - Total: 394.456189, Actor: 0.018614, Critic: 788.875151
+Val - Total: 319.579887, Actor: 0.000661, Critic: 639.158457
+Saved RSL RL format checkpoint to /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt
+New best model saved (val_actor_loss: 0.000661)
+Validation: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 39/39 [00:05<00:00,  6.66it/s]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Training: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 403/403 [00:59<00:00,  6.75it/s]
+
+
+Validation:  87%|███████████████████████████████████████████████████████████████████████████████████████████████              | 34/39 [00:05<00:00,  7.48it/s]
+Train - Total: 320.720141, Actor: 0.001135, Critic: 641.438011
+Val - Total: 318.714785, Actor: 0.001037, Critic: 637.427498
+Validation: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 39/39 [00:05<00:00,  6.78it/s]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Training: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 403/403 [00:57<00:00,  7.02it/s]
+
+
+Validation:  54%|██████████████████████████████████████████████████████████▋                                                  | 21/39 [00:03<00:02,  6.47it/s]
+Train - Total: 320.539378, Actor: 0.000823, Critic: 641.077108
+Val - Total: 318.958155, Actor: 0.000144, Critic: 637.916020
+Saved RSL RL format checkpoint to /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt
+New best model saved (val_actor_loss: 0.000144)
+
+Validation: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████| 39/39 [00:06<00:00,  6.24it/s]
+
+
+
+
+
+
+
+Training:  28%|██████████████████████████████▎                                                                              | 112/403 [00:16<00:43,  6.62it/s]
+Traceback (most recent call last):
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_ac_il.py", line 537, in <module>
+    main()
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_ac_il.py", line 528, in main
+    trainer.train(
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_ac_il.py", line 304, in train
+    train_metrics = self.train_epoch(train_loader)
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_ac_il.py", line 185, in train_epoch
+    for batch in tqdm(dataloader, desc="Training"):
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 701, in __next__
+    data = self._next_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1448, in _next_data
+    idx, data = self._get_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1402, in _get_data
+    success, data = self._try_get_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1243, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/queue.py", line 180, in get
+    self.not_empty.wait(remaining)
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/threading.py", line 324, in wait
+    gotit = waiter.acquire(True, timeout)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_ac_il.py", line 537, in <module>
+    main()
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_ac_il.py", line 528, in main
+    trainer.train(
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_ac_il.py", line 304, in train
+    train_metrics = self.train_epoch(train_loader)
+  File "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/train_ac_il.py", line 185, in train_epoch
+    for batch in tqdm(dataloader, desc="Training"):
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/tqdm/std.py", line 1181, in __iter__
+    for obj in iterable:
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 701, in __next__
+    data = self._next_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1448, in _next_data
+    idx, data = self._get_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1402, in _get_data
+    success, data = self._try_get_data()
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 1243, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/queue.py", line 180, in get
+    self.not_empty.wait(remaining)
+  File "/workspace/isaaclab/_isaac_sim/kit/python/lib/python3.10/threading.py", line 324, in wait
+    gotit = waiter.acquire(True, timeout)
+KeyboardInterrupt

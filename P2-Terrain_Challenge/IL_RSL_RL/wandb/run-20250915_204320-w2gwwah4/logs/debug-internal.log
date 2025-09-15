@@ -1,0 +1,657 @@
+2025-09-15 20:43:21,668 INFO    MainThread:2795134 [internal.py:wandb_internal():90] W&B internal server running at pid: 2795134, started at: 2025-09-15 20:43:21.668258
+2025-09-15 20:43:21,669 INFO    WriterThread:2795134 [datastore.py:open_for_write():75] open: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/run-w2gwwah4.wandb
+2025-09-15 20:43:21,673 DEBUG   SenderThread:2795134 [sender.py:send():236] send: header
+2025-09-15 20:43:21,673 DEBUG   SenderThread:2795134 [sender.py:send():236] send: run
+2025-09-15 20:43:21,959 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: check_version
+2025-09-15 20:43:21,965 INFO    SenderThread:2795134 [dir_watcher.py:__init__():216] watching files in: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files
+2025-09-15 20:43:21,965 INFO    SenderThread:2795134 [sender.py:_start_run_threads():815] run started: w2gwwah4 with start time 1757969000
+2025-09-15 20:43:21,965 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:43:21,966 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:43:21,966 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: check_version
+2025-09-15 20:43:22,077 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: run_start
+2025-09-15 20:43:22,086 DEBUG   HandlerThread:2795134 [meta.py:__init__():35] meta init
+2025-09-15 20:43:22,086 DEBUG   HandlerThread:2795134 [meta.py:__init__():49] meta init done
+2025-09-15 20:43:22,087 DEBUG   HandlerThread:2795134 [meta.py:probe():209] probe
+2025-09-15 20:43:22,097 DEBUG   HandlerThread:2795134 [meta.py:_setup_git():199] setup git
+2025-09-15 20:43:22,107 DEBUG   HandlerThread:2795134 [meta.py:_setup_git():206] setup git done
+2025-09-15 20:43:22,107 DEBUG   HandlerThread:2795134 [meta.py:_save_pip():53] save pip
+2025-09-15 20:43:22,107 DEBUG   HandlerThread:2795134 [meta.py:_save_pip():67] save pip done
+2025-09-15 20:43:22,107 DEBUG   HandlerThread:2795134 [meta.py:probe():247] probe done
+2025-09-15 20:43:22,199 DEBUG   SenderThread:2795134 [sender.py:send():236] send: files
+2025-09-15 20:43:22,200 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-metadata.json with policy now
+2025-09-15 20:43:22,206 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:43:22,209 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:43:22,396 DEBUG   SenderThread:2795134 [sender.py:send():236] send: telemetry
+2025-09-15 20:43:22,569 INFO    Thread-11 :2795134 [upload_job.py:push():138] Uploaded file /tmp/tmpjdhst2euwandb/ripptfdt-wandb-metadata.json
+2025-09-15 20:43:22,968 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_created():269] file/dir created: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-metadata.json
+2025-09-15 20:43:22,969 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_created():269] file/dir created: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/requirements.txt
+2025-09-15 20:43:22,969 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_created():269] file/dir created: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:22,969 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_created():269] file/dir created: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:43:24,966 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:26,967 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:28,967 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:30,968 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:32,968 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:34,969 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:36,969 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:37,397 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:43:37,397 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:43:38,970 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:40,971 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:42,971 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:44,972 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:46,973 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:48,973 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:50,874 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:43:50,974 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:52,727 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:43:52,727 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:43:52,974 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:52,975 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/config.yaml
+2025-09-15 20:43:54,975 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:56,976 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:43:58,976 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:00,977 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:02,978 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:04,978 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:06,979 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:07,846 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:44:07,846 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:44:08,979 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:10,980 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:12,981 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:14,982 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:16,982 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:18,983 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:20,985 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:21,725 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:44:22,976 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:44:22,977 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:44:22,986 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:24,986 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:26,987 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:27,331 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:44:27,332 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:44:27,332 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:44:27,332 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:44:27,987 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:44:28,987 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:30,988 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:32,989 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:34,989 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:36,990 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:38,498 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:44:38,498 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:44:38,990 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:40,991 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:42,991 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:44,992 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:46,993 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:48,994 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:50,994 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:52,533 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:44:52,995 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:53,756 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:44:53,756 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:44:54,996 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:56,996 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:44:58,997 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:00,998 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:02,999 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:05,000 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:07,000 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:08,888 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:45:08,888 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:45:09,001 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:11,002 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:13,002 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:15,003 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:17,003 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:19,005 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:21,004 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:23,005 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:23,353 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:45:24,007 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:45:24,008 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:45:25,006 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:27,006 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:29,007 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:31,008 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:33,009 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:33,116 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:45:33,117 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:45:33,117 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:45:33,118 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:45:34,009 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:45:35,009 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:37,010 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:39,011 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:41,011 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:43,012 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:43,933 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:45:43,934 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:45:45,013 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:47,014 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:49,014 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:51,015 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:53,015 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:54,053 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:45:55,016 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:57,017 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:59,017 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:45:59,190 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:45:59,190 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:46:01,018 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:03,019 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:05,019 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:07,021 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:09,021 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:11,021 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:13,022 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:14,369 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:46:14,369 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:46:15,023 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:17,026 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:19,027 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:21,027 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:23,028 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:24,828 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:46:25,029 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:27,029 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:29,030 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:29,524 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:46:29,524 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:46:31,030 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:33,034 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:35,032 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:37,032 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:39,005 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:46:39,006 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:46:39,006 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:46:39,006 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:46:39,033 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:39,033 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:46:41,034 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:43,034 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:44,661 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:46:44,662 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:46:45,035 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:47,038 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:49,038 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:51,039 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:53,039 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:55,040 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:55,612 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:46:57,041 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:59,041 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:46:59,813 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:46:59,814 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:47:01,042 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:03,043 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:05,043 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:07,045 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:09,046 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:11,047 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:13,047 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:15,048 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:15,069 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:47:15,069 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:47:17,049 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:19,050 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:21,050 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:23,051 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:25,052 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:26,463 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:47:27,052 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:29,053 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:30,200 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:47:30,200 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:47:31,054 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:33,054 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:35,055 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:37,055 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:39,056 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:41,056 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:43,057 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:44,353 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:47:44,354 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:47:44,355 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:47:44,355 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:47:45,058 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:45,058 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:47:45,481 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:47:45,482 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:47:47,058 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:49,059 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:51,059 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:53,062 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:55,063 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:57,063 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:47:57,154 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:47:59,064 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:00,744 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:48:00,744 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:48:01,065 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:03,065 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:05,066 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:07,066 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:09,067 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:11,068 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:13,068 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:15,069 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:15,997 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:48:15,997 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:48:17,070 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:19,071 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:21,071 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:23,072 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:25,072 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:27,073 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:27,987 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:48:29,074 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:31,074 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:31,165 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:48:31,165 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:48:33,075 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:35,076 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:37,076 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:39,077 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:41,077 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:43,078 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:45,079 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:46,281 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:48:46,281 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:48:47,079 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:49,080 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:49,513 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:48:49,515 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:48:49,515 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:48:49,517 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:48:50,080 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:48:51,081 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:53,081 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:55,082 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:57,082 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:48:58,627 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:48:59,083 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:01,084 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:01,414 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:49:01,414 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:49:03,084 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:05,085 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:07,085 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:09,086 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:11,087 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:13,087 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:15,088 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:16,565 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:49:16,566 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:49:17,089 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:19,089 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:21,090 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:23,090 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:25,091 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:27,092 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:29,092 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:29,402 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:49:31,093 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:31,772 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:49:31,773 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:49:33,093 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:35,094 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:37,095 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:39,095 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:41,096 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:43,100 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:45,100 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:47,033 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:49:47,034 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:49:47,101 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:49,101 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:51,102 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:53,103 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:54,380 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:49:54,381 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:49:54,381 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:49:54,381 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:49:55,103 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:55,103 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:49:57,104 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:49:59,105 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:00,255 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:50:01,105 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:02,288 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:50:02,288 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:50:03,106 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:05,107 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:07,108 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:09,108 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:11,109 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:13,110 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:15,112 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:17,112 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:17,546 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:50:17,547 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:50:19,114 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:21,115 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:23,116 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:25,119 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:27,120 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:29,121 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:31,121 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:31,438 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:50:32,716 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:50:32,716 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:50:33,122 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:35,123 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:37,124 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:39,124 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:41,125 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:43,126 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:45,126 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:47,128 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:47,960 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:50:47,961 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:50:49,128 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:51,128 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:53,132 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:55,134 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:57,134 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:50:59,136 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:01,136 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:02,267 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:51:03,137 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:03,217 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:51:03,218 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:51:05,138 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:07,138 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:09,139 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:11,140 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:13,140 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:13,151 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:51:13,152 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:51:13,152 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:51:13,153 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:51:14,141 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:51:15,141 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:17,142 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:18,358 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:51:18,358 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:51:19,142 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:21,143 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:23,144 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:25,144 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:27,145 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:29,146 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:31,146 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:33,085 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:51:33,147 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:33,630 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:51:33,630 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:51:35,148 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:37,149 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:39,150 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:41,150 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:43,151 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:45,152 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:47,152 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:48,754 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:51:48,754 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:51:49,153 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:51,154 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:53,154 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:55,155 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:57,155 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:51:59,156 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:01,157 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:03,158 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:03,939 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:52:03,939 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:52:04,196 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:52:05,158 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:07,159 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:09,160 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:11,161 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:13,161 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:15,162 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:17,163 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:19,163 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:19,198 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:52:19,198 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:52:21,164 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:23,165 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:25,165 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:27,166 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:29,166 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:31,168 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:31,857 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:52:31,857 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:52:31,857 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:52:31,858 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:52:32,168 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:52:33,168 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:34,456 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:52:34,456 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:52:34,947 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:52:35,169 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:37,169 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:39,170 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:41,170 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:43,171 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:45,172 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:47,172 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:49,173 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:49,616 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:52:49,617 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:52:52,174 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:54,174 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:56,175 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:52:58,178 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:00,178 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:02,179 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:04,180 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:04,759 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:53:04,759 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:53:05,722 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:53:06,180 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:08,181 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:10,181 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:12,182 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:14,182 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:16,183 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:18,184 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:19,908 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:53:19,908 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:53:20,184 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:22,185 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:24,186 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:26,187 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:28,187 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:30,188 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:32,189 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:34,189 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:35,178 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:53:35,179 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:53:36,190 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:36,444 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:53:38,191 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:40,191 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:40,335 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:53:40,336 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:53:40,336 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:53:40,336 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:53:41,192 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:41,192 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:53:42,192 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:44,193 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:46,193 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:48,194 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:50,195 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:50,436 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:53:50,437 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:53:52,195 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:54,196 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:56,197 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:53:58,197 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:00,198 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:02,198 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:04,199 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:05,693 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:54:05,694 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:54:06,200 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:07,153 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:54:08,201 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:10,201 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:12,202 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:14,203 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:16,204 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:18,204 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:20,205 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:20,952 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:54:20,952 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:54:22,205 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:24,206 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:26,206 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:28,207 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:30,207 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:32,208 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:34,208 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:36,209 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:54:36,209 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:54:36,211 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:38,016 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:54:38,212 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:40,212 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:42,213 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:44,214 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:46,099 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: partial_history
+2025-09-15 20:54:46,100 DEBUG   SenderThread:2795134 [sender.py:send():236] send: history
+2025-09-15 20:54:46,100 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:54:46,101 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:54:46,214 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:46,214 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:54:47,214 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:48,215 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:50,216 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:51,568 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: stop_status
+2025-09-15 20:54:51,568 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: stop_status
+2025-09-15 20:54:52,216 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:54,217 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:56,218 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:54:58,218 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:55:00,219 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:55:02,219 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:55:02,237 WARNING MainThread:2795134 [internal.py:wandb_internal():153] Internal process interrupt: 1
+2025-09-15 20:55:02,246 DEBUG   SenderThread:2795134 [sender.py:send():236] send: telemetry
+2025-09-15 20:55:04,220 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:55:04,900 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:04,900 DEBUG   SenderThread:2795134 [sender.py:send():236] send: exit
+2025-09-15 20:55:04,901 INFO    SenderThread:2795134 [sender.py:send_exit():372] handling exit code: 255
+2025-09-15 20:55:04,901 INFO    SenderThread:2795134 [sender.py:send_exit():374] handling runtime: 702
+2025-09-15 20:55:04,901 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:55:04,901 INFO    SenderThread:2795134 [sender.py:send_exit():380] send defer
+2025-09-15 20:55:04,901 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:04,902 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:04,902 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 0
+2025-09-15 20:55:04,902 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:04,902 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 0
+2025-09-15 20:55:04,902 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 1
+2025-09-15 20:55:04,902 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:04,902 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 1
+2025-09-15 20:55:05,040 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:05,040 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:05,041 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 1
+2025-09-15 20:55:05,041 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 2
+2025-09-15 20:55:05,041 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:05,041 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:05,049 DEBUG   SenderThread:2795134 [sender.py:send():236] send: stats
+2025-09-15 20:55:05,049 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 2
+2025-09-15 20:55:05,050 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:05,050 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 2
+2025-09-15 20:55:05,050 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 3
+2025-09-15 20:55:05,050 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:05,050 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 3
+2025-09-15 20:55:05,050 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:05,050 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 3
+2025-09-15 20:55:05,050 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 4
+2025-09-15 20:55:05,050 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:05,051 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 4
+2025-09-15 20:55:05,051 DEBUG   SenderThread:2795134 [sender.py:send():236] send: summary
+2025-09-15 20:55:05,051 INFO    SenderThread:2795134 [sender.py:_save_file():952] saving file wandb-summary.json with policy end
+2025-09-15 20:55:05,051 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:05,051 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 4
+2025-09-15 20:55:05,051 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 5
+2025-09-15 20:55:05,051 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:05,052 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 5
+2025-09-15 20:55:05,052 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:05,052 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 5
+2025-09-15 20:55:05,150 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:05,217 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 6
+2025-09-15 20:55:05,217 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:05,218 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:05,218 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 6
+2025-09-15 20:55:05,218 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:05,218 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 6
+2025-09-15 20:55:05,218 INFO    SenderThread:2795134 [dir_watcher.py:finish():353] shutting down directory watcher
+2025-09-15 20:55:05,220 INFO    Thread-7  :2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:55:05,220 INFO    SenderThread:2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/config.yaml
+2025-09-15 20:55:05,220 INFO    SenderThread:2795134 [dir_watcher.py:_on_file_modified():286] file/dir modified: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:55:05,220 INFO    SenderThread:2795134 [dir_watcher.py:finish():383] scan: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files
+2025-09-15 20:55:05,221 INFO    SenderThread:2795134 [dir_watcher.py:finish():397] scan save: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/requirements.txt requirements.txt
+2025-09-15 20:55:05,221 INFO    SenderThread:2795134 [dir_watcher.py:finish():397] scan save: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/config.yaml config.yaml
+2025-09-15 20:55:05,221 INFO    SenderThread:2795134 [dir_watcher.py:finish():397] scan save: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log output.log
+2025-09-15 20:55:05,223 INFO    SenderThread:2795134 [dir_watcher.py:finish():397] scan save: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-metadata.json wandb-metadata.json
+2025-09-15 20:55:05,223 INFO    SenderThread:2795134 [dir_watcher.py:finish():397] scan save: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json wandb-summary.json
+2025-09-15 20:55:05,223 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 7
+2025-09-15 20:55:05,227 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:05,228 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 7
+2025-09-15 20:55:05,228 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:05,228 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 7
+2025-09-15 20:55:05,228 INFO    SenderThread:2795134 [file_pusher.py:finish():171] shutting down file pusher
+2025-09-15 20:55:05,319 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:05,319 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:05,420 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:05,420 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:05,521 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:05,521 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:05,575 INFO    Thread-12 :2795134 [upload_job.py:push():138] Uploaded file /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/requirements.txt
+2025-09-15 20:55:05,598 INFO    Thread-14 :2795134 [upload_job.py:push():138] Uploaded file /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/output.log
+2025-09-15 20:55:05,621 INFO    Thread-13 :2795134 [upload_job.py:push():138] Uploaded file /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/config.yaml
+2025-09-15 20:55:05,622 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:05,622 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:05,656 INFO    Thread-15 :2795134 [upload_job.py:push():138] Uploaded file /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/files/wandb-summary.json
+2025-09-15 20:55:05,723 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:05,724 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:05,825 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:05,825 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:05,856 INFO    Thread-6 (_thread_body):2795134 [sender.py:transition_state():393] send defer: 8
+2025-09-15 20:55:05,857 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:05,857 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 8
+2025-09-15 20:55:05,857 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:05,857 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 8
+2025-09-15 20:55:05,926 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:06,447 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 9
+2025-09-15 20:55:06,447 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:06,447 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:06,448 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 9
+2025-09-15 20:55:06,448 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:06,448 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 9
+2025-09-15 20:55:06,448 INFO    SenderThread:2795134 [sender.py:transition_state():393] send defer: 10
+2025-09-15 20:55:06,448 DEBUG   SenderThread:2795134 [sender.py:send():236] send: final
+2025-09-15 20:55:06,449 DEBUG   SenderThread:2795134 [sender.py:send():236] send: footer
+2025-09-15 20:55:06,449 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: defer
+2025-09-15 20:55:06,449 INFO    HandlerThread:2795134 [handler.py:handle_request_defer():163] handle defer: 10
+2025-09-15 20:55:06,449 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: defer
+2025-09-15 20:55:06,449 INFO    SenderThread:2795134 [sender.py:send_request_defer():389] handle sender defer: 10
+2025-09-15 20:55:06,549 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: poll_exit
+2025-09-15 20:55:06,549 DEBUG   SenderThread:2795134 [sender.py:send_request():250] send_request: poll_exit
+2025-09-15 20:55:06,549 INFO    SenderThread:2795134 [file_pusher.py:join():176] waiting for file pusher
+2025-09-15 20:55:06,826 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: sampled_history
+2025-09-15 20:55:06,827 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: get_summary
+2025-09-15 20:55:06,828 DEBUG   HandlerThread:2795134 [handler.py:handle_request():140] handle_request: shutdown
+2025-09-15 20:55:06,828 INFO    HandlerThread:2795134 [handler.py:finish():806] shutting down handler
+2025-09-15 20:55:07,448 INFO    WriterThread:2795134 [datastore.py:close():279] close: /workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/wandb/run-20250915_204320-w2gwwah4/run-w2gwwah4.wandb
+2025-09-15 20:55:07,725 INFO    SenderThread:2795134 [sender.py:finish():1114] shutting down sender
+2025-09-15 20:55:07,726 INFO    SenderThread:2795134 [file_pusher.py:finish():171] shutting down file pusher
+2025-09-15 20:55:07,726 INFO    SenderThread:2795134 [file_pusher.py:join():176] waiting for file pusher
+2025-09-15 20:55:07,726 INFO    MainThread:2795134 [internal.py:handle_exit():80] Internal process exited

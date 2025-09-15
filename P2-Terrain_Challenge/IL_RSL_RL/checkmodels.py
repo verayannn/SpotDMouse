@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import IPython
 
-IL_MLP_FILE = "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models/best_model.pt"
+IL_MLP_FILE = "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
 RL_MLP_FILE = "/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl/logs/rsl_rl/birthdayrun/2025-08-07_19-17-44/model_9999_with_stats.pt"
 
 IL_MODEL = torch.load(IL_MLP_FILE, weights_only=False)
@@ -43,10 +43,9 @@ print("NUM_ACTIONS in RL model", RL_MODEL['num_actions'])
 print("OBS RMS MEAN shape in RL model", RL_MODEL['obs_rms_mean'].shape)
 print("OBS RMS VAR shape in RL model", RL_MODEL['obs_rms_var'].shape)
 
-print("ACTION MEAN in IL model", IL_MODEL['action_mean'])
-print("ACTION STD in IL model", IL_MODEL['action_std'])
-print("ACTION EPOCH in IL model", IL_MODEL['epoch'])
-print("OBS MEAN in IL model", IL_MODEL['obs_mean'])
-print("OBS STD in IL model", IL_MODEL['obs_std'])
+print("ACTION EPOCH in IL model", IL_MODEL['iter'])
+print("OBS MEAN in IL model", IL_MODEL['obs_rms_mean'].shape)
+print("OBS VAR in IL model", IL_MODEL['obs_rms_var'].shape)
 
 print(IL_MODEL['model_state_dict'].keys())
+print(RL_MODEL['model_state_dict']['std'].shape)

@@ -355,6 +355,8 @@ class RSLRLFormatILTrainer:
         # Add critic weights with 'critic.' prefix
         for name, param in self.model.critic.named_parameters():
             model_state_dict[f'critic.{name}'] = param.data
+
+        model_state_dict['std'] = self.model.std.data
         
         # Create RSL RL compatible checkpoint
         checkpoint = {
@@ -369,11 +371,7 @@ class RSLRLFormatILTrainer:
                 'val_critic_loss': val_metrics['critic_loss'],
                 'val_total_loss': val_metrics['total_loss'],
                 'trained_with_il': True,
-                'il_dataset': self.train_dataset.hdf5_path
-            },
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            # Also save IL-specific info for reference
-            'il_info': {
+                'il_dataset': self.train_dataset.hdf5_path,
                 'epoch': epoch,
                 'val_metrics': val_metrics,
                 'use_normalization': self.use_normalization,
@@ -382,7 +380,8 @@ class RSLRLFormatILTrainer:
                 'obs_std': self.train_dataset.obs_std,
                 'action_mean': self.train_dataset.action_mean,
                 'action_std': self.train_dataset.action_std,
-            }
+            },
+            'optimizer_state_dict': self.optimizer.state_dict(),
         }
         
         path = os.path.join(self.save_dir, filename)
@@ -502,6 +501,9 @@ def main():
                         help="Weight for critic loss (default: 0.5)")
     parser.add_argument("--test-only", action="store_true",
                         help="Only create test script, don't train")
+    parser.add_argument("--train-action-std", action="store_true",
+                        help="Train action standard devation")
+    
     
     args = parser.parse_args()
     
@@ -521,7 +523,8 @@ def main():
         device=args.device,
         use_wandb=not args.no_wandb,
         use_normalization=args.use_normalization,
-        critic_weight=args.critic_weight
+        critic_weight=args.critic_weight,
+        train_action_std=args.train_action_std
     )
     
     # Train

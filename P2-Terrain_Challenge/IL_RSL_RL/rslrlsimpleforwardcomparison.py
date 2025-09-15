@@ -14,7 +14,7 @@ sys.path.append('/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL')
 
 # Load RSL RL ready model
 print("Loading RSL RL ready model...")
-checkpoint = torch.load('/workspace/il_model_rsl_rl_identity_norm.pt', map_location='cpu')
+checkpoint = torch.load('/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt', map_location='cpu')
 
 # Create a simple Sequential model that matches the actor structure in the checkpoint
 actor_model = nn.Sequential(
@@ -62,10 +62,10 @@ else:
     obs_std = torch.ones(48)
 
 # Load demo 3 data (forward walk)
-print("\nLoading demo 3 data...")
+print("\nLoading demo 4 data...")
 with h5py.File('/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5', 'r') as f:
-    demo_obs = f['data/demo_3/obs'][:]
-    demo_actions = f['data/demo_3/actions'][:]
+    demo_obs = f['data/demo_4/obs'][:]
+    demo_actions = f['data/demo_4/actions'][:]
     demo_commands = demo_obs[:, :3]
 
 # Find a good forward walking segment (where vx=0.24)

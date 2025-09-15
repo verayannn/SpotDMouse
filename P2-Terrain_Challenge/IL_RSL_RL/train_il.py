@@ -238,7 +238,7 @@ class ILTrainer:
 
 def main():
     parser = argparse.ArgumentParser(description="Train IL policy")
-    parser.add_argument("--dataset", default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250910_202558.hdf5",
+    parser.add_argument("--dataset", default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5",
                         help="Path to HDF5 dataset")
     parser.add_argument("--epochs", type=int, default=100,
                         help="Number of training epochs")

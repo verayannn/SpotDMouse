@@ -1,0 +1,47 @@
+Mini Pupper IL Model Analysis Report
+==================================================
+
+Generated: 2025-09-15 17:52:15
+
+1. Dataset Comparison Results
+------------------------------
+Samples analyzed: 1000
+Overall MSE: 0.000002
+Overall MAE: 0.000920
+
+Per-joint errors (MAE):
+  FL_hip      : 0.000810
+  FL_thigh    : 0.001018
+  FL_calf     : 0.001250
+  FR_hip      : 0.000691
+  FR_thigh    : 0.000999
+  FR_calf     : 0.000890
+  RL_hip      : 0.000751
+  RL_thigh    : 0.000916
+  RL_calf     : 0.000886
+  RR_hip      : 0.000687
+  RR_thigh    : 0.000981
+  RR_calf     : 0.001167
+
+Best predicted joint: RR_hip (MAE: 0.000687)
+Worst predicted joint: FL_calf (MAE: 0.001250)
+
+2. Random Command Test Results
+------------------------------
+Number of tests: 10
+
+Command types tested:
+  Test 1: linear_x=-0.083, linear_y=-0.052, angular_z=-0.223
+  Test 2: linear_x=-0.205, linear_y=-0.124, angular_z= 0.265
+  Test 3: linear_x= 0.275, linear_y= 0.000, angular_z= 0.000
+  Test 4: linear_x=-0.095, linear_y= 0.000, angular_z= 0.000
+  Test 5: linear_x= 0.000, linear_y= 0.000, angular_z= 0.000
+  Test 6: linear_x= 0.000, linear_y= 0.000, angular_z= 0.187
+  Test 7: linear_x= 0.000, linear_y= 0.000, angular_z= 0.245
+  Test 8: linear_x= 0.264, linear_y= 0.000, angular_z= 0.000
+  Test 9: linear_x= 0.142, linear_y= 0.000, angular_z= 0.000
+  Test 10: linear_x= 0.000, linear_y= 0.000, angular_z= 0.000
+
+3. Recommendations
+------------------------------
+- Model shows excellent prediction accuracy (MAE < 0.05)

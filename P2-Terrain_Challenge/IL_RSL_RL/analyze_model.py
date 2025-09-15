@@ -73,12 +73,26 @@ class ModelAnalyzer:
             
         self.model.eval()
         
-        # Load normalization stats
-        self.obs_mean = checkpoint.get('obs_mean', np.zeros(48))
-        self.obs_std = checkpoint.get('obs_std', np.ones(48))
-        self.action_mean = checkpoint.get('action_mean', np.zeros(12))
-        self.action_std = checkpoint.get('action_std', np.ones(12))
+        # Load normalization stats with proper defaults
+        self.obs_mean = checkpoint.get('obs_mean', None)
+        self.obs_std = checkpoint.get('obs_std', None)
+        self.action_mean = checkpoint.get('action_mean', None)
+        self.action_std = checkpoint.get('action_std', None)
         
+        # Ensure stats are not None and use appropriate defaults
+        if self.obs_mean is None:
+            print("Warning: obs_mean not found, using zeros")
+            self.obs_mean = np.zeros(48)
+        if self.obs_std is None:
+            print("Warning: obs_std not found, using ones")
+            self.obs_std = np.ones(48)
+        if self.action_mean is None:
+            print("Warning: action_mean not found, using zeros")
+            self.action_mean = np.zeros(12)
+        if self.action_std is None:
+            print("Warning: action_std not found, using ones")
+            self.action_std = np.ones(12)
+
         # Convert to tensors
         self.obs_mean = torch.tensor(self.obs_mean, dtype=torch.float32).to(self.device)
         self.obs_std = torch.tensor(self.obs_std, dtype=torch.float32).to(self.device)
@@ -559,7 +573,7 @@ def main():
                        default="/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models/best_model.pt",
                        help="Path to model checkpoint")
     parser.add_argument("--dataset",
-                       default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_220933.hdf5",
+                       default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5",
                        help="Path to HDF5 dataset")
     parser.add_argument("--num-samples", type=int, default=1000,
                        help="Number of dataset samples to analyze")

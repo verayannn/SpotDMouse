@@ -92,33 +92,33 @@ class ILTrainer:
                 }
             )
             
-    # def train_epoch(self, dataloader):
-    #     """Train for one epoch"""
-    #     self.model.train()
-    #     total_loss = 0
-    #     num_batches = 0
+    def train_epoch(self, dataloader):
+        """Train for one epoch"""
+        self.model.train()
+        total_loss = 0
+        num_batches = 0
         
-    #     for batch in tqdm(dataloader, desc="Training"):
-    #         obs = batch['obs'].to(self.device)
-    #         actions = batch['action'].to(self.device)  # Changed from 'actions' to 'action'
+        for batch in tqdm(dataloader, desc="Training"):
+            obs = batch['obs'].to(self.device)
+            actions = batch['action'].to(self.device)  # Changed from 'actions' to 'action'
             
-    #         # Forward pass
-    #         pred_actions = self.model(obs)
-    #         loss = self.criterion(pred_actions, actions)
+            # Forward pass
+            pred_actions = self.model(obs)
+            loss = self.criterion(pred_actions, actions)
             
-    #         # Backward pass
-    #         self.optimizer.zero_grad()
-    #         loss.backward()
+            # Backward pass
+            self.optimizer.zero_grad()
+            loss.backward()
             
-    #         # Gradient clipping
-    #         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
             
-    #         self.optimizer.step()
+            self.optimizer.step()
             
-    #         total_loss += loss.item()
-    #         num_batches += 1
+            total_loss += loss.item()
+            num_batches += 1
             
-    #     return total_loss / num_batches
+        return total_loss / num_batches
 
     def train_epoch(self, dataloader):
         self.model.train()
@@ -151,27 +151,8 @@ class ILTrainer:
             
         return total_loss / num_batches
     
-    # def validate(self, dataloader):
-    #     """Validate the model"""
-    #     self.model.eval()
-    #     total_loss = 0
-    #     num_batches = 0
-        
-    #     with torch.no_grad():
-    #         for batch in tqdm(dataloader, desc="Validation"):
-    #             obs = batch['obs'].to(self.device)
-    #             actions = batch['action'].to(self.device)  # Changed from 'actions' to 'action'
-                
-    #             pred_actions = self.model(obs)
-    #             loss = self.criterion(pred_actions, actions)
-                
-    #             total_loss += loss.item()
-    #             num_batches += 1
-                
-    #     return total_loss / num_batches
-
-
     def validate(self, dataloader):
+        """Validate the model"""
         self.model.eval()
         total_loss = 0
         num_batches = 0
@@ -179,20 +160,16 @@ class ILTrainer:
         with torch.no_grad():
             for batch in tqdm(dataloader, desc="Validation"):
                 obs = batch['obs'].to(self.device)
-                actions = batch['action'].to(self.device)
-                
-                # Extract phase
-                phase_sin = obs[:, 45:46]
-                phase_cos = obs[:, 46:47]
-                phase = torch.atan2(phase_sin, phase_cos)
+                actions = batch['action'].to(self.device)  # Changed from 'actions' to 'action'
                 
                 pred_actions = self.model(obs)
-                loss = self.criterion(pred_actions, actions, phase)
+                loss = self.criterion(pred_actions, actions)
                 
                 total_loss += loss.item()
                 num_batches += 1
                 
         return total_loss / num_batches
+
     
     def train(self, num_epochs=100, batch_size=256, save_every=10):
         """Main training loop"""

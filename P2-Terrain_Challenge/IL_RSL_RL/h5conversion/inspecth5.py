@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-hdf5_path = "/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_220933.hdf5"
+hdf5_path = "/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5"
 
 # Check if file exists
 if not os.path.exists(hdf5_path):

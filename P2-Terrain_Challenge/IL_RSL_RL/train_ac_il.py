@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Train imitation learning policy with both actor and critic in RSL RL format
-The critic learns a value function that can be useful for RL fine-tuning
+Including action standard deviation (std) for full RSL RL compatibility
 """
 
 import os
@@ -19,7 +19,8 @@ from il_dataset import MiniPupperILDataset
 
 class ActorCriticMLP(nn.Module):
     """Actor-Critic MLP matching RSL RL's expected structure exactly"""
-    def __init__(self, obs_dim=48, action_dim=12, hidden_dims=[512, 256, 128]):
+    def __init__(self, obs_dim=48, action_dim=12, hidden_dims=[512, 256, 128], 
+                 init_action_std=1.0):
         super().__init__()
         
         # Actor network
@@ -54,6 +55,10 @@ class ActorCriticMLP(nn.Module):
         # Store as 'critic' to match RSL RL naming
         self.critic = nn.Sequential(*critic_layers)
         
+        # Action standard deviation (log scale) - RSL RL compatibility
+        # This is typically used for stochastic policies
+        self.std = nn.Parameter(torch.ones(action_dim) * np.log(init_action_std))
+        
         # Initialize weights
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -64,9 +69,16 @@ class ActorCriticMLP(nn.Module):
         # Return both actor output and critic value
         return self.actor(obs), self.critic(obs)
     
-    def get_action(self, obs):
-        # For inference, just return actor output
-        return self.actor(obs)
+    def get_action(self, obs, deterministic=True):
+        """Get action with optional stochasticity"""
+        mean = self.actor(obs)
+        if deterministic:
+            return mean
+        else:
+            # Sample from Gaussian distribution
+            std = torch.exp(self.std)
+            dist = torch.distributions.Normal(mean, std)
+            return dist.sample()
     
     def get_value(self, obs):
         # Get critic value
@@ -79,12 +91,14 @@ class RSLRLFormatILTrainer:
                  device="cuda",
                  use_wandb=True,
                  use_normalization=False,
-                 critic_weight=0.5):  # Weight for critic loss
+                 critic_weight=0.5,
+                 train_action_std=False):  # Whether to train the action std
         
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         self.save_dir = os.path.expanduser(save_dir)
         self.use_normalization = use_normalization
         self.critic_weight = critic_weight
+        self.train_action_std = train_action_std
         os.makedirs(self.save_dir, exist_ok=True)
         
         # Load dataset
@@ -100,9 +114,16 @@ class RSLRLFormatILTrainer:
         print(f"Model parameters: {sum(p.numel() for p in self.model.parameters()):,}")
         print(f"Actor parameters: {sum(p.numel() for p in self.model.actor.parameters()):,}")
         print(f"Critic parameters: {sum(p.numel() for p in self.model.critic.parameters()):,}")
+        print(f"Action std (std) shape: {self.model.std.shape}")
         
-        # Training setup - optimize BOTH actor and critic
-        self.optimizer = optim.Adam(self.model.parameters(), lr=3e-4)
+        # Training setup - optimize actor, critic, and optionally std
+        if self.train_action_std:
+            self.optimizer = optim.Adam(self.model.parameters(), lr=3e-4)
+        else:
+            # Exclude std from optimization
+            params = list(self.model.actor.parameters()) + list(self.model.critic.parameters())
+            self.optimizer = optim.Adam(params, lr=3e-4)
+            
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=100)
         
         # Loss functions
@@ -132,7 +153,8 @@ class RSLRLFormatILTrainer:
                     "lr": 3e-4,
                     "batch_size": 256,
                     "use_normalization": use_normalization,
-                    "critic_weight": critic_weight
+                    "critic_weight": critic_weight,
+                    "train_action_std": train_action_std
                 }
             )
             
@@ -182,6 +204,9 @@ class RSLRLFormatILTrainer:
         total_loss = 0
         num_batches = 0
         
+        # Track per-joint errors
+        joint_errors = torch.zeros(12)
+        
         for batch in tqdm(dataloader, desc="Training"):
             obs = batch['obs'].to(self.device)
             actions = batch['action'].to(self.device)
@@ -208,6 +233,11 @@ class RSLRLFormatILTrainer:
             # Actor loss: match demonstrated actions
             actor_loss = self.actor_criterion(pred_actions, actions)
             
+            # Track per-joint errors
+            with torch.no_grad():
+                batch_joint_errors = torch.abs(pred_actions - actions).mean(dim=0)
+                joint_errors += batch_joint_errors.cpu()
+            
             # Critic loss: predict returns
             critic_loss = self.critic_criterion(pred_values, returns)
             
@@ -227,11 +257,25 @@ class RSLRLFormatILTrainer:
             total_critic_loss += critic_loss.item()
             total_loss += loss.item()
             num_batches += 1
+        
+        # Log per-joint errors
+        joint_errors /= num_batches
+        joint_names = ['FR-Hip', 'FR-Thigh', 'FR-Knee', 
+                       'FL-Hip', 'FL-Thigh', 'FL-Knee',
+                       'RR-Hip', 'RR-Thigh', 'RR-Knee',
+                       'RL-Hip', 'RL-Thigh', 'RL-Knee']
+        
+        print("\nPer-joint errors:")
+        for i, (name, error) in enumerate(zip(joint_names, joint_errors)):
+            print(f"  {name}: {error:.4f}")
+            if self.use_wandb:
+                wandb.log({f'joint_error/{name}': error})
             
         return {
             'total_loss': total_loss / num_batches,
             'actor_loss': total_actor_loss / num_batches,
-            'critic_loss': total_critic_loss / num_batches
+            'critic_loss': total_critic_loss / num_batches,
+            'joint_errors': joint_errors
         }
     
     def validate(self, dataloader):
@@ -320,12 +364,17 @@ class RSLRLFormatILTrainer:
                 'lr': self.scheduler.get_last_lr()[0]
             }
             
+            # Log action std
+            action_std = torch.exp(self.model.std).mean().item()
+            metrics['action_std'] = action_std
+            
             print(f"Train - Total: {train_metrics['total_loss']:.6f}, "
                   f"Actor: {train_metrics['actor_loss']:.6f}, "
                   f"Critic: {train_metrics['critic_loss']:.6f}")
             print(f"Val - Total: {val_metrics['total_loss']:.6f}, "
                   f"Actor: {val_metrics['actor_loss']:.6f}, "
                   f"Critic: {val_metrics['critic_loss']:.6f}")
+            print(f"Action Std: {action_std:.4f}")
             
             if self.use_wandb:
                 wandb.log(metrics)
@@ -355,7 +404,8 @@ class RSLRLFormatILTrainer:
         # Add critic weights with 'critic.' prefix
         for name, param in self.model.critic.named_parameters():
             model_state_dict[f'critic.{name}'] = param.data
-
+        
+        # Add action std (std) - this is what was missing!
         model_state_dict['std'] = self.model.std.data
         
         # Create RSL RL compatible checkpoint
@@ -388,101 +438,6 @@ class RSLRLFormatILTrainer:
         torch.save(checkpoint, path)
         print(f"Saved RSL RL format checkpoint to {path}")
 
-def create_test_script():
-    """Create a test script for the RSL format model with trained critic"""
-    test_code = '''# filepath: /workspace/test_rsl_format_actor_critic.py
-import torch
-import torch.nn as nn
-import numpy as np
-
-def test_rsl_format_model():
-    """Test the RSL format IL model with both actor and critic"""
-    checkpoint_path = "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
-    
-    # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
-    
-    print("Checkpoint keys:", list(checkpoint.keys()))
-    print("\\nModel state dict sample keys:")
-    actor_keys = [k for k in checkpoint['model_state_dict'].keys() if 'actor' in k]
-    critic_keys = [k for k in checkpoint['model_state_dict'].keys() if 'critic' in k]
-    print(f"  Actor keys: {len(actor_keys)}")
-    print(f"  Critic keys: {len(critic_keys)}")
-    
-    # Create actor and critic for testing
-    actor = nn.Sequential(
-        nn.Linear(48, 512),
-        nn.ELU(),
-        nn.Linear(512, 256),
-        nn.ELU(),
-        nn.Linear(256, 128),
-        nn.ELU(),
-        nn.Linear(128, 12)
-    )
-    
-    critic = nn.Sequential(
-        nn.Linear(48, 512),
-        nn.ELU(),
-        nn.Linear(512, 256),
-        nn.ELU(),
-        nn.Linear(256, 128),
-        nn.ELU(),
-        nn.Linear(128, 1)
-    )
-    
-    # Load weights
-    actor_state_dict = {k.replace('actor.', ''): v 
-                       for k, v in checkpoint['model_state_dict'].items() 
-                       if k.startswith('actor.')}
-    critic_state_dict = {k.replace('critic.', ''): v 
-                        for k, v in checkpoint['model_state_dict'].items() 
-                        if k.startswith('critic.')}
-    
-    actor.load_state_dict(actor_state_dict)
-    critic.load_state_dict(critic_state_dict)
-    actor.eval()
-    critic.eval()
-    
-    # Test inference
-    test_obs = torch.randn(5, 48)
-    
-    # Apply normalization
-    obs_mean = checkpoint['obs_rms_mean']
-    obs_var = checkpoint['obs_rms_var']
-    obs_norm = (test_obs - obs_mean) / torch.sqrt(obs_var + 1e-8)
-    
-    with torch.no_grad():
-        actions = actor(obs_norm)
-        values = critic(obs_norm)
-    
-    print(f"\\nTest successful!")
-    print(f"Input shape: {test_obs.shape}")
-    print(f"Action output shape: {actions.shape}")
-    print(f"Value output shape: {values.shape}")
-    print(f"Action range: [{actions.min():.3f}, {actions.max():.3f}]")
-    print(f"Value range: [{values.min():.3f}, {values.max():.3f}]")
-    
-    # Check training info
-    if 'infos' in checkpoint:
-        print(f"\\nTraining info:")
-        for key, value in checkpoint['infos'].items():
-            print(f"  {key}: {value}")
-    
-    # Verify critic was actually trained (values should be meaningful)
-    print(f"\\nCritic statistics:")
-    print(f"  Mean value: {values.mean():.3f}")
-    print(f"  Std value: {values.std():.3f}")
-    print(f"  (Should be non-zero if critic was trained)")
-
-if __name__ == "__main__":
-    test_rsl_format_model()
-'''
-    
-    with open("/workspace/test_rsl_format_actor_critic.py", "w") as f:
-        f.write(test_code)
-    
-    print("Created test script: /workspace/test_rsl_format_actor_critic.py")
-
 def main():
     parser = argparse.ArgumentParser(description="Train IL policy in RSL RL format with actor-critic")
     parser.add_argument("--dataset", default="/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5",
@@ -499,19 +454,15 @@ def main():
                         help="Use observation normalization (RSL RL style)")
     parser.add_argument("--critic-weight", type=float, default=0.5,
                         help="Weight for critic loss (default: 0.5)")
+    parser.add_argument("--train-action-std", action="store_true",
+                        help="Train the action standard deviation")
     parser.add_argument("--test-only", action="store_true",
                         help="Only create test script, don't train")
-    parser.add_argument("--train-action-std", action="store_true",
-                        help="Train action standard devation")
-    
     
     args = parser.parse_args()
     
-    # Create test script
-    create_test_script()
-    
     if args.test_only:
-        print("Test script created. Exiting without training.")
+        print("Test mode not implemented in this version.")
         return
     
     # Expand dataset path

@@ -48,4 +48,4 @@ print("OBS MEAN in IL model", IL_MODEL['obs_rms_mean'].shape)
 print("OBS VAR in IL model", IL_MODEL['obs_rms_var'].shape)
 
 print(IL_MODEL['model_state_dict'].keys())
-print(RL_MODEL['model_state_dict']['std'].shape)
+print(RL_MODEL['model_state_dict'].keys())

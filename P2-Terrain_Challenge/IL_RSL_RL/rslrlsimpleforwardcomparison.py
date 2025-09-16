@@ -14,7 +14,7 @@ sys.path.append('/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL')
 
 # Load RSL RL ready model
 print("Loading RSL RL ready model...")
-checkpoint = torch.load('/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt', map_location='cpu')
+checkpoint = torch.load('/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models/best_model.pt', map_location='cpu')
 
 # Create a simple Sequential model that matches the actor structure in the checkpoint
 actor_model = nn.Sequential(
@@ -167,6 +167,48 @@ ax3.grid(True, axis='y', alpha=0.3)
 plt.tight_layout()
 plt.savefig('/workspace/simple_forward_comparison_rsl_rl.png', dpi=150)
 print("\nSaved comparison to /workspace/simple_forward_comparison_rsl_rl.png")
+
+# Add this after line 109 (after model_actions = np.array(model_actions))
+
+# Run model WITHOUT normalization
+print("Running RSL RL ready model on demo observations (NO normalization)...")
+model_actions_no_norm = []
+
+with torch.no_grad():
+    for obs in demo_segment_obs:
+        obs_tensor = torch.tensor(obs, dtype=torch.float32)
+        
+        # NO normalization - pass raw observations
+        action = actor_model(obs_tensor.unsqueeze(0))
+        action = torch.clamp(action, -1.0, 1.0)
+        action = action.squeeze(0)
+        
+        model_actions_no_norm.append(action.numpy())
+
+model_actions_no_norm = np.array(model_actions_no_norm)
+
+# Create additional plot for non-normalized comparison
+fig2, ax = plt.subplots(1, 1, figsize=(12, 6))
+fig2.suptitle('Forward Walk: Demo vs Model (NO Normalization)', fontsize=14)
+
+# Plot FR leg comparison
+for j in range(3):
+    ax.plot(demo_segment_actions[:, j], label=f'{joint_names[j]} Demo', linewidth=2)
+    ax.plot(model_actions_no_norm[:, j], '--', label=f'{joint_names[j]} Model (No Norm)', linewidth=2)
+
+ax.set_xlabel('Time Step')
+ax.set_ylabel('Joint Position (rad)')
+ax.legend()
+ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig('/workspace/forward_comparison_no_normalization.png', dpi=150)
+
+# Print comparison
+errors_no_norm = np.abs(demo_segment_actions - model_actions_no_norm)
+print(f"\nWithout normalization:")
+print(f"  Average error: {np.mean(errors_no_norm):.4f} rad")
+print(f"  Max error: {np.max(errors_no_norm):.4f} rad")
 
 # Print summary
 print(f"\nSummary:")

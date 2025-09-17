@@ -190,7 +190,21 @@ for idx in range(0, min(len(all_demo_obs), 500)):
     rl_outputs.append(rl_out[0].cpu().numpy())
 
 il_outputs = np.array(il_outputs)
+
+il_outputs = il_outputs*200
 rl_outputs = np.array(rl_outputs)
+
+
+# Print first few samples as examples
+print("\n=== FIRST 5 SAMPLES OF IL OUTPUTS (rad) ===")
+print("Sample | LF-Hip  LF-Thigh LF-Knee | RF-Hip  RF-Thigh RF-Knee | LB-Hip  LB-Thigh LB-Knee | RB-Hip  RB-Thigh RB-Knee")
+print("-" * 120)
+for i in range(min(5, len(il_outputs))):
+    print(f"{i:6d} |", end="")
+    for leg_idx in range(4):
+        base_idx = leg_idx * 3
+        print(f" {il_outputs[i, base_idx]:7.4f} {il_outputs[i, base_idx+1]:8.4f} {il_outputs[i, base_idx+2]:7.4f} |", end="")
+    print()
 
 # Plot comparison for all joints
 fig3, axes3 = plt.subplots(4, 3, figsize=(15, 12))
@@ -202,7 +216,7 @@ for joint_idx in range(12):
     ax = axes3[leg_idx, joint_type_idx]
     
     ax.plot(il_outputs[:, joint_idx], label='IL', alpha=0.7)
-    ax.plot(rl_outputs[:, joint_idx], label='RL', alpha=0.7)
+    # ax.plot(rl_outputs[:, joint_idx], label='RL', alpha=0.7)
     
     ax.set_title(f'{joint_names[joint_idx]}')
     ax.set_xlabel('Sample')

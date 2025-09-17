@@ -84,9 +84,9 @@ def create_simple_forward_comparison():
     dataset_path = '/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5'
     with h5py.File(dataset_path, 'r') as f:
         # Use first 100 timesteps for clarity
-        demo_obs = f['data/demo_3/obs'][200:300]
-        demo_actions = f['data/demo_3/actions'][200:300]
-        demo_type = f['data/demo_3'].attrs.get('demo_type', 'unknown')
+        demo_obs = f['data/demo_2/obs'][200:300]
+        demo_actions = f['data/demo_2/actions'][200:300]
+        demo_type = f['data/demo_2'].attrs.get('demo_type', 'unknown')
     
     # Get normalization parameters
     obs_mean = checkpoint.get('obs_rms_mean', torch.zeros(48))
@@ -235,8 +235,8 @@ def create_knee_focused_comparison():
     # Load data
     dataset_path = '/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_20250914_233847.hdf5'
     with h5py.File(dataset_path, 'r') as f:
-        demo_obs = f['data/demo_3/obs'][:200]
-        demo_actions = f['data/demo_3/actions'][:200]
+        demo_obs = f['data/demo_2/obs'][300:500]
+        demo_actions = f['data/demo_2/actions'][300:500]
     
     # Get predictions
     obs_mean = checkpoint.get('obs_rms_mean', torch.zeros(48))
@@ -268,16 +268,6 @@ def create_knee_focused_comparison():
         ax.set_ylabel('Position (rad)')
         ax.grid(True, alpha=0.3)
         ax.legend()
-        
-        # Highlight areas of large error
-        diff = np.abs(pred_actions[:, idx] - demo_actions[:, idx])
-        threshold = diff.mean() + diff.std()
-        high_error_regions = diff > threshold
-        ax.fill_between(range(len(diff)), 
-                       ax.get_ylim()[0], ax.get_ylim()[1],
-                       where=high_error_regions, 
-                       alpha=0.2, color='red',
-                       label='High error')
     
     plt.tight_layout()
     save_path = '/workspace/knee_comparison_rsl.png'

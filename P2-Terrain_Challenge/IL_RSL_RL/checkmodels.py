@@ -191,7 +191,7 @@ for idx in range(0, min(len(all_demo_obs), 500)):
 
 il_outputs = np.array(il_outputs)
 
-il_outputs = il_outputs*200
+il_outputs = il_outputs
 rl_outputs = np.array(rl_outputs)
 
 
@@ -216,7 +216,7 @@ for joint_idx in range(12):
     ax = axes3[leg_idx, joint_type_idx]
     
     ax.plot(il_outputs[:, joint_idx], label='IL', alpha=0.7)
-    # ax.plot(rl_outputs[:, joint_idx], label='RL', alpha=0.7)
+    ax.plot(rl_outputs[:, joint_idx], label='RL', alpha=0.7)
     
     ax.set_title(f'{joint_names[joint_idx]}')
     ax.set_xlabel('Sample')
@@ -225,7 +225,7 @@ for joint_idx in range(12):
     ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('/workspace/il_vs_rl_outputs??.png', dpi=150)
+plt.savefig('/workspace/il_vs_rl_outputs.png', dpi=150)
 print("Saved IL vs RL comparison to: /workspace/il_vs_rl_outputs.png")
 
 

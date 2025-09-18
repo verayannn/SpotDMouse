@@ -15,10 +15,11 @@ joint_names = ['LF-Hip', 'LF-Thigh', 'LF-Knee', 'RF-Hip', 'RF-Thigh', 'RF-Knee',
 joints_to_invert = {
     0: 'LF-Hip',    # Index 0
     3: 'RF-Hip',    # Index 3
-    2: 'LF-Knee',   # Index 2
+    # 2: 'LF-Knee',   # Index 2
     5: 'RF-Knee',   # Index 5
+    7: 'LB-Thigh',  # Index 7
     8: 'LB-Knee',   # Index 8
-    11: 'RB-Knee'   # Index 11
+    # 11: 'RB-Knee'   # Index 11
 }
 
 print("\nJoints to invert direction:")

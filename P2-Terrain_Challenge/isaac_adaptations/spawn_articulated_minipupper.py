@@ -226,55 +226,6 @@ from math import pi
 import textwrap
 import re
 
-def check_groups(scene, cfg):
-    live = list(scene["robot"].data.joint_names)
-    for gname, act in cfg.actuators.items():
-        live_subset = [n for n in live if any(re.fullmatch(expr, n)
-                                              for expr in act.joint_names_expr)]
-        expected_subset = _expand_expr(act.joint_names_expr, live)
-        print(f"{gname:13s}:",
-              "✔" if live_subset == expected_subset else "❌",
-              live_subset)
-
-def _expand_expr(expr_list, full_name_list):
-    """Return the subset of full_name_list that matches the (ordered) regex list."""
-    out = []
-    for expr in expr_list:
-        pattern = re.compile(expr)
-        for name in full_name_list:
-            if pattern.fullmatch(name) and name not in out:
-                out.append(name)
-    return out
-
-def check_joint_order(scene, cfg):
-    # 1. Live DOF order --------------------------------------------------------
-    live_names = list(scene["robot"].data.joint_names)
-
-    # 2. Expected order per actuator group -------------------------------------
-    expected_by_group = {}
-    for group_name, act_cfg in cfg.actuators.items():
-        expr = act_cfg.joint_names_expr
-        expected_by_group[group_name] = _expand_expr(expr, live_names)
-
-    expected_flat = [j for group in expected_by_group.values() for j in group]
-
-    # 3. Diff ------------------------------------------------------------------
-    print("\n\n===== JOINT‑ORDER CHECK =====")
-    if live_names == expected_flat:
-        print("✔ Joint ordering matches YAML exactly!")
-    else:
-        print("❌ Ordering mismatch detected\n")
-        width = max(len(j) for j in live_names) + 2
-        print(" idx | live".ljust(width + 6) + "| expected")
-        print("-" * (width * 2 + 9))
-        for i, (l, e) in enumerate(zip(live_names, expected_flat)):
-            mark = " " if l == e else "<"
-            print(f"{i:4d} | {l.ljust(width)}{mark}| {e}")
-        print("\nFirst mismatch at index "
-              f"{next(i for i,(l,e) in enumerate(zip(live_names, expected_flat)) if l!=e)}")
-    print("================================\n")
-    # (optional) return bool
-    return live_names == expected_flat
 
 # ACCURATE for real MiniPupper: 560g total weight
 cfg_robot = ArticulationCfg(

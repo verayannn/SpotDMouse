@@ -229,7 +229,7 @@ class SpotRewardsCfg:
             "mode_time": 0.17, #0.17
             "velocity_threshold": 0.25, #0.8 OG PUPPER 
             "asset_cfg": SceneEntityCfg("robot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["lb3", "lf3", "rb3", "rf3"]),#body_names=".*foot$"
         },
     )
     base_angular_velocity = RewardTermCfg(
@@ -251,7 +251,7 @@ class SpotRewardsCfg:
             "std": 0.05, #0.05
             "tanh_mult": 2.0,
             "target_height": 0.02,#0.1
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=["lb3", "lf3", "rb3", "rf3"]),
         },
     )
 
@@ -262,7 +262,7 @@ class SpotRewardsCfg:
             "std": 0.05, #0.1
             "max_err": 0.1, #0.2
             "velocity_threshold": 0.1,
-            "synced_feet_pair_names": (("lffoot", "rbfoot"), ("rffoot", "lbfoot")),# ("fl_foot", "hr_foot"), ("fr_foot", "hl_foot")
+            "synced_feet_pair_names": (("lf3", "rb3"), ("rf3", "lb3")),#("lffoot", "rbfoot"), ("rffoot", "lbfoot")
             "asset_cfg": SceneEntityCfg("robot"),
             "sensor_cfg": SceneEntityCfg("contact_forces"),
         },
@@ -273,7 +273,7 @@ class SpotRewardsCfg:
     air_time_variance = RewardTermCfg(
         func=spot_mdp.air_time_variance_penalty,
         weight=-1.0,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$")},#".*_foot"
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["lb3", "lf3", "rb3", "rf3"])},#".*_foot"
     )
     base_motion = RewardTermCfg(
         func=spot_mdp.base_motion_penalty, weight=-2.0, params={"asset_cfg": SceneEntityCfg("robot")}
@@ -285,8 +285,8 @@ class SpotRewardsCfg:
         func=spot_mdp.foot_slip_penalty,
         weight=-0.5,
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=["lb3", "lf3", "rb3", "rf3"]),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["lb3", "lf3", "rb3", "rf3"]),
             "threshold": 1.0,
         },
     )
@@ -343,10 +343,10 @@ class SpotTerminationsCfg:
                     # chassis
                     "base_link",
                     # leg segments
-                    "lf1","lf2","lf3",
-                    "lb1","lb2","lb3",
-                    "rf1","rf2","rf3",
-                    "rb1","rb2","rb3",
+                    "lf1","lf2",
+                    "lb1","lb2",
+                    "rf1","rf2",
+                    "rb1","rb2",
                 ],
             ),
             "threshold": 1.0,

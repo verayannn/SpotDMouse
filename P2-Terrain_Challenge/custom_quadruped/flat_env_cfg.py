@@ -364,12 +364,6 @@ class SpotTerminationsCfg:
         time_out=True,
     )
 
-    success= DoneTerm(
-        func=lambda env: torch.zeros(env.num_envs, dtype=torch.bool, device=env.device),
-        time_out=False,
-    )
-
-
 @configclass
 class SpotFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 

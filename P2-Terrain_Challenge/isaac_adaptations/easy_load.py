@@ -32,6 +32,7 @@ from math import pi
 import textwrap
 import re
 
+#tutorial here: https://isaac-sim.github.io/IsaacLab/main/source/tutorials/01_assets/add_new_robot.html
 
 # ACCURATE for real MiniPupper: 560g total weight
 cfg_robot = ArticulationCfg(

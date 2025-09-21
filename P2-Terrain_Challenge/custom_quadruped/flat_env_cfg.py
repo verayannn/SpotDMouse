@@ -342,17 +342,11 @@ class SpotTerminationsCfg:
                 body_names=[
                     # chassis
                     "base_link",
-                    "base_intertia"
                     # leg segments
                     "lf1","lf2","lf3",
                     "lb1","lb2","lb3",
                     "rf1","rf2","rf3",
                     "rb1","rb2","rb3",
-                    #plate segments
-                    "lpf1","lpf2",
-                    "lpb1","lpb2",
-                    "rpf1","rpf2",
-                    "rpb1","rpb2",
                 ],
             ),
             "threshold": 1.0,

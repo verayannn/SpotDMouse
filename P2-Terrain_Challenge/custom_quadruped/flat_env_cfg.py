@@ -26,7 +26,7 @@ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import Lo
 # Pre-defined configs
 ##
 # from isaaclab_assets.robots.spot import SPOT_CFG  # isort: skip
-from isaaclab_tasks.manager_based.locomotion.velocity.config.custom_quadruped.custom_quad import CUSTOM_QUAD_CFG #Replacement!
+from isaaclab_tasks.manager_based.locomotion.velocity.config.custom_quadruped.custom_quad import CUSTOM_QUAD_CFG 
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
@@ -40,9 +40,9 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
     difficulty_range=(0.0, 1.0),
     use_cache=False,
     sub_terrains={
-        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.95),#proportion=0.95
+        "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.5),
         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-            proportion=0.05, noise_range=(0.02, 0.05), noise_step=0.02, border_width=0.25#proportion=0.2
+            proportion=0.50, noise_range=(0.02, 0.05), noise_step=0.02, border_width=0.25
         ),
     },
 )
@@ -65,8 +65,8 @@ class SpotActionsCfg:
             # RB leg (back-right)
             "base_rb1", "rb1_rb2", "rb2_rb3"
         ], 
-        scale=1.0,#0.2,#first_train:2025-08-07_18-42-54=0.5, second_train:0.20 
-        use_default_offset=False
+        scale=0.1,#0.2 original for spot servos
+        use_default_offset=True
     )
 
 
@@ -77,12 +77,12 @@ class SpotCommandsCfg:
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=(10.0, 10.0),##first_train:2025-08-07_18-42-54=(4.0, 8.0)(next) second run resampling_time_range=(10.0, 10.0)
-        rel_standing_envs=0.25,
+        rel_standing_envs=0.1,
         rel_heading_envs=0.0,
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(0.3, 0.3), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0)#lin_vel_x=(-0.8, 3.5), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-1.0, 1.0)
+            lin_vel_x=(-0.35, 0.40), lin_vel_y=(-0.35, 0.35), ang_vel_z=(-0.30, 0.30)
         ),
     )
 
@@ -108,13 +108,6 @@ class SpotObservationsCfg:
             noise=Unoise(n_min=-0.05, n_max=0.05),
         )
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
-        # joint_pos = ObsTerm(
-        #     func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.05, n_max=0.05)
-        # )
-        # joint_vel = ObsTerm(
-        #     func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
-        # )
-        # SPECIFY JOINT NAMES HERE
         joint_pos = ObsTerm(
             func=mdp.joint_pos_rel, 
             params={
@@ -171,7 +164,7 @@ class SpotEventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),#"body"
-            "mass_distribution_params": (-0.05, 0.05),#(-2.5, 2.5)
+            "mass_distribution_params": (-0.05, 0.05),#(-2.5, 2.5) scaled down for 560g MP
             "operation": "add",
         },
     )
@@ -194,12 +187,12 @@ class SpotEventCfg:
             "asset_cfg": SceneEntityCfg("robot"),
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
             "velocity_range": {
-                "x": (-1.5, 1.5),
-                "y": (-1.0, 1.0),
-                "z": (-0.5, 0.5),
-                "roll": (-0.7, 0.7),
-                "pitch": (-0.7, 0.7),
-                "yaw": (-1.0, 1.0),
+                "x": (-0.3, 0.3), #(-1.5, 1.5) OG Spot
+                "y": (-0.2, 0.2), #(-1.0, 1.0) OG Spot
+                "z": (-0.1, 0.1), #(-0.5, 0.5) OG Spot
+                "roll": (-0.2, 0.2), #(-0.7, 0.7) OG Spot
+                "pitch": (-0.2, 0.2), #(-0.7, 0.7) OG Spot
+                "yaw": (-0.3, 0.3), #(-1.0, 1.0) OG Spot
             },
         },
     )
@@ -209,7 +202,7 @@ class SpotEventCfg:
         mode="reset",
         params={
             "position_range": (-0.2, 0.2),
-            "velocity_range": (-2.5, 2.5),
+            "velocity_range": (-1.0, 1.0), # (-2.5, 2.5) OG Spot
             "asset_cfg": SceneEntityCfg("robot"),
         },
     )
@@ -233,60 +226,41 @@ class SpotRewardsCfg:
         func=spot_mdp.air_time_reward,
         weight=5.0,
         params={
-            "mode_time": 0.2,
-            "velocity_threshold": 0.8,
+            "mode_time": 0.17, #0.17
+            "velocity_threshold": 0.25, #0.8 OG PUPPER 
             "asset_cfg": SceneEntityCfg("robot"),
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
         },
     )
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
-        weight=2.0,#5.0
+        weight=5.0,
         params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
     )
     #second_train
     base_linear_velocity = RewardTermCfg(
         func=spot_mdp.base_linear_velocity_reward,
-        weight=10.0,#5.0
-        params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+        weight=5.0,
+        params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 0.4, "asset_cfg": SceneEntityCfg("robot")},#OG Spot params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")}
     )
-
-    #first_train:2025-08-07_18-42-54
-    # base_linear_velocity = RewardTermCfg(
-    #     func=spot_mdp.base_linear_velocity_reward,
-    #     weight=10.0,#5.0
-    #     params={"std": 1.0, "ramp_rate": 0.4, "ramp_at_vel": 2.0, "asset_cfg": SceneEntityCfg("robot")},
-    # )
-
 
     foot_clearance = RewardTermCfg(
         func=spot_mdp.foot_clearance_reward,
-        weight=2.0,#0.5
+        weight=0.5,
         params={
             "std": 0.05, #0.05
             "tanh_mult": 2.0,
-            "target_height": 0.0158,#0.1
+            "target_height": 0.02,#0.1
             "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
         },
     )
-
-    # foot_clearance = RewardTermCfg(
-    #     func=spot_mdp.individual_foot_clearance_reward,  # Changed function name
-    #     weight=0.5,#0.5  # Keep same weight might increase it to 2.0
-    #     params={
-    #         "std": 0.05,
-    #         "tanh_mult": 2.0,
-    #         "target_height": 0.0158,
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
-    #     },
-    # )
 
     gait = RewardTermCfg(
         func=spot_mdp.GaitReward,
         weight=10.0,
         params={
-            "std": 0.1,
-            "max_err": 0.2,
+            "std": 0.05, #0.1
+            "max_err": 0.1, #0.2
             "velocity_threshold": 0.1,
             "synced_feet_pair_names": (("lffoot", "rbfoot"), ("rffoot", "lbfoot")),# ("fl_foot", "hr_foot"), ("fr_foot", "hl_foot")
             "asset_cfg": SceneEntityCfg("robot"),
@@ -306,29 +280,16 @@ class SpotRewardsCfg:
     )
     base_orientation = RewardTermCfg(
         func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")}
-    )
-    
-    #second_train: 
+    ) 
     foot_slip = RewardTermCfg(
         func=spot_mdp.foot_slip_penalty,
-        weight=-0.5,#-0.5
+        weight=-0.5,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
             "threshold": 1.0,
         },
     )
-    
-    #first_train:2025-08-07_18-42-54
-    # foot_slip = RewardTermCfg(
-    #     func=spot_mdp.foot_slip_penalty,
-    #     weight=-0.5,#for 2025-08-03_23-37-43 (next)-0.5
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=".*foot$"),
-    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot$"),
-    #         "threshold": 0.5,#1.0
-    #     },
-    # )
 
     joint_acc = RewardTermCfg(
         func=spot_mdp.joint_acceleration_penalty,
@@ -341,33 +302,30 @@ class SpotRewardsCfg:
         params={
             # CHANGE: Only penalize leg joints, not sensor/plate joints
             "asset_cfg": SceneEntityCfg("robot", joint_names=[
-                "base_lb1", "base_lf1", "base_rb1", "base_rf1",
-                "lb1_lb2", "lf1_lf2", "rb1_rb2", "rf1_rf2", 
-                "lb2_lb3", "lf2_lf3", "rb2_rb3", "rf2_rf3"
+                    "base_lf1", "lf1_lf2", "lf2_lf3",
+                    "base_rf1", "rf1_rf2", "rf2_rf3",
+                    "base_lb1", "lb1_lb2", "lb2_lb3",
+                    "base_rb1", "rb1_rb2", "rb2_rb3"
             ]),
             "stand_still_scale": 5.0,
             "velocity_threshold": 0.5,
         },        
-        # params={
-        #     "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-        #     "stand_still_scale": 5.0,
-        #     "velocity_threshold": 0.5,
-        # },
     )
     joint_torques = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
         weight=-5.0e-4,
         # params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[
-        "base_lb1", "base_lf1", "base_rb1", "base_rf1",
-        "lb1_lb2", "lf1_lf2", "rb1_rb2", "rf1_rf2", 
-        "lb2_lb3", "lf2_lf3", "rb2_rb3", "rf2_rf3"
+            "base_lf1", "lf1_lf2", "lf2_lf3",
+            "base_rf1", "rf1_rf2", "rf2_rf3",
+            "base_lb1", "lb1_lb2", "lb2_lb3",
+            "base_rb1", "rb1_rb2", "rb2_rb3"
     ])},
     )
     joint_vel = RewardTermCfg(
         func=spot_mdp.joint_velocity_penalty,
         weight=-1.0e-2,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["base_lf1","base_lb1","base_rf1","base_rb1"])},#".*_h[xy]"
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["base_lf1","base_rf1","base_lb1","base_rb1"])},#".*_h[xy]"
     )
 
 
@@ -376,10 +334,6 @@ class SpotTerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
-    # body_contact = DoneTerm(
-    #     func=mdp.illegal_contact,
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["body", ".*leg"]), "threshold": 1.0},
-    # )
     body_contact = DoneTerm(
         func=mdp.illegal_contact,
         params={
@@ -388,11 +342,17 @@ class SpotTerminationsCfg:
                 body_names=[
                     # chassis
                     "base_link",
+                    "base_intertia"
                     # leg segments
-                    "lf1","lf2","lf3","lb1","lb2","lb3",
-                    "rf1","rf2","rf3","rb1","rb2","rb3",
-                    "lpf1","lpf2","lpb1","lpb2",
-                    "rpf1","rpf2","rpb1","rpb2",
+                    "lf1","lf2","lf3",
+                    "lb1","lb2","lb3",
+                    "rf1","rf2","rf3",
+                    "rb1","rb2","rb3",
+                    #plate segments
+                    "lpf1","lpf2",
+                    "lpb1","lpb2",
+                    "rpf1","rpf2",
+                    "rpb1","rpb2",
                 ],
             ),
             "threshold": 1.0,

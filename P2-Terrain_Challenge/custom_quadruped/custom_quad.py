@@ -56,3 +56,11 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
     }
 )
 
+# ...existing code...
+        # saturation_effort=0.343,    # Match actual servo: 3.5 kg·cm
+        # velocity_limit=10.47,       # Match actual servo: 0.1s/60°
+        # stiffness=100.0,            # Good for digital servo
+        # damping=3.0,                # Good for digital servo
+        # friction=0.02,              # Good for metal gears
+        # armature=0.00001,           # Good for 12.5g servo
+# ...existing code...

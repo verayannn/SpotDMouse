@@ -64,3 +64,17 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
         # friction=0.02,              # Good for metal gears
         # armature=0.00001,           # Good for 12.5g servo
 # ...existing code...
+
+#scaling for the actual servos affordances
+
+# class RealMiniPupperController:
+#     def __init__(self):
+#         # Scaling factors from sim to real
+#         self.effort_scale = 0.343 / 2.5  # ~0.137
+#         self.velocity_scale = 1.0        # Keep same
+#         self.action_scale = 0.15         # From training config
+        
+#     def apply_action(self, sim_action):
+#         # Scale the policy output for real servos
+#         scaled_action = sim_action * self.action_scale * self.effort_scale
+#         return scaled_action

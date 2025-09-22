@@ -7,7 +7,7 @@ from matplotlib.patches import Patch
 
 # Model paths
 IL_MLP_FILE = "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
-RL_MLP_FILE = "/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl/logs/rsl_rl/birthdayrun/2025-08-07_19-17-44/model_9999_with_stats.pt"
+RL_MLP_FILE = "/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl/logs/rsl_rl/harvardrun_45/2025-09-21_21-11-46/model_19999.pt"
 
 device = torch.device('cuda:0')
 
@@ -59,9 +59,11 @@ for idx in sample_indices:
     obs = torch.tensor(all_demo_obs[idx], dtype=torch.float32, device=device).unsqueeze(0)
     
     # Normalize for each model
-    il_obs_norm = (obs - IL_MODEL['obs_rms_mean'].to(device)) / torch.sqrt(IL_MODEL['obs_rms_var'].to(device) + 1e-8)
-    rl_obs_norm = (obs - torch.tensor(RL_MODEL['obs_rms_mean'], device=device)) / torch.sqrt(torch.tensor(RL_MODEL['obs_rms_var'], device=device) + 1e-8)
-    
+    # il_obs_norm = (obs - IL_MODEL['obs_rms_mean'].to(device)) / torch.sqrt(IL_MODEL['obs_rms_var'].to(device) + 1e-8)
+    # rl_obs_norm = (obs - torch.tensor(RL_MODEL['obs_rms_mean'], device=device)) / torch.sqrt(torch.tensor(RL_MODEL['obs_rms_var'], device=device) + 1e-8)
+    il_obs_norm = obs
+    rl_obs_norm = obs
+
     # Forward pass
     il_out = forward_actor(IL_MODEL['model_state_dict'], il_obs_norm)
     rl_out = forward_actor(RL_MODEL['model_state_dict'], rl_obs_norm)

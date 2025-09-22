@@ -79,7 +79,7 @@ cfg_robot = ArticulationCfg(
             ],
         saturation_effort=2.5,
         velocity_limit=10.0,
-        stiffness=80.0,#50.0        
+        stiffness=80.0,        
         damping=2.0,#7.0          
         friction=0.01,        
         armature=0.0005,      
@@ -142,7 +142,7 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     # --- END OF MODIFIED SECTION ---
 
     # Add small settling period after spawn
-    settling_steps = 100
+    # settling_steps = 100
     
     print(f"[DEBUG] Sim Dt Value:{sim_dt}")
     # Now, this debug line should show your desired bent-leg targets!
@@ -179,16 +179,17 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
                     
         # Apply standing joint targets with gentle settling
-        if count < settling_steps:
-            # Gradual settling - interpolate to target position
-            alpha = count / settling_steps
-            current_pos = scene["robot"].data.joint_pos[0] # Get current actual joint positions
-            # Interpolate from current_pos to default_joint_pos (your desired bent pose)
-            target_pos = alpha * default_joint_pos + (1 - alpha) * current_pos
-            scene["robot"].set_joint_position_target(target_pos)
-        else:
-            # Normal position control
-            scene["robot"].set_joint_position_target(default_joint_pos)
+        # if count < settling_steps:
+        #     # Gradual settling - interpolate to target position
+        #     alpha = count / settling_steps
+        #     current_pos = scene["robot"].data.joint_pos[0] # Get current actual joint positions
+        #     # Interpolate from current_pos to default_joint_pos (your desired bent pose)
+        #     target_pos = alpha * default_joint_pos + (1 - alpha) * current_pos
+        #     scene["robot"].set_joint_position_target(target_pos)
+        # else:
+        #     # Normal position control
+        #     scene["robot"].set_joint_position_target(default_joint_pos)
+        scene["robot"].set_joint_position_target(default_joint_pos)
         
         # Step sim
         scene.write_data_to_sim()

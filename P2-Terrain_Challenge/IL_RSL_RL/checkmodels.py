@@ -5,6 +5,7 @@ import h5py
 from scipy import optimize, signal
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
+import sys
 
 # Model paths
 IL_MLP_FILE = "/workspace/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
@@ -35,6 +36,18 @@ with h5py.File('/workspace/rosbag_recordings/hdf5_datasets/mini_pupper_demos_202
 
 all_demo_actions = np.vstack(all_demo_actions)
 all_demo_obs = np.vstack(all_demo_obs)
+
+import IPython
+IPython.embed()
+
+print(IL_MODEL.keys())
+print(RL_MODEL.keys())
+
+#make the models the same, 
+#put them back in the robot with the propper scaling
+#think about a task or just put the models in the robot
+
+sys.exit()
 
 joint_names = ['LF-Hip', 'LF-Thigh', 'LF-Knee', 'RF-Hip', 'RF-Thigh', 'RF-Knee',
                'LB-Hip', 'LB-Thigh', 'LB-Knee', 'RB-Hip', 'RB-Thigh', 'RB-Knee']

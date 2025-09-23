@@ -13,7 +13,7 @@ class CustomQuadFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 20000
     save_interval = 50
-    experiment_name = "harvardrun"
+    experiment_name = "harvardrun_45"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,

@@ -81,8 +81,8 @@ cfg_robot = ArticulationCfg(
         velocity_limit=10.0,
         stiffness=80.0,        
         damping=2.0,#7.0          
-        friction=0.01,        
-        armature=0.0005,      
+        friction=0.02,        
+        armature=0.005,
     ),
     }
 )

@@ -14,7 +14,7 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
         pos=(0.0, 0.0, 0.10),  # Appropriate height for 45° leg angle
         # In your init_state, try slightly straighter legs:
         joint_pos={
-            # 30° Legs # Need to try 45 degree legs since that is what the actual pupper has 45°
+            # 30° Legs 'harvardrun' # Need to try 45 degree legs since that is what the actual pupper has 45°
             "base_lf1": 0.0,      
             "lf1_lf2": 0.52,
             "lf2_lf3": -1.05,     
@@ -29,7 +29,22 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
             
             "base_rb1": 0.0,      
             "rb1_rb2": 0.52,      
-            "rb2_rb3": -1.05,     
+            "rb2_rb3": -1.05,
+            # 45° 'harvardrun_45'
+            # "base_lf1": 0.0,      
+            # "lf1_lf2": 0.785,     # π/4 radians = 45°
+            # "lf2_lf3": -1.57,     # -π/2 radians = -90° (to keep foot flat)
+
+            # "base_rf1": 0.0,      
+            # "rf1_rf2": 0.785,     # π/4 radians = 45°
+            # "rf2_rf3": -1.57,     # -π/2 radians = -90°
+
+            # "base_lb1": 0.0,      
+            # "lb1_lb2": 0.785,     # π/4 radians = 45°
+            # "lb2_lb3": -1.57,     # -π/2 radians = -90°
+
+            # "base_rb1": 0.0,      
+            # "rb1_rb2": 0.785,     # π/4 radians = 45°            # "rb2_rb3": -1.57,     # -π/2 radians = -90°
         },
         joint_vel={".*": 0.0},
     ),
@@ -50,31 +65,9 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
         velocity_limit=10.0,
         stiffness=80.0,        
         damping=2.0,          
-        friction=0.01,        
-        armature=0.0005,      
+        friction=0.02,        
+        armature=0.005,      
     ),
     }
 )
 
-# ...existing code...
-        # saturation_effort=0.343,    # Match actual servo: 3.5 kg·cm
-        # velocity_limit=10.47,       # Match actual servo: 0.1s/60°
-        # stiffness=100.0,            # Good for digital servo
-        # damping=3.0,                # Good for digital servo
-        # friction=0.02,              # Good for metal gears
-        # armature=0.00001,           # Good for 12.5g servo
-# ...existing code...
-
-#scaling for the actual servos affordances
-
-# class RealMiniPupperController:
-#     def __init__(self):
-#         # Scaling factors from sim to real
-#         self.effort_scale = 0.343 / 2.5  # ~0.137
-#         self.velocity_scale = 1.0        # Keep same
-#         self.action_scale = 0.15         # From training config
-        
-#     def apply_action(self, sim_action):
-#         # Scale the policy output for real servos
-#         scaled_action = sim_action * self.action_scale * self.effort_scale
-#         return scaled_action

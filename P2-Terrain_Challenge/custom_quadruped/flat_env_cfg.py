@@ -82,7 +82,7 @@ class SpotCommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.35, 0.40), lin_vel_y=(-0.35, 0.35), ang_vel_z=(-0.30, 0.30)
+            lin_vel_x=(0.0, 0.0), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.25, 0.25)#lin_vel_x=(-0.35, 0.40), lin_vel_y=(-0.35, 0.35), ang_vel_z=(-0.30, 0.30)
         ),
     )
 

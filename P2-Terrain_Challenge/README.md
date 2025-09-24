@@ -34,7 +34,7 @@ Figure 2: Training simulation screenshots showing Mini Pupper forward locomotion
 The following videos demonstrate the successful locomotion training results:
 
 ### Forward Locomotion
-[ **View Forward Locomotion Video**](https://drive.google.com/file/d/1ehlkc3w_ePVC4zGWKUQL6epkZSUy3MG4/view?usp=sharing)
+[ **View Forward Locomotion Video**]([https://drive.google.com/file/d/1ehlkc3w_ePVC4zGWKUQL6epkZSUy3MG4/view?usp=sharing](https://www.youtube.com/watch?v=jiTq16YEEsk))
 
 ### Backward Locomotion  
 [ **View Backward Locomotion Video**](https://drive.google.com/file/d/1nr-GEBjRpp-Lda-aAqpDr-nJM8DUHCVB/view?usp=sharing)

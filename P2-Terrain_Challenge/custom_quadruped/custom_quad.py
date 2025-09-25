@@ -14,7 +14,7 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
         pos=(0.0, 0.0, 0.10),  # Appropriate height for 45° leg angle
         # In your init_state, try slightly straighter legs:
         joint_pos={
-            # 30° Legs 'harvardrun' # Need to try 45 degree legs since that is what the actual pupper has 45°
+            # 30° Legs 'harvardrun' works best
             "base_lf1": 0.0,      
             "lf1_lf2": 0.52,
             "lf2_lf3": -1.05,     

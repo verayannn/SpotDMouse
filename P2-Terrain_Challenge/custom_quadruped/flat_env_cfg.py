@@ -70,6 +70,7 @@ class SpotActionsCfg:
     )
 
 
+
 @configclass
 class SpotCommandsCfg:
     """Command specifications for the MDP."""
@@ -79,10 +80,33 @@ class SpotCommandsCfg:
         resampling_time_range=(10.0, 10.0),##first_train:2025-08-07_18-42-54=(4.0, 8.0)(next) second run resampling_time_range=(10.0, 10.0)
         rel_standing_envs=0.1,
         rel_heading_envs=0.0,
-        heading_command=False,
+        heading_command=True,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.35, 0.40), lin_vel_y=(-0.35, 0.35), ang_vel_z=(-0.30, 0.30)
+            lin_vel_x=(-0.35, 0.40), 
+            lin_vel_y=(-0.35, 0.35), 
+            ang_vel_z=(-0.30, 0.30),
+            heading = (-3.14, 3.14)
+        ),
+    )
+
+@configclass
+class SpotCommandsCfg_PLAY:
+    """Fixed command specifications for the MDP in play mode."""
+
+    base_velocity = mdp.UniformVelocityCommandCfg(
+        asset_name="robot",
+        resampling_time_range=(1.0e10, 1.0e10), # Set a very long time so it doesn't resample
+        rel_standing_envs=0.0, # Disable standing-only environments
+        rel_heading_envs=0.0,  # Disable heading-only environments
+        heading_command=True,
+        debug_vis=True,
+        # SET YOUR DESIRED FIXED COMMAND VALUES HERE
+        ranges=mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(0.0, 0.0),    
+            lin_vel_y=(0.3, 0.3),    
+            ang_vel_z=(0.0, 0.0),    
+            heading=(0.0, 0.0)       
         ),
     )
 
@@ -425,6 +449,7 @@ class SpotFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
 
 
 class SpotFlatEnvCfg_PLAY(SpotFlatEnvCfg):
+    commands: SpotCommandsCfg_PLAY = SpotCommandsCfg_PLAY()
     def __post_init__(self) -> None:
         # post init of parent
         super().__post_init__()

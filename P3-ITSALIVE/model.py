@@ -1,6 +1,17 @@
 import torch
 import numpy as np
+import voltron
+import tqdm
 
-#wil have to use the model deifintons from Voltron and BProc despite the tools being pretty much the same
-#Maybe I will have to make generalizable definition for all models.
+goldroger_pth = "/Users/javierweddington/cortical/goldroger_epoch_95.pt"
+charmander_pth = "/Users/javierweddington/cortical/best_charmander.pt"
+
+device = torch.device("cpu")
+
+golroger_model = torch.load(goldroger_pth, weights_only=False, map_location=device)
+charmander_model = torch.load(charmander_pth, weights_only=False, device=device)
+
+print(goldroger_model)
+
+
 

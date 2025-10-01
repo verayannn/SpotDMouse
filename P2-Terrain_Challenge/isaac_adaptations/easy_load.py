@@ -80,7 +80,7 @@ cfg_robot = ArticulationCfg(
         saturation_effort=2.5,
         velocity_limit=10.0,
         stiffness=20.0,#80.0        
-        damping=0.8,#7.0          
+        damping=2.0,#2.0          
         friction=0.02,        
         armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
     ),

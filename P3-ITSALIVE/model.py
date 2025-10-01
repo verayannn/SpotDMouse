@@ -13,5 +13,3 @@ charmander_model = torch.load(charmander_pth, weights_only=False, device=device)
 
 print(goldroger_model)
 
-
-

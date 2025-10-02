@@ -14,7 +14,7 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
         pos=(0.0, 0.0, 0.10),  # Appropriate height for 45° leg angle
         # In your init_state, try slightly straighter legs:
         joint_pos={
-            # 30° Legs 'harvardrun' works best
+            # 30° Legs 'harvardrun_30'
             "base_lf1": 0.0,      
             "lf1_lf2": 0.52,
             "lf2_lf3": -1.05,     
@@ -44,7 +44,8 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
             # "lb2_lb3": -1.57,     # -π/2 radians = -90°
 
             # "base_rb1": 0.0,      
-            # "rb1_rb2": 0.785,     # π/4 radians = 45°            # "rb2_rb3": -1.57,     # -π/2 radians = -90°
+            # "rb1_rb2": 0.785,     # π/4 radians = 45°            
+            # "rb2_rb3": -1.57,     # -π/2 radians = -90°
         },
         joint_vel={".*": 0.0},
     ),
@@ -63,11 +64,27 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
             ],
         saturation_effort=2.5,
         velocity_limit=10.0,
-        stiffness=20.0,#80        
-        damping=0.8,#2.0          
+        stiffness=45.0,        
+        damping=1.3,          
         friction=0.02,        
-        armature=0.005,      
+        armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift      
     ),
     }
 )
+
+#settings
+#ORIGINAL: stiffness = 80, damping = 2.0 --> only walking forward
+#TRIAL 1: stiffness = 45, damping = 2.0 --> mostly standing in place
+#TRIAL 2: stiffness = 20, damping = 2.0 --> mostly standing in place
+#TRIAL 3: stiffness = 45, damping = 1.3 --> only walking forward
+#TRIAL 4: stiffness = 20, damping = 0.8 --> mostly standing in place
+#TRIAL 5: stiffness = 45, damping = 1.3, base_angular_velocity=10, base_linear_velocity=20--> moves in +x, -x, +y, -y does not rotate wrt to any angular command and the posture is good! I may need to make an angular rotawtional reward
+#TRIAL 6: stiffness = 45, damping = 1.3, base_angular_velocity=10, base_linear_velocity=20, joint_torques_penalty=-1.0e-4--> moves in +x, -x, +y, -y does not rotate wrt to any angular command and the base_orientation is not flat enough and the limbs are a bit unlike the standing pose.
+#TRIAL 7: stiffness = 45, damping = 1.3, base_angular_velocity=20, base_linear_velocity=20--> Follows commands, but the legs are splayed out too far for it to be a  aesthticvally  pleasing, and engergitcally favorable method of gait.
+#test categories:lin_vel_x=(0.2, 0.2),lin_vel_y=(0.0, 0.0),ang_vel_z=(0.0, 0.0)
+#test categories:lin_vel_x=(-0.2, -0.2),lin_vel_y=(0.0, 0.0),ang_vel_z=(0.0, 0.0)
+#test categories:lin_vel_x=(0.0, 0.0),lin_vel_y=(0.2, 0.2),ang_vel_z=(0.0, 0.0)
+#test categories:lin_vel_x=(0.0, 0.0),lin_vel_y=(-0.2, -0.2),ang_vel_z=(0.0, 0.0)
+#test categories:lin_vel_x=(0.0, 0.0),lin_vel_y=(0.0, 0.0),ang_vel_z=(0.2, 0.2) 
+#test categories:lin_vel_x=(0.0, 0.0),lin_vel_y=(0.0, 0.0),ang_vel_z=(-0.2, -0.2) 
 

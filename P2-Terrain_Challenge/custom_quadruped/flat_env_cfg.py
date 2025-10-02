@@ -34,15 +34,18 @@ COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
     border_width=20.0,
     num_rows=9,
     num_cols=21,
-    horizontal_scale=0.1,
-    vertical_scale=0.005,
+    horizontal_scale=0.05,#OG: 0.1
+    vertical_scale=0.003,#OG: 0.005
     slope_threshold=0.75,
     difficulty_range=(0.0, 1.0),
     use_cache=False,
     sub_terrains={
         "flat": terrain_gen.MeshPlaneTerrainCfg(proportion=0.5),
         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-            proportion=0.50, noise_range=(0.02, 0.05), noise_step=0.02, border_width=0.25
+            proportion=0.50, 
+            noise_range=(0.01, 0.02),# OG:(0.02, 0.05)
+            noise_step=0.01, #OG: 0.02 
+            border_width=0.25
         ),
     },
 )
@@ -70,7 +73,6 @@ class SpotActionsCfg:
     )
 
 
-
 @configclass
 class SpotCommandsCfg:
     """Command specifications for the MDP."""
@@ -80,13 +82,17 @@ class SpotCommandsCfg:
         resampling_time_range=(10.0, 10.0),##first_train:2025-08-07_18-42-54=(4.0, 8.0)(next) second run resampling_time_range=(10.0, 10.0)
         rel_standing_envs=0.1,
         rel_heading_envs=0.0,
-        heading_command=True,
+        heading_command=False, #heading_command=False
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.35, 0.40), 
-            lin_vel_y=(-0.35, 0.35), 
-            ang_vel_z=(-0.30, 0.30),
-            heading = (-3.14, 3.14)
+            # lin_vel_x=(-0.35, 0.40), 
+            # lin_vel_y=(-0.35, 0.35), 
+            # ang_vel_z=(-0.30, 0.30),
+            # heading = (-3.14, 3.14)
+            lin_vel_x=(0.2, 0.2),    
+            lin_vel_y=(0.0, 0.0),    
+            ang_vel_z=(0.0, 0.0),
+            # heading=(0.0, 0.0)
         ),
     )
 
@@ -99,14 +105,14 @@ class SpotCommandsCfg_PLAY:
         resampling_time_range=(1.0e10, 1.0e10), # Set a very long time so it doesn't resample
         rel_standing_envs=0.0, # Disable standing-only environments
         rel_heading_envs=0.0,  # Disable heading-only environments
-        heading_command=True,
+        heading_command=False,#heading_command=False
         debug_vis=True,
         # SET YOUR DESIRED FIXED COMMAND VALUES HERE
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(0.0, 0.0),    
-            lin_vel_y=(0.3, 0.3),    
-            ang_vel_z=(0.0, 0.0),    
-            heading=(0.0, 0.0)       
+            lin_vel_x=(0.2, 0.2),    
+            lin_vel_y=(0.0, 0.0),    
+            ang_vel_z=(0.0, 0.0),
+            # heading=(0.0, 0.0)       
         ),
     )
 
@@ -258,13 +264,13 @@ class SpotRewardsCfg:
     )
     base_angular_velocity = RewardTermCfg(
         func=spot_mdp.base_angular_velocity_reward,
-        weight=5.0,
+        weight=20.0, #OG: 5.0 Best: 10 ******
         params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
     )
     #second_train
     base_linear_velocity = RewardTermCfg(
         func=spot_mdp.base_linear_velocity_reward,
-        weight=5.0,
+        weight=20.0,#OG: 5.0 Best: 20
         params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 0.4, "asset_cfg": SceneEntityCfg("robot")},#OG Spot params={"std": 1.0, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")}
     )
 
@@ -303,11 +309,11 @@ class SpotRewardsCfg:
         func=spot_mdp.base_motion_penalty, weight=-2.0, params={"asset_cfg": SceneEntityCfg("robot")}
     )
     base_orientation = RewardTermCfg(
-        func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")}
+        func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")} 
     ) 
     foot_slip = RewardTermCfg(
         func=spot_mdp.foot_slip_penalty,
-        weight=-0.5,
+        weight=-2.0,#OG/Best:-0.5 *******************
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["lb3", "lf3", "rb3", "rf3"]),
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["lb3", "lf3", "rb3", "rf3"]),
@@ -322,7 +328,7 @@ class SpotRewardsCfg:
     )
     joint_pos = RewardTermCfg(
         func=spot_mdp.joint_position_penalty,
-        weight=-0.7,
+        weight=-2.5,#OG/Best:-0.70 **********888
         params={
             # CHANGE: Only penalize leg joints, not sensor/plate joints
             "asset_cfg": SceneEntityCfg("robot", joint_names=[
@@ -337,7 +343,7 @@ class SpotRewardsCfg:
     )
     joint_torques = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
-        weight=-5.0e-4,
+        weight=-5.0e-4, #*************** OG/Best: -5.0e-4 FUNCTIONAL: -1.0e-4 
         # params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[
             "base_lf1", "lf1_lf2", "lf2_lf3",

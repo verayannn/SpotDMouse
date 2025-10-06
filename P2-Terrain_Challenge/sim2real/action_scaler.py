@@ -14,8 +14,8 @@ class SimToRealActionScaler:
         self.sim_params = {
             'saturation_effort': 2.5,
             'velocity_limit': 10.0,  # rad/s
-            'stiffness': 80.0,
-            'damping': 2.0,
+            'stiffness': 45.0,#OG: 80, Final/Works: 45.0
+            'damping': 1.3,#OG: 2.0, Final/Works: 1.3
             'friction': 0.02,
             'armature': 0.005
         }

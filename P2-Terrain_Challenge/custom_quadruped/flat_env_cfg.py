@@ -85,13 +85,13 @@ class SpotCommandsCfg:
         heading_command=False, #heading_command=False
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            # lin_vel_x=(-0.35, 0.40), 
-            # lin_vel_y=(-0.35, 0.35), 
-            # ang_vel_z=(-0.30, 0.30),
+            lin_vel_x=(-0.35, 0.40), 
+            lin_vel_y=(-0.35, 0.35), 
+            ang_vel_z=(-0.30, 0.30),
             # heading = (-3.14, 3.14)
-            lin_vel_x=(0.2, 0.2),    
-            lin_vel_y=(0.0, 0.0),    
-            ang_vel_z=(0.0, 0.0),
+            # lin_vel_x=(0.2, 0.2),    
+            # lin_vel_y=(0.0, 0.0),    
+            # ang_vel_z=(0.0, 0.0),
             # heading=(0.0, 0.0)
         ),
     )
@@ -109,9 +109,9 @@ class SpotCommandsCfg_PLAY:
         debug_vis=True,
         # SET YOUR DESIRED FIXED COMMAND VALUES HERE
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(0.2, 0.2),    
-            lin_vel_y=(0.0, 0.0),    
-            ang_vel_z=(0.0, 0.0),
+            lin_vel_x=(-0.35, 0.40), 
+            lin_vel_y=(-0.35, 0.35), 
+            ang_vel_z=(-0.30, 0.30),
             # heading=(0.0, 0.0)       
         ),
     )

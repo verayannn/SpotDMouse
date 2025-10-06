@@ -14,7 +14,7 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
         pos=(0.0, 0.0, 0.10),  # Appropriate height for 45° leg angle
         # In your init_state, try slightly straighter legs:
         joint_pos={
-            # 30° Legs 'harvardrun_30'
+            # 30° Thigh-Calf 'harvardrun_30'
             "base_lf1": 0.0,      
             "lf1_lf2": 0.52,
             "lf2_lf3": -1.05,     
@@ -30,22 +30,6 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
             "base_rb1": 0.0,      
             "rb1_rb2": 0.52,      
             "rb2_rb3": -1.05,
-            # 45° 'harvardrun_45'
-            # "base_lf1": 0.0,      
-            # "lf1_lf2": 0.785,     # π/4 radians = 45°
-            # "lf2_lf3": -1.57,     # -π/2 radians = -90° (to keep foot flat)
-
-            # "base_rf1": 0.0,      
-            # "rf1_rf2": 0.785,     # π/4 radians = 45°
-            # "rf2_rf3": -1.57,     # -π/2 radians = -90°
-
-            # "base_lb1": 0.0,      
-            # "lb1_lb2": 0.785,     # π/4 radians = 45°
-            # "lb2_lb3": -1.57,     # -π/2 radians = -90°
-
-            # "base_rb1": 0.0,      
-            # "rb1_rb2": 0.785,     # π/4 radians = 45°            
-            # "rb2_rb3": -1.57,     # -π/2 radians = -90°
         },
         joint_vel={".*": 0.0},
     ),

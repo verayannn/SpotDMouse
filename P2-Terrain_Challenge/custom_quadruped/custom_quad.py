@@ -65,6 +65,7 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
 #TRIAL 5: stiffness = 45, damping = 1.3, base_angular_velocity=10, base_linear_velocity=20--> moves in +x, -x, +y, -y does not rotate wrt to any angular command and the posture is good! I may need to make an angular rotawtional reward
 #TRIAL 6: stiffness = 45, damping = 1.3, base_angular_velocity=10, base_linear_velocity=20, joint_torques_penalty=-1.0e-4--> moves in +x, -x, +y, -y does not rotate wrt to any angular command and the base_orientation is not flat enough and the limbs are a bit unlike the standing pose.
 #TRIAL 7: stiffness = 45, damping = 1.3, base_angular_velocity=20, base_linear_velocity=20--> Follows commands, but the legs are splayed out too far for it to be a  aesthticvally  pleasing, and engergitcally favorable method of gait.
+#TRIAL 8: stiffness = 45, damping = 1.3, base_angular_velocity=20, base_linear_velocity=20, slip_penalty=-2.0 --> Best in show. Follows, commands the angular commands results in a donut walk (aerial) not rotating in place
 #test categories:lin_vel_x=(0.2, 0.2),lin_vel_y=(0.0, 0.0),ang_vel_z=(0.0, 0.0)
 #test categories:lin_vel_x=(-0.2, -0.2),lin_vel_y=(0.0, 0.0),ang_vel_z=(0.0, 0.0)
 #test categories:lin_vel_x=(0.0, 0.0),lin_vel_y=(0.2, 0.2),ang_vel_z=(0.0, 0.0)

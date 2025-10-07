@@ -324,8 +324,8 @@ terrain_mix = {
 
 ### Training Command
 ```bash
-python scripts/rsl_rl/train.py \
-    --task=Isaac-Velocity-Flat-Spot-v0 \
+python isaaclab/scripts/reinforcemment_learning/rsl_rl/train.py \
+    --task=Isaac-Velocity-Flat-Custom-Quad-v0 \
     --num_envs=4098 \
     --headless
 ```

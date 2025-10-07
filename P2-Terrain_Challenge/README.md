@@ -122,16 +122,16 @@ All other parameters required proportional downscaling based on robot dimensions
 ```python
 # Spot Configuration
 ranges=mdp.UniformVelocityCommandCfg.Ranges(
-    lin_vel_x=(-2.0, 3.0),   # Large robot, high absolute speeds
-    lin_vel_y=(-1.5, 1.5), 
-    ang_vel_z=(-2.0, 2.0)
+    lin_vel_x=(-2.0, 3.0), m/s
+    lin_vel_y=(-1.5, 1.5), m/s
+    ang_vel_z=(-2.0, 2.0)  m/s
 )
 
 # Mini Pupper Configuration (scaled by ~0.4x for body size)
 ranges=mdp.UniformVelocityCommandCfg.Ranges(
-    lin_vel_x=(-0.8, 2.0),   # Scaled for small robot dynamics
-    lin_vel_y=(-0.3, 0.3), 
-    ang_vel_z=(-1.0, 1.0)
+    lin_vel_x=(-0.35, 0.40), m/s 
+    lin_vel_y=(-0.35, 0.35), m/s
+    ang_vel_z=(-0.30, 0.30), m/s
 )
 ```
 
@@ -144,7 +144,7 @@ foot_clearance = RewardTermCfg(
 
 # Mini Pupper: 15.8mm clearance for 133mm tall robot (11.9% of height)  
 foot_clearance = RewardTermCfg(
-    params={"target_height": 0.0158}  # 15.8mm
+    params={"target_height": 0.02}  # 20.0mm
 )
 ```
 
@@ -221,14 +221,15 @@ The actor-critic architecture required careful consideration of the action space
 # Targeted joint control (Mini Pupper specific)
 # Maps directly to 12-dimensional actor network output
 joint_names=[
-    "base_lb1", "base_lf1", "base_rb1", "base_rf1",  # Hip joints (4)
-    "lb1_lb2", "lf1_lf2", "rb1_rb2", "rf1_rf2",     # Knee joints (4)  
-    "lb2_lb3", "lf2_lf3", "rb2_rb3", "rf2_rf3"      # Ankle joints (4)
+        "base_lf1", "lf1_lf2", "lf2_lf3", #Left Front Leg
+        "base_rf1", "rf1_rf2", "rf2_rf3", #Right Front Leg
+        "base_lb1", "lb1_lb2", "lb2_lb3", #Left Back Leg
+        "base_rb1", "rb1_rb2", "rb2_rb3"  #Left Back Leg
 ]
 # Total: 12 joints = 3 segments per leg × 4 legs
 ```
 
-This design ensures the actor network's 12-dimensional output vector directly corresponds to the physical joint actuators, enabling efficient policy learning without action space mismatch.
+This design ensures the actor network's 12-dimensional output vector directly corresponds to the physical joint actuators, enabling efficient policy learning without action space mismatch. The leg output order must match the output of the Ros2 /joint_veliocity order.
 
 ### 2. My Reward Engineering Evolution
 
@@ -237,13 +238,13 @@ My reward structure underwent multiple iterations to address specific locomotion
 #### Final Reward Configuration
 ```python
 # Primary locomotion objectives
-base_linear_velocity = RewardTermCfg(weight=10.0)  # Forward motion priority
-gait = RewardTermCfg(weight=10.0)                  # Diagonal coordination
+base_linear_velocity = RewardTermCfg(weight=20.0)  # Forward motion priority
+gait = RewardTermCfg(weight=20.0)                  # Diagonal coordination
 foot_clearance = RewardTermCfg(weight=0.5)         # Appropriate lifting
 air_time = RewardTermCfg(weight=5.0)               # Gait timing
 
 # Stability and efficiency penalties  
-foot_slip = RewardTermCfg(weight=-0.5)             # Prevent dragging
+foot_slip = RewardTermCfg(weight=-2.0)             # Prevent dragging and encourage gait behavior
 base_orientation = RewardTermCfg(weight=-3.0)      # Maintain upright posture
 joint_torques = RewardTermCfg(weight=-5.0e-4)      # Energy efficiency
 ```
@@ -274,25 +275,26 @@ The actor network learns to output coordinated 12-dimensional action sequences t
 ### Environment Configuration
 ```python
 # Simulation Parameters
-decimation = 10              # 50 Hz control frequency  
+decimation = 10              # 50 Hz control frequency in simulation, 200Hz on the live robot
 episode_length_s = 20.0      # 20-second episodes
 sim.dt = 0.002              # 500 Hz physics simulation
-num_envs = 8098             # Massive parallelization
+num_envs = 4098             # Massive parallelization. These benefits plataeu around 4K envs.
 
 # Terrain Configuration  
 terrain_mix = {
-    "flat": 95%,            # Focus on basic locomotion
-    "random_rough": 5%      # Minor terrain variation
+    "flat": 50%,            # Distrubte locomotion learning across varied terrain
+    "random_rough": 50%     
 }
 ```
 
-### Observation Space (76 dimensions)
-- Base linear/angular velocity (6D)
-- Projected gravity vector (3D) 
+### Observation Space (48 dimensions)
+- Base linear (3D) (Command input)
+- Angular velocity (3D) (Command input)
+- Projected gravity vector (3D) (0,,0, -9.81m/s^2)
 - Velocity commands (3D)
-- Joint positions and velocities (24D)
-- Previous actions (12D)
-- Additional proprioceptive data (28D)
+- Joint positions (12D) #Legs and the primary output of the MLP
+- Joint Velocities (12D) #Legs and the primary output of the MLP
+- Actions (12 D) #Legs and the primary output of the MLP
 
 ## Getting Started
 
@@ -305,7 +307,7 @@ terrain_mix = {
 ```bash
 python scripts/rsl_rl/train.py \
     --task=Isaac-Velocity-Flat-Spot-v0 \
-    --num_envs=8098 \
+    --num_envs=4098 \
     --headless
 ```
 

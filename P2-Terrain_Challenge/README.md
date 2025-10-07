@@ -276,7 +276,7 @@ The actor network learns to output coordinated 12-dimensional action sequences t
 | Metric | Value | Interpretation |
 |--------|-------|----------------|
 | **Mean Reward** | 900+ | Stable, high-performance policy |
-| **Episode Length** | ~1000 | Robust locomotion (14.9s episodes) |
+| **Episode Length** | ~1000 | Robust locomotion at the maximum possible episode length |
 | **Gait Reward** | ~9.0 | Excellent diagonal coordination |
 | **Base Linear Velocity** | ~20 | Effective forward motion |
 | **Base Angular Velocity** | ~20 | Effective angular motion |

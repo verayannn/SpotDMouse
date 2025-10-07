@@ -65,6 +65,23 @@ Think of reverse clockwise as following the clockwise trajectory with the back o
 
 While most parameters required **downscaling** for the Mini Pupper, the action space required **upscaling** due to joint movement constraints.
 
+We will train policies that use the native servo specifications to reduce the sim2real gap, minimizing the action simple, linear scaling.
+
+```python
+    "leg_joints": DCMotorCfg(
+        joint_names_expr=[
+            "base_lf1", "lf1_lf2", "lf2_lf3",  
+            "base_rf1", "rf1_rf2", "rf2_rf3",
+            "base_lb1", "lb1_lb2", "lb2_lb3",
+            "base_rb1", "rb1_rb2", "rb2_rb3"
+            ],
+        saturation_effort=0.35, #Official 3.5 kg/cm
+        velocity_limit=10.47, #Official 0.1s/60° = 10.47 rad/s
+        stiffness=80.0, #Estimated for Carbon Fiber Joints       
+        damping=2.5, #Scaled to stiffness        
+        friction=0.03, #No ball bearing gears        
+        armature=0.005,#Arrived at this value empirically testing standing and single limb movement      
+```
 #### Joint Action Mathematics
 
 The `JointPositionActionCfg` scale parameter controls the range of joint movement:
@@ -80,7 +97,7 @@ actual_joint_range = scale × 2 × (joint_limit_range)
 | Robot | Scale Parameter | Joint Range | Reasoning |
 |-------|----------------|-------------|-----------|
 | **Spot** | 0.2 | ±0.2 rad (±11.5°) | Large joints, small relative movements |
-| **Mini Pupper** | 0.4 | ±0.4 rad (±22.9°) | Small joints need larger relative movements |
+| **Mini Pupper** | 0.5 | ±0.5 rad (±22.9°) | Small joints need larger movemments realtive to their size |
 
 ```python
 # Boston Dynamics Spot Configuration
@@ -95,11 +112,12 @@ joint_pos = mdp.JointPositionActionCfg(
 joint_pos = mdp.JointPositionActionCfg(
     asset_name="robot",
     joint_names=[
-        "base_lb1", "base_lf1", "base_rb1", "base_rf1",    # Hip joints
-        "lb1_lb2", "lf1_lf2", "rb1_rb2", "rf1_rf2",       # Knee joints  
-        "lb2_lb3", "lf2_lf3", "rb2_rb3", "rf2_rf3"        # Ankle joints
+        "base_lf1", "lf1_lf2", "lf2_lf3", #Left Front Leg
+        "base_rf1", "rf1_rf2", "rf2_rf3", #Right Front Leg
+        "base_lb1", "lb1_lb2", "lb2_lb3", #Left Back Leg
+        "base_rb1", "rb1_rb2", "rb2_rb3"  #Left Back Leg
     ],
-    scale=0.4,  # Higher scale needed for effective locomotion
+    scale=0.5,
     use_default_offset=True
 )
 ```

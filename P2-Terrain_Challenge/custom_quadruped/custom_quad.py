@@ -52,8 +52,9 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
         # damping=1.3,          
         # friction=0.02,        
         # armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
-        saturation_effort=0.35,
-        velocity_limit=10.5,
+        # Accurate specs from https://www.robotshop.com/products/mangdang-high-performance-35kg-cm-robot-digital-servo?qd=cc36ca2653f9fea65ad13bd91c459f1c
+        saturation_effort=0.35, # 3.5 kg·cm converted to N·m
+        velocity_limit=10.5, # 0.1s/60° = 10.47 rad/s
         stiffness=80.0,#80.0 Official/Final: 45.0       
         damping=2.5,#2.0 Official/Final: 1.3        
         friction=0.03,        

@@ -77,11 +77,17 @@ cfg_robot = ArticulationCfg(
             # RB leg (back-right)
             "base_rb1", "rb1_rb2", "rb2_rb3"
             ],
-        saturation_effort=2.5,
-        velocity_limit=10.0,
-        stiffness=45.0,#80.0 Official/Final: 45.0       
-        damping=1.3,#2.0 Official/Final: 1.3        
-        friction=0.02,        
+        # saturation_effort=2.5,
+        # velocity_limit=10.0,
+        # stiffness=45.0,#80.0 Official/Final: 45.0       
+        # damping=1.3,#2.0 Official/Final: 1.3        
+        # friction=0.02,        
+        # armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
+        saturation_effort=0.35,
+        velocity_limit=10.5,
+        stiffness=80.0,#80.0 Official/Final: 45.0       
+        damping=2.5,#2.0 Official/Final: 1.3        
+        friction=0.03,        
         armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
     ),
     }
@@ -102,123 +108,6 @@ class NewRobotsSceneCfg(InteractiveSceneCfg):
     robot = cfg_robot.replace(prim_path="{ENV_REGEX_NS}/Spot")
 
 # WITH MOVEMENT!
-# def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
-#     print("[DEBUG]: Joint Names:", scene["robot"].data.joint_names)
-#     sim_dt = sim.get_physics_dt()
-#     sim_time = 0.0
-#     count = 0
-
-#     # Create a dictionary for easier lookup (if you prefer, otherwise list directly in order)
-#     desired_joint_angles_dict = {
-#         "base_lf1": 0.0,
-#         "lf1_lf2": 0.52,
-#         "lf2_lf3": -1.05,
-#         "base_rf1": 0.0,
-#         "rf1_rf2": 0.52,
-#         "rf2_rf3": -1.05,
-#         "base_lb1": 0.0,
-#         "lb1_lb2": 0.52,
-#         "lb2_lb3": -1.05,
-#         "base_rb1": 0.0,
-#         "rb1_rb2": 0.52,
-#         "rb2_rb3": -1.05,
-#         # Fixed-but-revolute joints (usually 0.0 unless they have a non-zero default angle in your URDF/USD)
-#         "lf3_foot": 0.0, "rf3_foot": 0.0, "lb3_foot": 0.0, "rb3_foot": 0.0,
-#         "lf1_plate": 0.0, "rf1_plate": 0.0, "lb1_plate": 0.0, "rb1_plate": 0.0,
-#         "lf2_plate": 0.0, "rf2_plate": 0.0, "lb2_plate": 0.0, "rb2_plate": 0.0,
-#         "base_lidar": 0.0, "imu_joint": 0.0
-#     }
-
-#     # Construct the target tensor in the correct joint order from scene["robot"].data.joint_names
-#     target_standing_pos_tensor = torch.zeros(len(scene["robot"].data.joint_names), device=sim.device, dtype=torch.float)
-#     for i, joint_name in enumerate(scene["robot"].data.joint_names):
-#         if joint_name in desired_joint_angles_dict:
-#             target_standing_pos_tensor[i] = desired_joint_angles_dict[joint_name]
-#         # Else, it's already 0.0 from initialization of the tensor
-
-#     # Cache this as the standing joint position target
-#     default_joint_pos = target_standing_pos_tensor.clone() # <<< THIS IS THE KEY CHANGE
-
-#     # --- END OF MODIFIED SECTION ---
-
-#     # Add test parameters for calf movement
-#     test_amplitude = 0.5  # Start with 0.5 radians (~28 degrees)
-#     test_frequency = 0.5  # 0.5 Hz = 2 seconds per cycle
-#     lf2_lf3_index = scene["robot"].data.joint_names.index("lf2_lf3")
-    
-#     print(f"[INFO] Testing left front calf (lf2_lf3) at index {lf2_lf3_index}")
-#     print(f"[INFO] Test amplitude: {test_amplitude} rad, frequency: {test_frequency} Hz")
-
-#     # Add small settling period after spawn
-#     # settling_steps = 100
-    
-#     print(f"[DEBUG] Sim Dt Value:{sim_dt}")
-#     # Now, this debug line should show your desired bent-leg targets!
-#     print(f"[DEBUG] Joint targets: {default_joint_pos}")
-#     print(f"[DEBUG] Actual joints: {scene['robot'].data.joint_pos[0]}")
-#     print(f"[DEBUG] Joint errors: {default_joint_pos - scene['robot'].data.joint_pos[0]}")
-#     # print("Leg order:", cfg_robot.actuators["leg_joints"].joint_names_expr)
-
-    
-#     while simulation_app.is_running():
-#         # Periodic reset
-#         if count % 1000 == 0:  # Increased reset interval
-#             count = 0
-#             print("[INFO]: Resetting Mini Pupper state...")
-            
-#             # Reset root pose and velocity
-#             root_state = scene["robot"].data.default_root_state.clone()
-#             root_state[:, :3] += scene.env_origins
-#             # Add small random perturbation to test stability (keep this for testing robustness)
-#             root_state[:, 2] += torch.randn_like(root_state[:, 2]) * 0.01
-            
-#             scene["robot"].write_root_pose_to_sim(root_state[:, :7])
-#             scene["robot"].write_root_velocity_to_sim(root_state[:, 7:])
-            
-#             # Reset joints with the correct target pose
-#             # joint_pos_reset = default_joint_pos.clone() # This is fine now as default_joint_pos is correct
-#             scene["robot"].write_joint_state_to_sim(default_joint_pos, scene["robot"].data.default_joint_vel.clone())
-            
-#             # Clear internal buffers
-#             scene.reset()
-#             # check_joint_order(scene, cfg_robot)
-#             # check_groups(scene, cfg_robot)
-#             print("Leg order:", cfg_robot.actuators["leg_joints"].joint_names_expr)
-
-#         # Create test target with sine wave on left front calf
-#         test_joint_pos = default_joint_pos.clone()
-        
-#         # After initial settling (e.g., after 200 steps), apply sine wave to calf
-#         if count > 200:
-#             # Sine wave motion on left front calf
-#             sine_offset = test_amplitude * torch.sin(torch.tensor(2 * np.pi * test_frequency * sim_time, device=sim.device))
-#             test_joint_pos[lf2_lf3_index] = default_joint_pos[lf2_lf3_index] + sine_offset
-            
-#             # Print debug info every 50 steps
-#             if count % 50 == 0:
-#                 actual_pos = scene["robot"].data.joint_pos[0, lf2_lf3_index]
-#                 target_pos = test_joint_pos[lf2_lf3_index]
-#                 error = target_pos - actual_pos
-#                 print(f"[TEST] Step {count}: LF Calf Target: {target_pos:.3f}, Actual: {actual_pos:.3f}, Error: {error:.3f}")
-                
-#         scene["robot"].set_joint_position_target(test_joint_pos)
-        
-#         # Step sim
-#         scene.write_data_to_sim()
-#         sim.step()
-#         sim_time += sim_dt
-#         count += 1
-#         scene.update(sim_dt)
-        
-#         # Debug output every 100 steps
-#         if count % 100 == 0:
-#             root_pos = scene["robot"].data.root_pos_w[0]
-#             root_quat = scene["robot"].data.root_quat_w[0]
-#             print(f"[DEBUG] Step {count}: Root pos: {root_pos}, Root quat: {root_quat}")
-# ...existing code...
-
-# Standing-only, no test movement!
-
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     print("[DEBUG]: Joint Names:", scene["robot"].data.joint_names)
     sim_dt = sim.get_physics_dt()
@@ -258,6 +147,14 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
 
     # --- END OF MODIFIED SECTION ---
 
+    # Add test parameters for calf movement
+    test_amplitude = 0.5  # Start with 0.5 radians (~28 degrees)
+    test_frequency = 0.5  # 0.5 Hz = 2 seconds per cycle
+    lf2_lf3_index = scene["robot"].data.joint_names.index("lf2_lf3")
+    
+    print(f"[INFO] Testing left front calf (lf2_lf3) at index {lf2_lf3_index}")
+    print(f"[INFO] Test amplitude: {test_amplitude} rad, frequency: {test_frequency} Hz")
+
     # Add small settling period after spawn
     # settling_steps = 100
     
@@ -294,7 +191,23 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             # check_groups(scene, cfg_robot)
             print("Leg order:", cfg_robot.actuators["leg_joints"].joint_names_expr)
 
-        scene["robot"].set_joint_position_target(default_joint_pos)
+        # Create test target with sine wave on left front calf
+        test_joint_pos = default_joint_pos.clone()
+        
+        # After initial settling (e.g., after 200 steps), apply sine wave to calf
+        if count > 200:
+            # Sine wave motion on left front calf
+            sine_offset = test_amplitude * torch.sin(torch.tensor(2 * np.pi * test_frequency * sim_time, device=sim.device))
+            test_joint_pos[lf2_lf3_index] = default_joint_pos[lf2_lf3_index] + sine_offset
+            
+            # Print debug info every 50 steps
+            if count % 50 == 0:
+                actual_pos = scene["robot"].data.joint_pos[0, lf2_lf3_index]
+                target_pos = test_joint_pos[lf2_lf3_index]
+                error = target_pos - actual_pos
+                print(f"[TEST] Step {count}: LF Calf Target: {target_pos:.3f}, Actual: {actual_pos:.3f}, Error: {error:.3f}")
+                
+        scene["robot"].set_joint_position_target(test_joint_pos)
         
         # Step sim
         scene.write_data_to_sim()
@@ -308,6 +221,99 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
             root_pos = scene["robot"].data.root_pos_w[0]
             root_quat = scene["robot"].data.root_quat_w[0]
             print(f"[DEBUG] Step {count}: Root pos: {root_pos}, Root quat: {root_quat}")
+# ...existing code...
+
+# Standing-only, no test movement!
+
+# def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
+#     print("[DEBUG]: Joint Names:", scene["robot"].data.joint_names)
+#     sim_dt = sim.get_physics_dt()
+#     sim_time = 0.0
+#     count = 0
+
+#     # Create a dictionary for easier lookup (if you prefer, otherwise list directly in order)
+#     desired_joint_angles_dict = {
+#         "base_lf1": 0.0,
+#         "lf1_lf2": 0.52,
+#         "lf2_lf3": -1.05,
+#         "base_rf1": 0.0,
+#         "rf1_rf2": 0.52,
+#         "rf2_rf3": -1.05,
+#         "base_lb1": 0.0,
+#         "lb1_lb2": 0.52,
+#         "lb2_lb3": -1.05,
+#         "base_rb1": 0.0,
+#         "rb1_rb2": 0.52,
+#         "rb2_rb3": -1.05,
+#         # Fixed-but-revolute joints (usually 0.0 unless they have a non-zero default angle in your URDF/USD)
+#         "lf3_foot": 0.0, "rf3_foot": 0.0, "lb3_foot": 0.0, "rb3_foot": 0.0,
+#         "lf1_plate": 0.0, "rf1_plate": 0.0, "lb1_plate": 0.0, "rb1_plate": 0.0,
+#         "lf2_plate": 0.0, "rf2_plate": 0.0, "lb2_plate": 0.0, "rb2_plate": 0.0,
+#         "base_lidar": 0.0, "imu_joint": 0.0
+#     }
+
+#     # Construct the target tensor in the correct joint order from scene["robot"].data.joint_names
+#     target_standing_pos_tensor = torch.zeros(len(scene["robot"].data.joint_names), device=sim.device, dtype=torch.float)
+#     for i, joint_name in enumerate(scene["robot"].data.joint_names):
+#         if joint_name in desired_joint_angles_dict:
+#             target_standing_pos_tensor[i] = desired_joint_angles_dict[joint_name]
+#         # Else, it's already 0.0 from initialization of the tensor
+
+#     # Cache this as the standing joint position target
+#     default_joint_pos = target_standing_pos_tensor.clone() # <<< THIS IS THE KEY CHANGE
+
+#     # --- END OF MODIFIED SECTION ---
+
+#     # Add small settling period after spawn
+#     # settling_steps = 100
+    
+#     print(f"[DEBUG] Sim Dt Value:{sim_dt}")
+#     # Now, this debug line should show your desired bent-leg targets!
+#     print(f"[DEBUG] Joint targets: {default_joint_pos}")
+#     print(f"[DEBUG] Actual joints: {scene['robot'].data.joint_pos[0]}")
+#     print(f"[DEBUG] Joint errors: {default_joint_pos - scene['robot'].data.joint_pos[0]}")
+#     # print("Leg order:", cfg_robot.actuators["leg_joints"].joint_names_expr)
+
+    
+#     while simulation_app.is_running():
+#         # Periodic reset
+#         if count % 1000 == 0:  # Increased reset interval
+#             count = 0
+#             print("[INFO]: Resetting Mini Pupper state...")
+            
+#             # Reset root pose and velocity
+#             root_state = scene["robot"].data.default_root_state.clone()
+#             root_state[:, :3] += scene.env_origins
+#             # Add small random perturbation to test stability (keep this for testing robustness)
+#             root_state[:, 2] += torch.randn_like(root_state[:, 2]) * 0.01
+            
+#             scene["robot"].write_root_pose_to_sim(root_state[:, :7])
+#             scene["robot"].write_root_velocity_to_sim(root_state[:, 7:])
+            
+#             # Reset joints with the correct target pose
+#             # joint_pos_reset = default_joint_pos.clone() # This is fine now as default_joint_pos is correct
+#             scene["robot"].write_joint_state_to_sim(default_joint_pos, scene["robot"].data.default_joint_vel.clone())
+            
+#             # Clear internal buffers
+#             scene.reset()
+#             # check_joint_order(scene, cfg_robot)
+#             # check_groups(scene, cfg_robot)
+#             print("Leg order:", cfg_robot.actuators["leg_joints"].joint_names_expr)
+
+#         scene["robot"].set_joint_position_target(default_joint_pos)
+        
+#         # Step sim
+#         scene.write_data_to_sim()
+#         sim.step()
+#         sim_time += sim_dt
+#         count += 1
+#         scene.update(sim_dt)
+        
+#         # Debug output every 100 steps
+#         if count % 100 == 0:
+#             root_pos = scene["robot"].data.root_pos_w[0]
+#             root_quat = scene["robot"].data.root_quat_w[0]
+#             print(f"[DEBUG] Step {count}: Root pos: {root_pos}, Root quat: {root_quat}")
 
 def main():
     """Main function."""

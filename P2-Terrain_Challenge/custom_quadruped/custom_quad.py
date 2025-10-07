@@ -46,11 +46,17 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
             # RB leg (back-right)
             "base_rb1", "rb1_rb2", "rb2_rb3"
             ],
-        saturation_effort=2.5,
-        velocity_limit=10.0,
-        stiffness=45.0,        
-        damping=1.3,          
-        friction=0.02,        
+        # saturation_effort=2.5,
+        # velocity_limit=10.0,
+        # stiffness=45.0,        
+        # damping=1.3,          
+        # friction=0.02,        
+        # armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
+        saturation_effort=0.35,
+        velocity_limit=10.5,
+        stiffness=80.0,#80.0 Official/Final: 45.0       
+        damping=2.5,#2.0 Official/Final: 1.3        
+        friction=0.03,        
         armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift      
     ),
     }

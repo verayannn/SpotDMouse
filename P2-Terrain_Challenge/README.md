@@ -97,7 +97,7 @@ actual_joint_range = scale × 2 × (joint_limit_range)
 | Robot | Scale Parameter | Joint Range | Reasoning |
 |-------|----------------|-------------|-----------|
 | **Spot** | 0.2 | ±0.2 rad (±11.5°) | Large joints, small relative movements |
-| **Mini Pupper** | 0.5 | ±0.5 rad (±22.9°) | Small joints need larger movemments realtive to their size |
+| **Mini Pupper** | 0.5 | ±0.5 rad (±28.75°) | Small joints need larger movemments realtive to their size |
 
 ```python
 # Boston Dynamics Spot Configuration

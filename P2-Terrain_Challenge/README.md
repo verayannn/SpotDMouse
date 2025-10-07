@@ -31,16 +31,23 @@ Figure 2: Training simulation screenshots showing Mini Pupper forward locomotion
 
 ## Training Results
 
-The following videos demonstrate the successful locomotion training results:
+The following videos demonstrate the successful locomotion training results for omnidirectional commands:
 
 ### Forward Locomotion
-[ **View Forward Locomotion Video**]([https://drive.google.com/file/d/1ehlkc3w_ePVC4zGWKUQL6epkZSUy3MG4/view?usp=sharing](https://www.youtube.com/watch?v=jiTq16YEEsk))
+[ **View Forward Locomotion Video**](https://drive.google.com/file/d/1pIDoCVo_h6PD33hEZZ0mXxZnllQLlWeS/view?usp=sharing)
 
 ### Backward Locomotion  
-[ **View Backward Locomotion Video**](https://drive.google.com/file/d/1nr-GEBjRpp-Lda-aAqpDr-nJM8DUHCVB/view?usp=sharing)
+[ **View Backward Locomotion Video**](https://drive.google.com/file/d/19WZgnwRTBf2TTEwuUKFu-YkcIJnNiMEI/view?usp=drive_link)
 
-### Updated Forward Locomotion (Full swing gait behavior!) 
-[ **View Backward Locomotion Video**](https://drive.google.com/file/d/1ByXAGdbyetPRMT3x1I_PSxt-fAYvBpSF/view?usp=sharing)
+### Sideward Locomotion  
+[ **View Leftward Locomotion Video**](https://drive.google.com/file/d/1F9FblJeUDIs2kOXx-gHd2dDTrICOh669/view?usp=drive_link)
+[ **View Rightward Locomotion Video**](https://drive.google.com/file/d/1b70eLqoDxakTujM0RViBpFu_Bmsu8wXZ/view?usp=drive_link)
+
+### Rotational Locomotion  
+[ **View Clockwise Rotational Video**](https://drive.google.com/file/d/1JMoIIOFdj5rl8yU8qG_p6rYVvHUKUV1o/view?usp=drive_link)
+[ **View ReverseClockwise Rotational Video**](https://drive.google.com/file/d/1Fuy9OrDv32MQmup0KJpmC2LzPPZyVnHg/view?usp=drive_link)
+Think of reverse clockwise as following the clockwise trajectory with the back of the subject facing the center rotation
+
 
 **Video Legend:**
 - **Green Arrow**: Commanded linear velocity direction (forward/backward)

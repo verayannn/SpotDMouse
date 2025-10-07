@@ -256,18 +256,18 @@ The actor network learns to output coordinated 12-dimensional action sequences t
 ### Final Performance Metrics
 | Metric | Value | Interpretation |
 |--------|-------|----------------|
-| **Mean Reward** | 236+ | Stable, high-performance policy |
-| **Episode Length** | 744+ steps | Robust locomotion (14.9s episodes) |
-| **Gait Reward** | 6.0+ | Excellent diagonal coordination |
-| **Base Linear Velocity** | 2.4+ | Effective forward motion |
-| **Body Contact Rate** | <3% | Very stable, rare falls |
-| **Action Noise** | 0.20 | Converged exploration |
+| **Mean Reward** | 900+ | Stable, high-performance policy |
+| **Episode Length** | ~1000 | Robust locomotion (14.9s episodes) |
+| **Gait Reward** | ~9.0 | Excellent diagonal coordination |
+| **Base Linear Velocity** | ~20 | Effective forward motion |
+| **Base Angular Velocity** | ~20 | Effective angular motion |
+| **Body Contact Rate** | ~0% | Very stable, rare falls |
+| **Action Noise** | 0.01 | Converged execution |
 
 ### Locomotion Quality Assessment
 - **Diagonal trot gait** with proper phase relationships
-- **Bidirectional movement** (forward and backward)
-- **Speed**: 1.5 m/s (11.3 body lengths/second - very fast for size)
-- **Energy efficiency** through natural joint angle utilization
+- **Bidirectional movement perdirection command** (omnidirecitonal capability)
+- **Speed**: 0.3 m/s (Max Speed)
 - **Stable posture** with minimal body contact terminations
 
 ## Technical Implementation
@@ -287,7 +287,7 @@ terrain_mix = {
 }
 ```
 
-### Observation Space (48 dimensions)
+### Acttor and Critic Observation Space (48 dimensions)
 - Base linear (3D) (Command input)
 - Angular velocity (3D) (Command input)
 - Projected gravity vector (3D) (0,,0, -9.81m/s^2)

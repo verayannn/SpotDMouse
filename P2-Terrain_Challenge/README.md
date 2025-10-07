@@ -33,7 +33,7 @@ Figure 2: Training simulation screenshots showing Mini Pupper forward locomotion
 
 The following videos demonstrate the successful locomotion training results for omnidirectional commands:
 
-**Reccomendation:* Play the following videos at .25 speed to see the definition and quality of the gait.
+**Reccomendation:** Play the following videos at .25 speed to see the definition and quality of the gait.
 
 ### Forward Locomotion
 [ **View Forward Locomotion Video**](https://drive.google.com/file/d/1pIDoCVo_h6PD33hEZZ0mXxZnllQLlWeS/view?usp=sharing)
@@ -48,7 +48,8 @@ The following videos demonstrate the successful locomotion training results for 
 ### Rotational Locomotion  
 [ **View Clockwise Rotational Video**](https://drive.google.com/file/d/1JMoIIOFdj5rl8yU8qG_p6rYVvHUKUV1o/view?usp=drive_link)
 [ **View ReverseClockwise Rotational Video**](https://drive.google.com/file/d/1Fuy9OrDv32MQmup0KJpmC2LzPPZyVnHg/view?usp=drive_link)
-Think of reverse clockwise as following the clockwise trajectory with the back of the subject facing the center rotation
+
+Think of reverse clockwise as following the clockwise trajectory with the back of the subject facing the center rotation.
 
 
 **Video Legend:**

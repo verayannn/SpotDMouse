@@ -149,7 +149,8 @@ The collicular visual cortex research (Beltramo & Scanziani, 2019) provides impo
 *Detailed CNN training process showing the neural network learning to predict V1 responses to naturalistic visual stimuli.*
 
 ![CNN Neural Prediction Training](./cnnneurprediction.png)
-*CNN training pipeline showing the neural prediction model architecture that learns to predict V1 responses, forming the foundation for our biologically constrained vision encoders.*
+
+*CNN training pipeline showing the neural prediction model architecture that learns to predict V1 responses to heald out natural scene repeats, forming the foundation for our biologically constrained vision encoders.*
 
 **Training Process:**
 1. **Neural Response Prediction:** CNNs learn to predict actual V1 neural responses to natural stimuli

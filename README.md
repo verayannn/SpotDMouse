@@ -69,7 +69,7 @@ Unlike typical engineering projects, SpotDMouse is designed as a rigorous scient
 ### Attribution Analysis for Testing the Efficient Learning Hypothesis
 **Primary Research Question:** Do the visual primitives from mouse V1 (present in the biologically constrained CNN encoder) follow the Efficient Learning Hypothesis when compared to MobileNet?
 
-We use **GradCAM and ActGrad attribution methods** to assess the contribution of biologically constrained features to behavioral outputs:
+We use **Integrated gradient based attribution methods** to assess the contribution of biologically constrained features to behavioral outputs:
 - **Comparative Attribution:** Identify which V1-constrained features vs MobileNet features contribute to successful cricket hunting
 - **Sufficiency Arguments:** Demonstrate that specific biological primitives provide meaningful contributions to optimal performance
 - **Primitive Analysis:** Show how specific mouse V1 response properties translate to robot behavior decisions

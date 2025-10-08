@@ -3,6 +3,9 @@ import numpy as np
 import IPython
 import torch.nn as nn
 from collections import  OrderedDict
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 device = torch.device("cpu")
 
@@ -12,15 +15,15 @@ il_model_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_r
 chckpt_rsl_model = torch.load(rsl_model_path, weights_only=False, map_location=device)
 chckpt_il_model = torch.load(il_model_path, weights_only=False, map_location=device)
 
-rsl_model = chckpt_rsl_model['model_state_dict']
-il_model = chckpt_il_model['model_state_dict']
+rsl_state_dict = chckpt_rsl_model['model_state_dict']
+il_state_dict = chckpt_il_model['model_state_dict']
 
-for key in rsl_model.keys():
+for key in rsl_state_dict.keys():
     print("rsl",key)
-for key in il_model.keys():
+for key in il_state_dict.keys():
     print('il',key)
 
-if rsl_model.keys() == il_model.keys():
+if rsl_state_dict.keys() == il_state_dict.keys():
     print(True)
 else:
     print(False)
@@ -51,14 +54,64 @@ class ActorCritic(nn.Module):
         critic = self.critic(x)
         return actor, critic
 
-model = ActorCritic()
-model.load_state_dict(rsl_model, strict=False)#strict=False since I do not have an 'std' parameter in the plain instatiation of the model.
-model.eval()
+rsl_model = ActorCritic()
+rsl_model.load_state_dict(rsl_state_dict, strict=False)#strict=False since I do not have an 'std' parameter in the plain instatiation of the model.
+rsl_model.eval()
 
-test_input = torch.rand(1,48).to(device)
+il_model = ActorCritic()
+il_model.load_state_dict(il_state_dict, strict=False)
+il_model.eval()
 
-actor, _ = model(test_input)
+GRAVITY = [0.0, 0.0, -9.81]
+DEFAULT_JOINT_POS = [ #30 thigh-to-calf angle
+        0.0, 0.785 , -1.57,
+        0.0, 0.785 , -1.57,
+        0.0, 0.785 , -1.57,
+        0.0, 0.785 , -1.57,
+        ]
 
-print(actor.shape) # should be torch.size[1,12]
+def build_observation(joint_state_msg, cmd_vel_msg, prev_actions, prev_joint_actions=None):
+    obs = np.zeros()
+
+    obs[0:3] = [0.0,0.0,0.0]# IMU: N/A
+    obs[3:6] = [0.0, 0.0, -9.81] #Projected Gravity, assume upright
+    obs[6:9] = [cmd_vel_msg.linear.x, cmd_vel_msg.linear.y, cmd_vel_msg.angular.z]
+
+    current_positions = np.array(joint_state_msg.position)
+    obs[9:21] = current_positions - DEFAULT_JOINT_POS
+
+    if len(joint_state_msg.velocity) > 0:
+        obs[21:33] = joint_state_msg.velocity
+    elif prev_joint_pos is not None:
+        dt = 0.02 # given that the pi reports at 200hz, we may be undersampling
+        obs[21:33] = (current_positions - prev_joint_pos) / dt
+    else:
+        obs[21:33] = np.zeros(12)
+
+    obs[33:45] = prev_actions
+
+    obs[45:48] = [0.0, 0.0, 0.0]
+
+    return obs
+
+#make fake observaitions and compare the aciton output scales
+obs = np.zeros(48)
+obs[0:3] = [0.0,0.0,0.0]
+obs[3:6] = [0.0, 0.0, -9.81]
+obs[6:9] = [0.2, 0.0, 0.0]
+obs[9:21] = DEFAULT_JOINT_POS
+
+obs = torch.tensor(obs, dtype=torch.float32)
+
+print(obs.shape)
+
+rsl_output, _ = rsl_model(obs)
+il_output, _ = il_model(obs)
+
+print(rsl_output.shape, il_output.shape)
+
+plt.plot(rsl_output.detach().cpu().numpy())
+plt.plot(il_output.detach().cpu().numpy())
+plt.savefig("compare_output.png")
 
 

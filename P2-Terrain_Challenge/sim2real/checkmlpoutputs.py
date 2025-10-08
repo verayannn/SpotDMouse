@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 import IPython
+import torch.nn as nn
+from collections import  OrderedDict
 
 device = torch.device("cpu")
 
@@ -22,5 +24,41 @@ if rsl_model.keys() == il_model.keys():
     print(True)
 else:
     print(False)
+
+class ActorCritic(nn.Module):
+    def __init__(self):
+        super(ActorCritic, self).__init__()
+        self.actor = nn.Sequential(
+                nn.Linear(48, 512, bias=True),
+                nn.ELU(),
+                nn.Linear(512,256, bias=True),
+                nn.ELU(),
+                nn.Linear(256, 128, bias=True),
+                nn.ELU(),
+                nn.Linear(128,12, bias=True)
+                )
+        self.critic = nn.Sequential(
+                nn.Linear(48,512, bias=True),
+                nn.ELU(),
+                nn.Linear(512,256, bias=True),
+                nn.ELU(),
+                nn.Linear(256,128, bias=True),
+                nn.ELU(),
+                nn.Linear(128,1, bias=True)
+                )
+    def forward(self,x):
+        actor = self.actor(x)
+        critic = self.critic(x)
+        return actor, critic
+
+model = ActorCritic()
+model.load_state_dict(rsl_model, strict=False)#strict=False since I do not have an 'std' parameter in the plain instatiation of the model.
+model.eval()
+
+test_input = torch.rand(1,48).to(device)
+
+actor, _ = model(test_input)
+
+print(actor.shape) # should be torch.size[1,12]
 
 

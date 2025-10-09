@@ -120,4 +120,37 @@ plt.savefig("compare_output.png")
 
 demo = h5.File(il_demonstrations_path, 'r')
 
-obs demo['data/demo_1/obs']
+obs_demo = demo['data/demo_1/obs']
+obs_demo = torch.Tensor(obs_demo)
+
+il_outputs = []
+rsl_outputs = []
+for i, o in enumerate(obs_demo):
+    rsl_output, _ = rsl_model(o)
+    il_output , _ = il_model(o)
+
+    il_outputs.append(rsl_output)
+    rsl_outputs.append(il_output)
+
+il_outputs = torch.stack(il_outputs,dim=0)
+rsl_outputs = torch.stack(rsl_outputs,dim=0)
+
+print(il_outputs.shape) # should be ~3K,12
+print(rsl_outputs.shape)
+
+print(il_outputs.T.shape)
+print(rsl_outputs.T.shape)
+
+#Joint Order:
+#LEFT_FRONT_HIP
+#LEFT_FRONT_THIGH
+#LEFT_FRONT_CALF
+#RIGHT_FRONT_HIP
+#RIGHT_FRONT_THIGH
+#RIGHT_FRONT_CALF
+#LEFT_BACK_HIP
+#LEFT_BACK_THIGH
+#LEFT_BACK_CALF
+#RIGHT_BACK_HIP
+#RIGHT_BACK_THIGH
+#RIGHT_BACK_CALF

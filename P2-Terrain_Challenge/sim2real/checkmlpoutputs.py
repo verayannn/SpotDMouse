@@ -6,11 +6,15 @@ from collections import  OrderedDict
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import h5py as h5
+import os
 
 device = torch.device("cpu")
 
-rsl_model_path = "/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
-il_model_path = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
+rsl_model_path = os.path.expanduser("~/rsl_rl_trainedmodels/30degree_mlp.pt") #"/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
+il_model_path = os.path.expanduser("~/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt")
+
+il_demonstrations_path = os.path.expanduser("~/mini_pupper_demos_20250914_233847.hdf5")
 
 chckpt_rsl_model = torch.load(rsl_model_path, weights_only=False, map_location=device)
 chckpt_il_model = torch.load(il_model_path, weights_only=False, map_location=device)
@@ -114,4 +118,6 @@ plt.plot(rsl_output.detach().cpu().numpy())
 plt.plot(il_output.detach().cpu().numpy())
 plt.savefig("compare_output.png")
 
+demo = h5.File(il_demonstrations_path, 'r')
 
+obs demo['data/demo_1/obs']

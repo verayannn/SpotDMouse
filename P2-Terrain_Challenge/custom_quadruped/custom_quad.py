@@ -30,6 +30,22 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
             "base_rb1": 0.0,      
             "rb1_rb2": 0.52,      
             "rb2_rb3": -1.05,
+            # 45° 'harvardrun_45'
+            # "base_lf1": 0.0,      
+            # "lf1_lf2": 0.785,     # π/4 radians = 45°
+            # "lf2_lf3": -1.57,     # -π/2 radians = -90° (to keep foot flat)
+
+            # "base_rf1": 0.0,      
+            # "rf1_rf2": 0.785,     # π/4 radians = 45°
+            # "rf2_rf3": -1.57,     # -π/2 radians = -90°
+
+            # "base_lb1": 0.0,      
+            # "lb1_lb2": 0.785,     # π/4 radians = 45°
+            # "lb2_lb3": -1.57,     # -π/2 radians = -90°
+
+            # "base_rb1": 0.0,      
+            # "rb1_rb2": 0.785,     # π/4 radians = 45°            
+            # "rb2_rb3": -1.57,     # -π/2 radians = -90°
         },
         joint_vel={".*": 0.0},
     ),
@@ -52,7 +68,7 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
         saturation_effort=0.35, # 3.5 kg·cm converted to N·m
         velocity_limit=10.5, # 0.1s/60° = 10.47 rad/s
         stiffness=80.0,#80.0 Official/Final: 45.0       
-        damping=2.5,#2.0 Official/Final: 1.3        
+        damping=2.5,#2.0 Official/Final: 1.3     
         friction=0.03,        
         armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift      
     ),

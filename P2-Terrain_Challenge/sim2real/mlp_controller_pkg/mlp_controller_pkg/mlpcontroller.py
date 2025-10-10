@@ -42,10 +42,14 @@ class MLPController(Node):
         
         # Default positions for Mini Pupper
         self.default_positions = np.array([
-            0.0, 0.52, -1.05,  # LF leg (hip=0°, thigh=30°, calf=-60°)
-            0.0, 0.52, -1.05,  # RF leg
-            0.0, 0.52, -1.05,  # LB leg  
-            0.0, 0.52, -1.05   # RB leg
+            #0.0, 0.52, -1.05,  # LF leg (hip=0°, thigh=30°, calf=-60°)
+            #0.0, 0.52, -1.05,  # RF leg
+            #0.0, 0.52, -1.05,  # LB leg  
+            #0.0, 0.52, -1.05   # RB leg
+            0.0, 0.785, -1.57,  # Changed to 45 degree params because it worked in simulation and is easier to scale and compare to the real life implementation
+            0.0, 0.785, -1.57,
+            0.0, 0.785, -1.57,
+            0.0, 0.785, -1.57
         ])
         
         # Joint mapping (Isaac -> ROS2 topic names)

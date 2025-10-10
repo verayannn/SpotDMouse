@@ -16,7 +16,7 @@ import os
 import sys
 import torch.nn as nn
 
-DEVICE = torch.Device("cpu")
+DEVICE = torch.device("cpu")
 
 class ActorCritic(nn.Module):
     def __init__(self):
@@ -41,7 +41,6 @@ class ActorCritic(nn.Module):
                 )
     def forward(self, x):
         actor = self.actor(x)
-
         return  actor
 
 class MLPController(Node):
@@ -90,7 +89,7 @@ class MLPController(Node):
         self.control_frequency = 50.0  # Hz
         self.control_timer = self.create_timer(1.0 / self.control_frequency, self.control_loop)
         
-        self.action_scale = 0.0588      
+        self.action_scale = 7.0      
         self.filter_alpha = 0.5       
         self.cmd_vel_deadzone = 0.15
         

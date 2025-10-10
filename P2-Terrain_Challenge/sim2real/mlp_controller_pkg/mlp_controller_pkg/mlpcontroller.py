@@ -12,6 +12,42 @@ import numpy as np
 import threading
 import time
 from collections import deque
+import os
+import sys
+import torchn.nn as nn
+
+device = torch.Device("cpu")
+rsl_rl_path = "/home/ubuntu/rsl_rl_trainedmodels/45degree_mlp.pt"
+
+rsl_chck_pt = torch.load(rsl_rl_path, weights_only=False, map_device=device)
+rsl_state_dict = rsl_chck_pt["model_state_dict"]
+
+class ActorCritic(nn.Module):
+    def __init__(self):
+        super(ActorCritic, self).__init__()
+        self.actor = nn.Sequential(
+                nn.Linear(48, 512, bias=True),
+                nn.ELU(),
+                nn.Linear(512, 256, bias=True),
+                nn.ELU(),
+                nn.Linear(256, 128, bias=True),
+                nn.ELU(),
+                nn.Linear(128, 12, bias=True),
+                )
+        self.critic = nn.Sequential(
+                nn.Linear(48, 512, bias=True),
+                nn.ELU(),
+                nn.Linear(512, 256, bias=True),
+                nn.ELU(),
+                nn.Linear(256, 128, bias=True),
+                nn.ELU(),
+                nn.Linear(128, 1, bias=True),
+                )
+    def forward(self, x):
+        actor = self.actor(x)
+        critic = self.critic(x)
+
+        return  actor, critic
 
 class MLPController(Node):
     def __init__(self):

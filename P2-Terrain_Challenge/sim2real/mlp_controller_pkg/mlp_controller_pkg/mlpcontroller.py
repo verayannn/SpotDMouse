@@ -65,10 +65,14 @@ class MLPController(Node):
         self.prev_joint_time = None
         
         self.default_positions = np.array([
-            0.0, 0.785, -1.57, 
-            0.0, 0.785, -1.57,
-            0.0, 0.785, -1.57, 
-            0.0, 0.785, -1.57
+            # 0.0, 0.785, -1.57, 
+            # 0.0, 0.785, -1.57,
+            # 0.0, 0.785, -1.57, 
+            # 0.0, 0.785, -1.57
+            0.0, 0.52, -1.05,
+            0.0, 0.52, -1.05,
+            0.0, 0.52, -1.05,
+            0.0, 0.52, -1.05
         ])
         
         # Joint mapping (Order MUST match model's observation/action space)
@@ -89,12 +93,12 @@ class MLPController(Node):
         self.control_frequency = 50.0  # Hz
         self.control_timer = self.create_timer(1.0 / self.control_frequency, self.control_loop)
         
-        self.action_scale = 7.0      
+        self.action_scale = 5.0      
         self.filter_alpha = 0.5       
         self.cmd_vel_deadzone = 0.15
         
-        self.joint_limits_low = np.array([-0.3, -1.3, -1.35] * 4)
-        self.joint_limits_high = np.array([0.3, -1.3, -0.5] * 4)
+        self.joint_limits_low = np.array([-0.4, -1.2, -2.05] * 4)
+        self.joint_limits_high = np.array([0.4, 1.2, 2.05] * 4)
         
         self.get_logger().info('MLP Controller initialized. ⚠️ NO OBSERVATION NORMALIZATION APPLIED.')
         

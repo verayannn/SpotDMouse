@@ -93,8 +93,8 @@ class MLPController(Node):
         self.filter_alpha = 0.5       
         self.cmd_vel_deadzone = 0.15
         
-        self.joint_limits_low = np.array([-0.3, -0.2, -2.36] * 4)
-        self.joint_limits_high = np.array([0.3, 1.2, -0.5] * 4)
+        self.joint_limits_low = np.array([-0.3, -1.3, -1.35] * 4)
+        self.joint_limits_high = np.array([0.3, -1.3, -0.5] * 4)
         
         self.get_logger().info('MLP Controller initialized. ⚠️ NO OBSERVATION NORMALIZATION APPLIED.')
         

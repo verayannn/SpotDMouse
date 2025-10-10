@@ -129,8 +129,8 @@ for i, o in enumerate(obs_demo):
     rsl_output, _ = rsl_model(o)
     il_output , _ = il_model(o)
 
-    il_outputs.append(rsl_output)
-    rsl_outputs.append(il_output)
+    il_outputs.append(il_output)
+    rsl_outputs.append(rsl_output)
 
 il_outputs = torch.stack(il_outputs,dim=0)
 rsl_outputs = torch.stack(rsl_outputs,dim=0)
@@ -138,19 +138,56 @@ rsl_outputs = torch.stack(rsl_outputs,dim=0)
 print(il_outputs.shape) # should be ~3K,12
 print(rsl_outputs.shape)
 
-print(il_outputs.T.shape)
-print(rsl_outputs.T.shape)
+print(il_outputs.detach().numpy().T.shape) #should be 12,~3K
+print(rsl_outputs.detach().numpy().T.shape)
 
-#Joint Order:
-#LEFT_FRONT_HIP
-#LEFT_FRONT_THIGH
-#LEFT_FRONT_CALF
-#RIGHT_FRONT_HIP
-#RIGHT_FRONT_THIGH
-#RIGHT_FRONT_CALF
-#LEFT_BACK_HIP
-#LEFT_BACK_THIGH
-#LEFT_BACK_CALF
-#RIGHT_BACK_HIP
-#RIGHT_BACK_THIGH
-#RIGHT_BACK_CALF
+body_parts_dict = {
+    0: "LEFT_FRONT_HIP",
+    1: "LEFT_FRONT_THIGH",
+    2: "LEFT_FRONT_CALF",
+    3: "RIGHT_FRONT_HIP",
+    4: "RIGHT_FRONT_THIGH",
+    5: "RIGHT_FRONT_CALF",
+    6: "LEFT_BACK_HIP",
+    7: "LEFT_BACK_THIGH",
+    8: "LEFT_BACK_CALF",
+    9: "RIGHT_BACK_HIP",
+    10: "RIGHT_BACK_THIGH",
+    11: "RIGHT_BACK_CALF"
+}
+
+il_np = il_outputs.detach().numpy()
+rsl_np = rsl_outputs.detach().numpy()
+
+# Total number of joints (12)
+J = len(body_parts_dict) 
+
+# Set up the subplot grid (4 rows x 3 columns)
+N_ROWS = 4
+N_COLS = 3
+fig, axes = plt.subplots(N_ROWS, N_COLS, figsize=(15, 12), sharex=True, sharey=True)
+fig.suptitle('Robot Joint Outputs: Comparison of IL and RSL Models', fontsize=16)
+
+for i in range(J):
+    # Calculate the position in the subplot grid
+    row = i // N_COLS
+    col = i % N_COLS
+
+    ax = axes[row, col]
+
+    ax.plot(il_np[:, i], label='IL Output', color='blue', alpha=0.7)
+    ax.plot(rsl_np[:, i], label='RSL Output', color='red', alpha=0.7)
+
+    ax.set_title(body_parts_dict[i], fontsize=10)
+
+    if i == 0:
+        ax.legend(loc='upper right')
+
+    if row == N_ROWS - 1:
+        ax.set_xlabel('Time Steps', fontsize=10)
+
+    if col == 0:
+        ax.set_ylabel('Joint Command Value', fontsize=10)
+
+fig.tight_layout(rect=[0, 0.03, 1, 0.96])
+plt.savefig('joint_outputs_comparison.png')

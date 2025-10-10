@@ -4,14 +4,15 @@ import IPython
 import torch.nn as nn
 from collections import  OrderedDict
 import matplotlib
-matplotlib.use("Agg")
+matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
 import h5py as h5
 import os
+import sys 
 
 device = torch.device("cpu")
 
-rsl_model_path = os.path.expanduser("~/rsl_rl_trainedmodels/30degree_mlp.pt") #"/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
+rsl_model_path = os.path.expanduser("~/rsl_rl_trainedmodels/45degree_mlp.pt") #"/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
 il_model_path = os.path.expanduser("~/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt")
 
 il_demonstrations_path = os.path.expanduser("~/mini_pupper_demos_20250914_233847.hdf5")
@@ -117,6 +118,7 @@ print(rsl_output.shape, il_output.shape)
 plt.plot(rsl_output.detach().cpu().numpy())
 plt.plot(il_output.detach().cpu().numpy())
 plt.savefig("compare_output.png")
+plt.close()
 
 demo = h5.File(il_demonstrations_path, 'r')
 
@@ -190,4 +192,105 @@ for i in range(J):
         ax.set_ylabel('Joint Command Value', fontsize=10)
 
 fig.tight_layout(rect=[0, 0.03, 1, 0.96])
+plt.show()
 plt.savefig('joint_outputs_comparison.png')
+
+scale = 20
+
+rsl_t = rsl_np.T
+il_t = il_np.T
+
+reg = rsl_t[0][1200:1500]
+scaled = rsl_t[0][1200:1500]/scale
+
+plt.plot(reg, label="reg")
+plt.plot(scaled, label="scaled")
+plt.plot(il_t[0][1200:1500], label="ref")
+
+plt.legend()
+plt.grid(True)
+plt.show()
+
+new_scale = int(input(f"Adjust Scale? Current Scale {scale}"))
+
+reg = rsl_t[0][1200:1500]
+scaled = rsl_t[0][1200:1500]/new_scale
+
+plt.plot(reg, label="reg")
+plt.plot(scaled, label="scaled")
+plt.plot(il_np.T[0][1200:1500], label="ref")
+
+plt.legend()
+plt.grid(True)
+plt.show()
+plt.close()
+
+try:
+    scale = 20.0
+    
+    scale_input = input(f"Adjust Scale? Current Scale {scale}")
+    if scale_input: # Only update if the user entered something
+        new_scale_float = float(scale_input)
+        if new_scale_float == 0:
+             print("Scale cannot be zero. Using default scale (20.0).")
+             new_scale_float = scale
+        scale = new_scale_float
+        
+except ValueError:
+    print("Invalid input. Scale must be a number. Using current scale.")
+    
+TIME_SLICE = slice(1200, 1500)
+N_ROWS = 4
+N_COLS = 3
+J = len(body_parts_dict) # J should be 12
+
+scaled_rsl_np = rsl_np / scale
+
+fig2, axes2 = plt.subplots(N_ROWS, N_COLS, figsize=(15, 12), sharex=True, sharey=False)
+fig2.suptitle(f'Scaled RSL Output Comparison (Scale Factor: {scale})', fontsize=16)
+
+for i in range(J):
+    row = i // N_COLS
+    col = i % N_COLS
+    ax = axes2[row, col]
+
+        
+    ax.plot(rsl_np[TIME_SLICE, i], 
+            label='Original RSL', 
+            color='red', 
+            alpha=0.5, 
+            linestyle='--')
+            
+    ax.plot(scaled_rsl_np[TIME_SLICE, i], 
+            label='Scaled RSL', 
+            color='green', 
+            alpha=0.9, 
+            linewidth=2)
+
+    ax.plot(il_np[TIME_SLICE, i], 
+            label='IL Reference', 
+            color='blue', 
+            alpha=0.7)
+    
+    ax.set_title(body_parts_dict[i], fontsize=10)
+    
+    if i == 0:
+        ax.legend(loc='lower left')
+        
+    if row == N_ROWS - 1:
+        # Show time steps relative to the slice start (0 to 300)
+        ax.set_xlabel('Time Steps (Relative)', fontsize=10) 
+        
+    if col == 0:
+        ax.set_ylabel('Joint Command Value', fontsize=10)
+        
+    ax.grid(True, linestyle=':', alpha=0.6)
+
+fig2.tight_layout(rect=[0, 0.03, 1, 0.96])
+plt.show()
+plt.savefig('scaled_joint_outputs_comparison.png')
+print("Saved scaled joint comparison plot to 'scaled_joint_outputs_comparison.png'")
+
+plt.close(fig2)
+
+

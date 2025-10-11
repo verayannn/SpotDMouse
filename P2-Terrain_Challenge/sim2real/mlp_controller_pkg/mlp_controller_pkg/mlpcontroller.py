@@ -107,6 +107,8 @@ class MLPController(Node):
         try:
             model = ActorCritic()
             checkpoint_path = "/home/ubuntu/rsl_rl_trainedmodels/45degree_mlp.pt"
+            #Try:"/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
+            #Try:"/home/ubuntu/rsl_rl_trainedmodels/il_mlp.pt"
             checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
             
             # Extract only the actor weights

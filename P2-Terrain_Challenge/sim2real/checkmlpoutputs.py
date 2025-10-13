@@ -171,6 +171,17 @@ plt.show()
 plt.savefig('joint_outputs_comparison.png')
 
 scale = 20
+HIP_SCALE = 17.0  # (Need to find this lower value)
+THIGH_CALF_SCALE = 1.0 # (Use your existing scale)
+
+action_scale_vector = np.array([
+    HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+    HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+    HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+    HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+])
+
+# final_action_12d = rsl_output / action_scale_vector
 
 rsl_t = rsl_np.T
 il_t = il_np.T
@@ -219,7 +230,7 @@ N_ROWS = 4
 N_COLS = 3
 J = len(body_parts_dict) # J should be 12
 
-scaled_rsl_np = rsl_np / scale
+scaled_rsl_np = rsl_np / action_scale_vector
 
 fig2, axes2 = plt.subplots(N_ROWS, N_COLS, figsize=(15, 12), sharex=True, sharey=False)
 fig2.suptitle(f'Scaled RSL Output Comparison (Scale Factor: {scale})', fontsize=16)
@@ -229,7 +240,6 @@ for i in range(J):
     col = i % N_COLS
     ax = axes2[row, col]
 
-        
     ax.plot(rsl_np[TIME_SLICE, i], 
             label='Original RSL', 
             color='red', 

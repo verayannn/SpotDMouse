@@ -122,7 +122,10 @@ plt.close()
 
 demo = h5.File(il_demonstrations_path, 'r')
 
-obs_demo = demo['data/demo_1/obs']
+IPython.embed()
+sys.exit()
+
+obs_demo = demo['data/demo_2/obs']
 obs_demo = torch.Tensor(obs_demo)
 
 il_outputs = []
@@ -261,11 +264,11 @@ for i in range(J):
     #         alpha=0.5, 
     #         linestyle='--')
             
-    ax.plot(scaled_rsl_np[TIME_SLICE, i], 
-            label='Scaled RSL', 
-            color='green', 
-            alpha=0.9, 
-            linewidth=2)
+    # ax.plot(scaled_rsl_np[TIME_SLICE, i], 
+    #         label='Scaled RSL', 
+    #         color='green', 
+    #         alpha=0.9, 
+    #         linewidth=2)
 
     ax.plot(il_np[TIME_SLICE, i], 
             label='IL Reference', 

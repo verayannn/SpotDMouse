@@ -255,11 +255,11 @@ for i in range(J):
     ax = axes2[row, col]
 
         
-    ax.plot(rsl_np[TIME_SLICE, i], 
-            label='Original RSL', 
-            color='red', 
-            alpha=0.5, 
-            linestyle='--')
+    # ax.plot(rsl_np[TIME_SLICE, i], 
+    #         label='Original RSL', 
+    #         color='red', 
+    #         alpha=0.5, 
+    #         linestyle='--')
             
     ax.plot(scaled_rsl_np[TIME_SLICE, i], 
             label='Scaled RSL', 

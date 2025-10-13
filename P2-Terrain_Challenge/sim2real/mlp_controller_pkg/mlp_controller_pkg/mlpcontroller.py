@@ -231,24 +231,20 @@ class MLPController(Node):
         self.base_ang_vel[2] = msg.twist.twist.angular.z
 
     def get_observation(self):
-        """Generates the 48-dim observation vector and applies CRITICAL normalization."""
-        
-        # 48-dim concatenation: Lin Vel (3) + Ang Vel (3) + Gravity (3) + Cmd (3) + 
-        # Joint Pos (12) + Joint Vel (12) + Last Action (12) = 48
-        raw_obs = np.concatenate([
-            self.base_lin_vel,
-            self.base_ang_vel,
-            self.projected_gravity,
-            self.velocity_commands, 
-            self.joint_positions - self.default_positions, # Default subtracted
-            self.joint_velocities,
-            self.last_action 
-        ])
-        
-        # ⚠️ Apply Observation Normalization (must match training)
-        normalized_obs = (raw_obs - self.obs_mean) / self.obs_std
-        
-        return normalized_obs.astype(np.float32)
+
+            raw_obs = np.concatenate([
+                self.velocity_commands,                
+                self.joint_positions - self.default_positions,
+                self.joint_velocities,                 
+                self.last_action,                    
+                self.projected_gravity,                
+                self.base_lin_vel,                     
+                self.base_ang_vel,                     
+            ])
+            
+            normalized_obs = (raw_obs - self.obs_mean) / self.obs_std
+            
+            return normalized_obs.astype(np.float32)
 
     def control_loop(self):
         """Main control loop - runs at 50 Hz"""

@@ -231,6 +231,7 @@ class MLPController(Node):
         self.base_ang_vel[2] = msg.twist.twist.angular.z
 
     def get_observation(self):
+            #IL Trained Ordering
 
             raw_obs = np.concatenate([
                 self.velocity_commands,                
@@ -245,6 +246,24 @@ class MLPController(Node):
             normalized_obs = (raw_obs - self.obs_mean) / self.obs_std
             
             return normalized_obs.astype(np.float32)
+            
+    def __get_observation(self):
+        """
+        RSL-RL PolicyCfg order.
+        """
+        raw_obs = np.concatenate([
+            self.base_lin_vel,
+            self.base_ang_vel,
+            self.projected_gravity,
+            self.velocity_commands, 
+            self.joint_positions - self.default_positions, 
+            self.joint_velocities,
+            self.last_action 
+        ])
+        
+        # Apply normalization (obs_mean and obs_std loaded from the RSL-RL checkpoint)
+        normalized_obs = (raw_obs - self.obs_mean) / self.obs_std
+        return normalized_obs.astype(np.float32)
 
     def control_loop(self):
         """Main control loop - runs at 50 Hz"""

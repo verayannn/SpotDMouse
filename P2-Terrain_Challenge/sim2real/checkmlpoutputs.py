@@ -1,140 +1,112 @@
 import torch
 import numpy as np
-import IPython
-import torch.nn as nn
-from collections import  OrderedDict
-import matplotlib
-matplotlib.use("Qt5Agg")
-import matplotlib.pyplot as plt
 import h5py as h5
+import torch.nn as nn
+import matplotlib.pyplot as plt
 import os
 import sys 
 
+# Ensure correct backend for plotting if needed
+import matplotlib
+# matplotlib.use("Qt5Agg") # Keep this commented out unless running on a display server
+
 device = torch.device("cpu")
 
-rsl_model_path = os.path.expanduser("~/rsl_rl_trainedmodels/45degree_mlp.pt") #"/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
+# --- MODEL PATHS ---
+rsl_model_path = os.path.expanduser("~/rsl_rl_trainedmodels/45degree_mlp.pt") 
 il_model_path = os.path.expanduser("~/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt")
-
 il_demonstrations_path = os.path.expanduser("~/mini_pupper_demos_20250914_233847.hdf5")
 
-chckpt_rsl_model = torch.load(rsl_model_path, weights_only=False, map_location=device)
-chckpt_il_model = torch.load(il_model_path, weights_only=False, map_location=device)
-
-rsl_state_dict = chckpt_rsl_model['model_state_dict']
-il_state_dict = chckpt_il_model['model_state_dict']
-
-for key in rsl_state_dict.keys():
-    print("rsl",key)
-for key in il_state_dict.keys():
-    print('il',key)
-
-if rsl_state_dict.keys() == il_state_dict.keys():
-    print(True)
-else:
-    print(False)
-
+# --- ACTOR-CRITIC CLASS ---
 class ActorCritic(nn.Module):
     def __init__(self):
         super(ActorCritic, self).__init__()
+        # ... (Actor and Critic definitions are omitted for brevity, assumed correct)
         self.actor = nn.Sequential(
-                nn.Linear(48, 512, bias=True),
-                nn.ELU(),
-                nn.Linear(512,256, bias=True),
-                nn.ELU(),
-                nn.Linear(256, 128, bias=True),
-                nn.ELU(),
-                nn.Linear(128,12, bias=True)
+                nn.Linear(48, 512, bias=True), nn.ELU(),
+                nn.Linear(512, 256, bias=True), nn.ELU(),
+                nn.Linear(256, 128, bias=True), nn.ELU(),
+                nn.Linear(128, 12, bias=True)
                 )
         self.critic = nn.Sequential(
-                nn.Linear(48,512, bias=True),
-                nn.ELU(),
-                nn.Linear(512,256, bias=True),
-                nn.ELU(),
-                nn.Linear(256,128, bias=True),
-                nn.ELU(),
-                nn.Linear(128,1, bias=True)
+                nn.Linear(48, 512, bias=True), nn.ELU(),
+                nn.Linear(512, 256, bias=True), nn.ELU(),
+                nn.Linear(256, 128, bias=True), nn.ELU(),
+                nn.Linear(128, 1, bias=True)
                 )
     def forward(self,x):
         actor = self.actor(x)
         critic = self.critic(x)
         return actor, critic
 
+# --- OBSERVATION REMAPPING FUNCTION (CRITICAL CHANGE) ---
+
+def remap_il_to_rsl_obs(il_obs_np):
+    """
+    Transforms a single 48-dim observation vector from the IL training order 
+    to the standard RSL-RL order.
+
+    IL Order: [Cmd(3), Q_rel(12), dQ(12), Action_prev(12), Grav(3), LinVel(3), AngVel(3)]
+    RSL Order: [LinVel(3), AngVel(3), Grav(3), Cmd(3), Q_rel(12), dQ(12), Action_prev(12)]
+    """
+    if il_obs_np.shape[-1] != 48:
+        raise ValueError(f"Input observation must be 48 elements, got {il_obs_np.shape[-1]}")
+
+    # Extract features from the IL vector
+    cmd_vel       = il_obs_np[..., 0:3]
+    joint_pos_rel = il_obs_np[..., 3:15]
+    joint_vel     = il_obs_np[..., 15:27]
+    last_action   = il_obs_np[..., 27:39]
+    proj_gravity  = il_obs_np[..., 39:42]
+    base_lin_vel  = il_obs_np[..., 42:45]
+    base_ang_vel  = il_obs_np[..., 45:48]
+
+    # Assemble into the RSL-RL vector
+    rsl_obs = np.concatenate([
+        base_lin_vel,
+        base_ang_vel,
+        proj_gravity,
+        cmd_vel,
+        joint_pos_rel,
+        joint_vel,
+        last_action
+    ], axis=-1)
+    
+    return rsl_obs
+
+# --- MODEL LOADING (NO CHANGE) ---
+chckpt_rsl_model = torch.load(rsl_model_path, weights_only=False, map_location=device)
+chckpt_il_model = torch.load(il_model_path, weights_only=False, map_location=device)
+
 rsl_model = ActorCritic()
-rsl_model.load_state_dict(rsl_state_dict, strict=False)#strict=False since I do not have an 'std' parameter in the plain instatiation of the model.
+rsl_state_dict = chckpt_rsl_model['model_state_dict']
+rsl_model.load_state_dict(rsl_state_dict, strict=False)
 rsl_model.eval()
 
 il_model = ActorCritic()
+il_state_dict = chckpt_il_model['model_state_dict']
 il_model.load_state_dict(il_state_dict, strict=False)
 il_model.eval()
 
-GRAVITY = [0.0, 0.0, -9.81]
-DEFAULT_JOINT_POS = [ #30 thigh-to-calf angle
-        0.0, 0.785 , -1.57,
-        0.0, 0.785 , -1.57,
-        0.0, 0.785 , -1.57,
-        0.0, 0.785 , -1.57,
-        ]
-
-def build_observation(joint_state_msg, cmd_vel_msg, prev_actions, prev_joint_actions=None):
-    obs = np.zeros()
-
-    obs[0:3] = [0.0,0.0,0.0]# IMU: N/A
-    obs[3:6] = [0.0, 0.0, -9.81] #Projected Gravity, assume upright
-    obs[6:9] = [cmd_vel_msg.linear.x, cmd_vel_msg.linear.y, cmd_vel_msg.angular.z]
-
-    current_positions = np.array(joint_state_msg.position)
-    obs[9:21] = current_positions - DEFAULT_JOINT_POS
-
-    if len(joint_state_msg.velocity) > 0:
-        obs[21:33] = joint_state_msg.velocity
-    elif prev_joint_pos is not None:
-        dt = 0.02 # given that the pi reports at 200hz, we may be undersampling
-        obs[21:33] = (current_positions - prev_joint_pos) / dt
-    else:
-        obs[21:33] = np.zeros(12)
-
-    obs[33:45] = prev_actions
-
-    obs[45:48] = [0.0, 0.0, 0.0]
-
-    return obs
-
-#make fake observaitions and compare the aciton output scales
-obs = np.zeros(48)
-obs[0:3] = [0.0,0.0,0.0]
-obs[3:6] = [0.0, 0.0, -9.81]
-obs[6:9] = [0.2, 0.0, 0.0]
-obs[9:21] = DEFAULT_JOINT_POS
-
-obs = torch.tensor(obs, dtype=torch.float32)
-
-print(obs.shape)
-
-rsl_output, _ = rsl_model(obs)
-il_output, _ = il_model(obs)
-
-print(rsl_output.shape, il_output.shape)
-
-plt.plot(rsl_output.detach().cpu().numpy())
-plt.plot(il_output.detach().cpu().numpy())
-plt.savefig("compare_output.png")
-plt.close()
-
+# --- DEMONSTRATION DATA PROCESSING ---
 demo = h5.File(il_demonstrations_path, 'r')
-
-IPython.embed()
-sys.exit()
-
-obs_demo = demo['data/demo_2/obs']
-obs_demo = torch.Tensor(obs_demo)
+obs_demo_il_order = np.array(demo['data/demo_2/obs'], dtype=np.float32)
+obs_demo_tensor = torch.Tensor(obs_demo_il_order)
 
 il_outputs = []
 rsl_outputs = []
-for i, o in enumerate(obs_demo):
-    rsl_output, _ = rsl_model(o)
-    il_output , _ = il_model(o)
 
+for i, o_il in enumerate(obs_demo_il_order):
+    
+    # 1. IL Model: Feed raw data (correct order for IL)
+    o_il_tensor = torch.tensor(o_il, dtype=torch.float32)
+    il_output , _ = il_model(o_il_tensor)
     il_outputs.append(il_output)
+
+    # 2. RSL Model: Remap data (correct order for RSL-RL)
+    o_rsl_np = remap_il_to_rsl_obs(o_il)
+    o_rsl_tensor = torch.tensor(o_rsl_np, dtype=torch.float32)
+    rsl_output, _ = rsl_model(o_rsl_tensor)
     rsl_outputs.append(rsl_output)
 
 il_outputs = torch.stack(il_outputs,dim=0)
@@ -258,17 +230,17 @@ for i in range(J):
     ax = axes2[row, col]
 
         
-    # ax.plot(rsl_np[TIME_SLICE, i], 
-    #         label='Original RSL', 
-    #         color='red', 
-    #         alpha=0.5, 
-    #         linestyle='--')
+    ax.plot(rsl_np[TIME_SLICE, i], 
+            label='Original RSL', 
+            color='red', 
+            alpha=0.5, 
+            linestyle='--')
             
-    # ax.plot(scaled_rsl_np[TIME_SLICE, i], 
-    #         label='Scaled RSL', 
-    #         color='green', 
-    #         alpha=0.9, 
-    #         linewidth=2)
+    ax.plot(scaled_rsl_np[TIME_SLICE, i], 
+            label='Scaled RSL', 
+            color='green', 
+            alpha=0.9, 
+            linewidth=2)
 
     ax.plot(il_np[TIME_SLICE, i], 
             label='IL Reference', 

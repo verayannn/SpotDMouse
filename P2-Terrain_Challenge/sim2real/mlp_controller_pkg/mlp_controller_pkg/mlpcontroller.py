@@ -48,7 +48,6 @@ class ActorCritic(nn.Module):
     def forward(self, x):
         actor = self.actor(x)
         return actor
-# --------------------------------------------------------
 
 class MLPController(Node):
     def __init__(self):
@@ -246,7 +245,7 @@ class MLPController(Node):
             normalized_obs = (raw_obs - self.obs_mean) / self.obs_std
             
             return normalized_obs.astype(np.float32)
-            
+
     def __get_observation(self):
         """
         RSL-RL PolicyCfg order.

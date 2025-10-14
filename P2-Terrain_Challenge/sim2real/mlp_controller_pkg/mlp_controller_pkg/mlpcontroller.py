@@ -90,18 +90,29 @@ class MLPController(Node):
         self.has_received_cmd = False
         
         # --- **JOINT-SPECIFIC ACTION SCALING** ---
-        THIGH_CALF_SCALE = 1.0#0.4 
-        HIP_SCALE = 2.0 #1.0 # Placeholder, tune this value!
-        self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
+        # THIGH_CALF_SCALE = 1.0#0.4 
+        HIP_SCALE = 3.0#1.0 # Placeholder, tune this value!
+        THIGH_SCALE = 1.8#0.4
+        CALF_SCALE = 1.0#0.4
+
+        # self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
         
-        # Scaling array for the 12 joints: [H, T, C, H, T, C, ...]
+        # # Scaling array for the 12 joints: [H, T, C, H, T, C, ...]
+        # self.action_scale_vector = np.array([
+        #     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+        #     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+        #     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+        #     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+        # ])
+
         self.action_scale_vector = np.array([
-            HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-            HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-            HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-            HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+            HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+            HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+            HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+            HIP_SCALE, THIGH_SCALE, CALF_SCALE,
         ])
 
+        self.get_logger().info(f"hip scales: {HIP_SCALE}, thigh scale: {THIGH_SCALE}, calf scale: {CALF_SCALE}")
         # --- Initialization ---
         self.initialized = False
         self.init_duration = 3.0 

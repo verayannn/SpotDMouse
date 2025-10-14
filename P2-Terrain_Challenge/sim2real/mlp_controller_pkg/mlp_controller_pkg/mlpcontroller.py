@@ -84,16 +84,16 @@ class MLPController(Node):
         # --- Control & Action Parameters ---
         self.control_frequency = 50.0 
         self.dt = 1.0 / self.control_frequency
-        self.action_smoothing = 0.9 
-        self.cmd_timeout = 0.5
+        self.action_smoothing = 0.25 
+        self.cmd_timeout = 0.50
         self.last_cmd_time = self.get_clock().now()
         self.has_received_cmd = False
         
         # --- **JOINT-SPECIFIC ACTION SCALING** ---
         # THIGH_CALF_SCALE = 1.0#0.4 
-        HIP_SCALE = 3.0#1.0 # Placeholder, tune this value!
-        THIGH_SCALE = 1.8#0.4
-        CALF_SCALE = 1.0#0.4
+        HIP_SCALE = 1.0#2.0
+        THIGH_SCALE = 1.0#1.8
+        CALF_SCALE = 1.0
 
         # self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
         

@@ -2,225 +2,171 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import JointState, Imu
+from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from std_msgs.msg import Float32MultiArray
 import torch
 import numpy as np
-import time
 import torch.nn as nn
-from scipy.spatial.transform import Rotation as R 
 import os
 import sys
 
-# ⚠️ UPDATE THIS PATH: Ensure this points to the correct location on your robot.
-# If running locally, ensure the file path is accessible.
-MODEL_PATH = "/Users/javierweddington/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt" 
-
+# --- Configuration Constants ---
+MODEL_PATH = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
 DEVICE = torch.device("cpu")
-GRAVITY_VECTOR_WORLD = np.array([0.0, 0.0, -9.81])
+# CRITICAL: Assuming static projected gravity based on training simplification
+STATIC_PROJECTED_GRAVITY = np.array([0.0, 0.0, -9.81]) 
 
-# --- MODEL DEFINITION (MUST MATCH TRAINING SCRIPT) ---
+# --- Default Pose ---
+default_pose_values = np.array([
+    0.0, 0.785, -1.57,  # LF
+    0.0, 0.785, -1.57,  # RF
+    0.0, 0.785, -1.57,  # LB
+    0.0, 0.785, -1.57,  # RB
+])
+
+# Joint name list (for publishing order)
+joint_names = [
+    "base_lf1", "lf1_lf2", "lf2_lf3",
+    "base_rf1", "rf1_rf2", "rf2_rf3",
+    "base_lb1", "lb1_lb2", "lb2_lb3",
+    "base_rb1", "rb1_rb2", "rb2_rb3"
+]
+joint_name_to_idx = {name: i for i, name in enumerate(joint_names)}
+
+# --- Model Definition (No Change) ---
 class ActorCritic(nn.Module):
     def __init__(self):
         super(ActorCritic, self).__init__()
-        # 48-dim input (Observation)
         self.actor = nn.Sequential(
-                nn.Linear(48, 512, bias=True),
-                nn.ELU(),
-                nn.Linear(512, 256, bias=True),
-                nn.ELU(),
-                nn.Linear(256, 128, bias=True),
-                nn.ELU(),
-                nn.Linear(128, 12, bias=True), # 12-dim output (Action)
+                nn.Linear(48, 512, bias=True), nn.ELU(),
+                nn.Linear(512, 256, bias=True), nn.ELU(),
+                nn.Linear(256, 128, bias=True), nn.ELU(),
+                nn.Linear(128, 12, bias=True),
                 )
-        # Critic is required for loading RSL-RL checkpoint structure, but not used in deployment
         self.critic = nn.Sequential(
-                nn.Linear(48, 512, bias=True),
-                nn.ELU(),
-                nn.Linear(512, 256, bias=True),
-                nn.ELU(),
-                nn.Linear(256, 128, bias=True),
-                nn.ELU(),
+                nn.Linear(48, 512, bias=True), nn.ELU(),
+                nn.Linear(512, 256, bias=True), nn.ELU(),
+                nn.Linear(256, 128, bias=True), nn.ELU(),
                 nn.Linear(128, 1, bias=True),
                 )
     def forward(self, x):
         actor = self.actor(x)
         return actor
 
+# --- MLP Controller Class ---
 class MLPController(Node):
     def __init__(self):
         super().__init__('mlp_controller')
         
-        self.device = DEVICE
-        
-        # Initialize normalization stats (will be overwritten by _load_model)
-        self.obs_mean = np.zeros(48)
-        self.obs_std = np.ones(48)
-        
-        self.model, self.action_std = self._load_model() 
-        
+        # --- Initialization & Model Loading ---
+        self.model = ActorCritic()
+        self.model.to(DEVICE).eval()
+        self.default_positions = default_pose_values
+        self.load_model_and_params()
+
         # --- State Variables ---
         self.joint_positions = np.zeros(12)
         self.joint_velocities = np.zeros(12)
-        self.base_lin_vel = np.zeros(3)
-        self.base_ang_vel = np.zeros(3)
-        self.imu_orientation = np.array([0.0, 0.0, 0.0, 1.0]) # x, y, z, w
-        self.projected_gravity = GRAVITY_VECTOR_WORLD.copy()
-        self.velocity_commands = np.zeros(3) 
+        self.last_actions = np.zeros(12)
+        self.smoothed_actions = np.zeros(12)
         
-        # Default joint positions (Hip, Thigh, Calf)
-        self.default_positions = np.array([
-            0.0, 0.785, -1.57,
-            0.0, 0.785, -1.57,
-            0.0, 0.785, -1.57,
-            0.0, 0.785, -1.57,
+        self.cmd_vel_linear = np.zeros(3) # [Vx, Vy, Vz]
+        self.cmd_vel_angular = np.zeros(3) # [Wx, Wy, Wz] (Only Wz is used)
+        self.base_lin_vel = np.zeros(3) # From Odometry
+        self.base_ang_vel = np.zeros(3) # From Odometry
+        
+        # Static projected gravity (no IMU rotation needed)
+        self.projected_gravity = STATIC_PROJECTED_GRAVITY.copy()
+
+        # --- Control & Action Parameters ---
+        self.control_frequency = 50.0 
+        self.dt = 1.0 / self.control_frequency
+        self.action_smoothing = 0.9 
+        self.cmd_timeout = 0.5
+        self.last_cmd_time = self.get_clock().now()
+        self.has_received_cmd = False
+        
+        # --- **JOINT-SPECIFIC ACTION SCALING** ---
+        THIGH_CALF_SCALE = 1.0#0.4 
+        HIP_SCALE = 2.0 #1.0 # Placeholder, tune this value!
+        self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
+        
+        # Scaling array for the 12 joints: [H, T, C, H, T, C, ...]
+        self.action_scale_vector = np.array([
+            HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+            HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+            HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+            HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
         ])
-        
-        # Initialize last_action and filtered_action to the expected zero-command posture difference
-        self.last_action = self.joint_positions - self.default_positions 
-        self.filtered_action = self.last_action.copy()
+
+        # --- Initialization ---
         self.initialized = False
+        self.init_duration = 3.0 
+        self.init_start_time = None  # Add this missing attribute
+        self.control_timer = self.create_timer(self.dt, self.control_loop)
         
-        # Joint velocity estimation state
-        self.prev_joint_positions = None
-        self.prev_joint_time = None
+        # --- Subscribers & Publishers ---
+        self.create_subscription(JointState, 'joint_states', self.joint_state_callback, 10)
+        self.create_subscription(Twist, 'cmd_vel', self.cmd_vel_callback, 10)
+        self.create_subscription(Odometry, 'odom', self.odom_callback, 10) 
+        # IMU subscription REMOVED
         
-        # Joint mapping
-        self.joint_mapping = {
-            0: 'base_lf1', 1: 'lf1_lf2', 2: 'lf2_lf3',
-            3: 'base_rf1', 4: 'rf1_rf2', 5: 'rf2_rf3',
-            6: 'base_lb1', 7: 'lb1_lb2', 8: 'lb2_lb3',
-            9: 'base_rb1', 10: 'rb1_rb2', 11: 'rb2_rb3'
-        }
-        self.name_to_idx = {name: idx for idx, name in self.joint_mapping.items()}
+        self.joint_pub = self.create_publisher(JointTrajectory, 'joint_group_effort_controller/joint_trajectory', 10)
+        self.raw_mlp_output_pub = self.create_publisher(Float32MultiArray, 'mlp_controller/raw_output', 10)
+        self.mlp_observation_pub = self.create_publisher(Float32MultiArray, 'mlp_controller/observation', 10)
         
-        # --- Control & Model Parameters ---
-        self.control_frequency = 50.0  # Hz
-        self.action_scale = 5.0      
-        self.filter_alpha = 0.5       
-        self.cmd_vel_deadzone = 0.15
-        self.joint_limits_low = np.array([-0.4, -1.2, -2.05] * 4)
-        self.joint_limits_high = np.array([0.4, 1.2, 2.05] * 4)
+        self.get_logger().info("MLP Controller initialized (Static Gravity Mode)!")
 
-        # ROS Subscriptions and Publisher
-        self.joint_state_sub = self.create_subscription(JointState, '/joint_states', self.joint_state_callback, 10)
-        self.cmd_vel_sub = self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
-        self.imu_sub = self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
-        self.odom_sub = self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
-        self.joint_cmd_pub = self.create_publisher(JointTrajectory, '/joint_group_effort_controller/joint_trajectory', 10)
-        
-        self.control_timer = self.create_timer(1.0 / self.control_frequency, self.control_loop)
-        
-        self.get_logger().info('MLP Controller initialized. Attempting to load normalization.')
-        
-    def _load_model(self):
-        """Load model, action std, and CRITICAL observation normalization statistics."""
+    def load_model_and_params(self):
+        """Loads model weights and normalization parameters."""
+        # (Loading logic is unchanged)
+        if not os.path.exists(MODEL_PATH):
+            self.get_logger().error(f"Model file not found at {MODEL_PATH}")
+            sys.exit(1)
+            
         try:
-            model = ActorCritic()
-            checkpoint_path = os.path.expanduser(MODEL_PATH)
+            checkpoint = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=False)
+            state_dict = checkpoint.get('model_state_dict') or checkpoint.get('actor_critic') or checkpoint
+            self.model.load_state_dict(state_dict, strict=False)
+            self.get_logger().info("Model loaded successfully!")
             
-            # 1. Load the checkpoint
-            checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
-            
-            # 2. Extract and load Actor weights
-            state_dict = {}
-            for key, value in checkpoint['model_state_dict'].items():
-                if key.startswith('actor.'):
-                    new_key = key.replace('actor.', '')
-                    state_dict[new_key] = value
-            
-            model.actor.load_state_dict(state_dict, strict=True)
-            model.eval()
-            model.to(self.device)
-            
-            # 3. Extract Action STD
-            action_std = checkpoint['model_state_dict'].get('std', torch.ones(12)).cpu().numpy()
-            
-            # 4. Extract Observation Normalization Stats (CRITICAL)
-            # Use 'obs_rms_mean' and 'obs_rms_var' keys saved by RSL RL trainer format
-            if checkpoint['infos'].get('use_normalization', False):
-                self.get_logger().info('Normalization enabled in training. Loading obs stats.')
-                
-                self.obs_mean = checkpoint['obs_rms_mean'].cpu().numpy().astype(np.float32)
-                
-                # obs_rms_var is variance, convert to std (sqrt)
-                obs_var = checkpoint['obs_rms_var'].cpu().numpy().astype(np.float32)
-                self.obs_std = np.sqrt(obs_var + 1e-8) 
-                
-                # Protect against division by zero for invariant features
-                self.obs_std[self.obs_std < 1e-6] = 1.0 
+            if 'obs_rms_mean' in checkpoint and 'obs_rms_var' in checkpoint:
+                self.obs_rms_mean = checkpoint['obs_rms_mean'].to(DEVICE)
+                self.obs_rms_var = checkpoint['obs_rms_var'].to(DEVICE)
+                self.use_obs_normalization = True
             else:
-                self.get_logger().warning('Normalization disabled in training. Using mean=0, std=1.')
-                self.obs_mean = np.zeros(48)
-                self.obs_std = np.ones(48)
-
-            self.get_logger().info(f'Model loaded. Obs Mean range: [{self.obs_mean.min():.3f}, {self.obs_mean.max():.3f}]')
-
-            return model, action_std
-            
+                self.use_obs_normalization = False
+                
         except Exception as e:
-            self.get_logger().error(f'Failed to load model and stats from {MODEL_PATH}: {e}')
-            self.get_logger().error('Controller will NOT run without a valid model.')
-            return None, np.ones(12)
+            self.get_logger().error(f"Failed to load model: {e}")
+            sys.exit(1)
 
     def joint_state_callback(self, msg):
-        current_time = time.time()
-        current_positions = np.zeros(12)
-        
-        for joint_name, position in zip(msg.name, msg.position):
-            if joint_name in self.name_to_idx:
-                idx = self.name_to_idx[joint_name]
-                current_positions[idx] = position
-        
-        self.joint_positions = current_positions
+        """Update joint positions and velocities from sensor data."""
+        for i, name in enumerate(msg.name):
+            if name in joint_name_to_idx:
+                idx = joint_name_to_idx[name]
+                self.joint_positions[idx] = msg.position[i]
+                if len(msg.velocity) > i:
+                    self.joint_velocities[idx] = msg.velocity[i]
 
-        if not self.initialized and np.any(self.joint_positions != 0):
-            # Initialize actions and filtered state based on first valid position
-            self.last_action = self.joint_positions - self.default_positions
-            self.filtered_action = self.last_action.copy()
-            self.initialized = True
-            self.get_logger().info('Initialized action state based on first joint positions.')
-        
-        if self.prev_joint_positions is not None and self.prev_joint_time is not None:
-            dt = current_time - self.prev_joint_time
-            if dt > 0.001 and dt < 0.1: 
-                # Basic low-pass filter for joint velocity estimation
-                instantaneous_vel = (current_positions - self.prev_joint_positions) / dt
-                alpha = 0.2
-                self.joint_velocities = alpha * instantaneous_vel + (1 - alpha) * self.joint_velocities
-                self.joint_velocities = np.clip(self.joint_velocities, -10.0, 10.0)
-        
-        self.prev_joint_positions = current_positions.copy()
-        self.prev_joint_time = current_time      
-     
     def cmd_vel_callback(self, msg):
-        vx = msg.linear.x
-        vy = msg.linear.y
-        wz = msg.angular.z
-        self.velocity_commands[0] = np.clip(vx, -0.8, 3.5) if abs(vx) >= self.cmd_vel_deadzone else 0.0
-        self.velocity_commands[1] = np.clip(vy, -0.3, 0.3) if abs(vy) >= self.cmd_vel_deadzone else 0.0
-        self.velocity_commands[2] = np.clip(wz, -1.0, 1.0) if abs(wz) >= self.cmd_vel_deadzone else 0.0
-    
-    def imu_callback(self, msg):
-        """Updates IMU orientation and calculates projected gravity (in the base frame)."""
-        self.imu_orientation = np.array([
-            msg.orientation.x, 
-            msg.orientation.y, 
-            msg.orientation.z, 
-            msg.orientation.w
-        ])
+        """Update command velocities from user input."""
+        self.cmd_vel_linear[0] = msg.linear.x
+        self.cmd_vel_linear[1] = msg.linear.y
+        self.cmd_vel_angular[2] = msg.angular.z
+        self.last_cmd_time = self.get_clock().now()
         
-        # Calculate projected gravity: R_body_world * gravity_vector_world
-        try:
-            r = R.from_quat(self.imu_orientation)
-            self.projected_gravity = r.inv().apply(GRAVITY_VECTOR_WORLD)
-        except Exception:
-            # Fallback for bad quaternion
-            pass 
+        if np.any(np.abs(self.cmd_vel_linear[:2]) > 0.01) or np.abs(self.cmd_vel_angular[2]) > 0.01:
+            if not self.has_received_cmd:
+                self.has_received_cmd = True
 
     def odom_callback(self, msg):
+        """Update base linear and angular velocities from Odometry."""
+        # Use only the linear/angular components required for the 48-dim vector
         self.base_lin_vel[0] = msg.twist.twist.linear.x
         self.base_lin_vel[1] = msg.twist.twist.linear.y
         self.base_lin_vel[2] = msg.twist.twist.linear.z
@@ -229,113 +175,166 @@ class MLPController(Node):
         self.base_ang_vel[1] = msg.twist.twist.angular.y
         self.base_ang_vel[2] = msg.twist.twist.angular.z
 
-    def get_observation(self):
-            #IL Trained Ordering
-
-            raw_obs = np.concatenate([
-                self.velocity_commands,                
-                self.joint_positions - self.default_positions,
-                self.joint_velocities,                 
-                self.last_action,                    
-                self.projected_gravity,                
-                self.base_lin_vel,                     
-                self.base_ang_vel,                     
-            ])
-            
-            normalized_obs = (raw_obs - self.obs_mean) / self.obs_std
-            
-            return normalized_obs.astype(np.float32)
-
-    def __get_observation(self):
+    # IMU callback is REMOVED
+    
+    def construct_observation(self):
         """
-        RSL-RL PolicyCfg order.
+        CRITICAL: Construct 48-dimensional observation vector in the IL Training Order.
+        IL Order: [Cmd(3) | Q_rel(12) | dQ(12) | Action_prev(12) | Grav(3) | LinVel(3) | AngVel(3)]
         """
-        raw_obs = np.concatenate([
-            self.base_lin_vel,
-            self.base_ang_vel,
-            self.projected_gravity,
-            self.velocity_commands, 
-            self.joint_positions - self.default_positions, 
-            self.joint_velocities,
-            self.last_action 
-        ])
         
-        # Apply normalization (obs_mean and obs_std loaded from the RSL-RL checkpoint)
-        normalized_obs = (raw_obs - self.obs_mean) / self.obs_std
-        return normalized_obs.astype(np.float32)
+        # 1. Command Velocities (3): [Vx_cmd, Vy_cmd, Wz_cmd]
+        cmd_vels = np.array([self.cmd_vel_linear[0], self.cmd_vel_linear[1], self.cmd_vel_angular[2]])
+        
+        # 2. Joint Positions (Relative) (12)
+        joint_pos_rel = self.default_positions - self.joint_positions #self.joint_positions - self.default_positions
+        
+        # 3. Joint Velocities (12)
+        joint_vels = self.joint_velocities
+        
+        # 4. Last Action (12)
+        last_actions = self.last_actions
+        
+        # 5. Projected Gravity (3) - STATIC
+        proj_gravity = self.projected_gravity # STATIC_PROJECTED_GRAVITY
+        
+        # 6. Base Linear Velocity (3)
+        base_lin_vel = self.base_lin_vel
+        
+        # 7. Base Angular Velocity (3)
+        base_ang_vel = self.base_ang_vel
+
+        raw_obs = np.concatenate([
+            cmd_vels,
+            joint_pos_rel,
+            joint_vels,
+            last_actions,
+            proj_gravity, # Indices 39-41
+            base_lin_vel, # Indices 42-44
+            base_ang_vel  # Indices 45-47
+        ])
+
+        return raw_obs.astype(np.float32)
+
+    # --- Control Loop and Utilities (Unchanged) ---
+    def is_command_active(self):
+        # (Logic is unchanged)
+        if self.last_cmd_time is None: return False
+        time_since_cmd = (self.get_clock().now() - self.last_cmd_time).nanoseconds * 1e-9
+        if time_since_cmd > self.cmd_timeout: return False
+        if np.all(np.abs(self.cmd_vel_linear[:2]) < 0.01) and np.abs(self.cmd_vel_angular[2]) < 0.01:
+            return False
+        return True
+
+    def move_to_default_pose(self):
+        # (Logic is unchanged)
+        if self.init_start_time is None:
+            self.init_start_time = self.get_clock().now().nanoseconds * 1e-9
+            self.init_positions = self.joint_positions.copy()
+        
+        current_time = self.get_clock().now().nanoseconds * 1e-9
+        elapsed = current_time - self.init_start_time
+        
+        if elapsed >= self.init_duration:
+            self.initialized = True
+            self.get_logger().info("Default stance reached. Starting MLP control...")
+            return True
+        
+        alpha = min(elapsed / self.init_duration, 1.0)
+        alpha = 0.5 - 0.5 * np.cos(np.pi * alpha) 
+        
+        target_positions = self.init_positions * (1 - alpha) + self.default_positions * alpha
+        
+        traj_msg = JointTrajectory()
+        traj_msg.joint_names = joint_names
+        
+        point = JointTrajectoryPoint(positions=target_positions.tolist(), 
+                                     time_from_start=rclpy.duration.Duration(seconds=self.dt).to_msg())
+        
+        traj_msg.points = [point]
+        self.joint_pub.publish(traj_msg)
+        
+        return False
+
 
     def control_loop(self):
-        """Main control loop - runs at 50 Hz"""
-        if self.model is None or not self.initialized:
+        if not self.initialized:
+            self.move_to_default_pose()
+            return
+
+        if not self.is_command_active():
+            # Maintain default stance logic
+            if self.has_received_cmd:
+                self.has_received_cmd = False
+                self.last_actions = np.zeros(12)
+                self.smoothed_actions = np.zeros(12)
+            
+            traj_msg = JointTrajectory()
+            traj_msg.joint_names = joint_names
+            point = JointTrajectoryPoint(positions=self.default_positions.tolist(), 
+                                         time_from_start=rclpy.duration.Duration(seconds=self.dt).to_msg())
+            traj_msg.points = [point]
+            self.joint_pub.publish(traj_msg)
             return
         
-        try:
-            obs = self.get_observation()
+        # --- MLP Control Logic ---
+        obs = self.construct_observation()
+        
+        obs_msg = Float32MultiArray(data=obs.tolist())
+        self.mlp_observation_pub.publish(obs_msg)
+        
+        obs_tensor = torch.from_numpy(obs).unsqueeze(0).to(DEVICE)
+        
+        if self.use_obs_normalization:
+            obs_mean = self.obs_rms_mean
+            obs_std = torch.sqrt(self.obs_rms_var + 1e-8)
+            obs_tensor = (obs_tensor - obs_mean) / obs_std
+        
+        with torch.no_grad():
+            raw_action = self.model(obs_tensor).squeeze(0).cpu().numpy()
+        
+        # Debug prints instead of IPython
+        # self.get_logger().info(f"Raw action range: [{raw_action.min():.4f}, {raw_action.max():.4f}]")
+        # self.get_logger().info(f"Raw action mean: {raw_action.mean():.4f}, std: {raw_action.std():.4f}")
+        # self.get_logger().info(f"Raw action: {raw_action}")
+        # self.get_logger().info(f"Raw action shape: {raw_action.shape}")
+        
+        raw_output_msg = Float32MultiArray(data=raw_action.tolist())
+        self.raw_mlp_output_pub.publish(raw_output_msg)
+        
+        # --- **CRITICAL: JOINT-SPECIFIC SCALING** ---
+        # Note: Scaling is division (raw_action / scale_factor)
+        # scaled_action = raw_action / self.action_scale_vector
+        scaled_action = raw_action * self.action_scale_vector
 
-            obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
+        # self.get_logger().info(f"RBH SCALED ACTION (Index 9): {scaled_action[9]:.4f}") #######
+        
+        self.smoothed_actions = (self.action_smoothing * self.smoothed_actions + 
+                                (1 - self.action_smoothing) * scaled_action)
+        
+        action = np.clip(self.smoothed_actions, -1.5, 1.5)
+        self.last_actions = action.copy()
+        
+        target_positions = self.default_positions + action
+        
+        traj_msg = JointTrajectory()
+        traj_msg.joint_names = joint_names
+        
+        point = JointTrajectoryPoint(positions=target_positions.tolist(), 
+                                     time_from_start=rclpy.duration.Duration(seconds=self.dt).to_msg())
+        
+        traj_msg.points = [point]
+        self.joint_pub.publish(traj_msg)
 
-            is_standing = np.allclose(self.velocity_commands, 0, atol=0.01)
-            
-            with torch.no_grad():
-                # Policy outputs the raw action
-                raw_action = self.model.actor(obs_tensor).cpu().numpy()[0]
-            
-            # Step 1: Unscale the action by the model's action_std (reverses training scaling)
-            action_unscaled = raw_action * self.action_std
-            
-            # Step 2: Scale the action by the control scale (hyperparameter)
-            scaled_action = action_unscaled * self.action_scale
 
-            # Action filtering (Low-pass filter for smoothness and stability)
-            if is_standing:
-                # Decays the action smoothly when commanded to stop
-                decay_factor = 0.9 
-                self.filtered_action *= decay_factor
-                if np.linalg.norm(self.filtered_action) < 1e-3:
-                    self.filtered_action = np.zeros(12)
-            else:
-                # Standard low-pass filter for motion
-                alpha = self.filter_alpha
-                self.filtered_action = alpha * scaled_action + (1 - alpha) * self.filtered_action
-            
-            position_action = self.filtered_action
-
-            self.last_action = position_action.copy()
-            
-            # Calculate target joint positions (Delta position + Default position)
-            target_positions = self.default_positions + position_action
-            target_positions = np.clip(target_positions, self.joint_limits_low, self.joint_limits_high)
-            
-            # Publish command
-            trajectory_msg = JointTrajectory()
-            trajectory_msg.header.stamp = self.get_clock().now().to_msg()
-            trajectory_msg.joint_names = [self.joint_mapping[i] for i in range(12)]
-            
-            point = JointTrajectoryPoint()
-            point.positions = target_positions.tolist()
-            # Set time_from_start to match control frequency
-            point.time_from_start.sec = 0
-            point.time_from_start.nanosec = int(1e9 / self.control_frequency) 
-            
-            trajectory_msg.points = [point]
-            self.joint_cmd_pub.publish(trajectory_msg)
-            
-        except Exception as e:
-            self.get_logger().error(f'Error in control loop: {e}', throttle_duration_sec=1.0)
-
-            
 def main(args=None):
     rclpy.init(args=args)
     controller = MLPController()
     
-    controller.get_logger().info('='*50)
-    controller.get_logger().info('MLP Controller Started with Observation Normalization')
-    controller.get_logger().info('='*50)
-    
     try:
         rclpy.spin(controller)
     except KeyboardInterrupt:
-        controller.get_logger().info('Shutting down controller...')
+        controller.get_logger().info("Shutting down MLP Controller...")
     finally:
         controller.destroy_node()
         rclpy.shutdown()

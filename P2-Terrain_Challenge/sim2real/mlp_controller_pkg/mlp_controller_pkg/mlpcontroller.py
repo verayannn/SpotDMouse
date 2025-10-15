@@ -14,8 +14,8 @@ import os
 import sys
 
 # --- Configuration Constants ---
-# MODEL_PATH = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
-MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/45degree_mlp.pt"
+MODEL_PATH = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
+# MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/45degree_mlp.pt"
 # MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
 DEVICE = torch.device("cpu")
 # CRITICAL: Assuming static projected gravity based on training simplification
@@ -94,7 +94,7 @@ class MLPController(Node):
         # --- Control & Action Parameters ---
         self.control_frequency = 50.0 
         self.dt = 1.0 / self.control_frequency
-        self.action_smoothing = 0.75 #.025
+        self.action_smoothing = 0.25 #.025
         self.cmd_timeout = 0.50
         self.last_cmd_time = self.get_clock().now()
         self.has_received_cmd = False
@@ -104,8 +104,8 @@ class MLPController(Node):
         # --- **JOINT-SPECIFIC ACTION SCALING** ---
         # THIGH_CALF_SCALE = 1.0#0.4 
         HIP_SCALE = 1.0 #0.35#1.0#2.0
-        THIGH_SCALE = 1.0 #1.5#1.8
-        CALF_SCALE = 1.0 #2.0#1.0
+        THIGH_SCALE = 1.75 #1.5#1.8
+        CALF_SCALE = 1.75 #2.0#1.0
 
         # self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
         
@@ -127,7 +127,7 @@ class MLPController(Node):
         self.get_logger().info(f"hip scales: {HIP_SCALE}, thigh scale: {THIGH_SCALE}, calf scale: {CALF_SCALE}")
         # --- Initialization ---
         self.initialized = False
-        self.init_duration = 15.0 
+        self.init_duration = 3.0 
         self.init_start_time = None  # Add this missing attribute
         self.control_timer = self.create_timer(self.dt, self.control_loop)
         
@@ -230,26 +230,26 @@ class MLPController(Node):
         # 7. Base Angular Velocity (3)
         base_ang_vel = self.base_ang_vel
 
-        # raw_obs = np.concatenate([
-        #     cmd_vels,
-        #     joint_pos_rel,
-        #     joint_vels,
-        #     last_actions,
-        #     proj_gravity, # Indices 39-41
-        #     base_lin_vel, # Indices 42-44
-        #     base_ang_vel  # Indices 45-47
-        # ])
-
-        # Assemble into the RSL-RL vector
-        rsl_obs = np.concatenate([
-            base_lin_vel,
-            base_ang_vel,
-            proj_gravity,
+        raw_obs = np.concatenate([
             cmd_vels,
             joint_pos_rel,
             joint_vels,
-            last_actions
-        ], axis=-1)
+            last_actions,
+            proj_gravity, # Indices 39-41
+            base_lin_vel, # Indices 42-44
+            base_ang_vel  # Indices 45-47
+        ])
+
+        # Assemble into the RSL-RL vector
+        # rsl_obs = np.concatenate([
+        #     base_lin_vel,
+        #     base_ang_vel,
+        #     proj_gravity,
+        #     cmd_vels,
+        #     joint_pos_rel,
+        #     joint_vels,
+        #     last_actions
+        # ], axis=-1)
 
         # rsl_obs = np.concatenate([
         #     base_lin_vel,
@@ -261,8 +261,8 @@ class MLPController(Node):
         #     last_actions
         # ])
 
-        # return raw_obs.astype(np.float32)
-        return rsl_obs.astype(np.float32)
+        return raw_obs.astype(np.float32)
+        # return rsl_obs.astype(np.float32)
 
     # --- Control Loop and Utilities (Unchanged) ---
     def is_command_active(self):

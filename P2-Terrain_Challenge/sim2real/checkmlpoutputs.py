@@ -5,8 +5,6 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import os
 import sys 
-
-# Ensure correct backend for plotting if needed
 import matplotlib
 # matplotlib.use("Qt5Agg") # Keep this commented out unless running on a display server
 
@@ -171,14 +169,25 @@ plt.show()
 plt.savefig('joint_outputs_comparison.png')
 
 scale = 20
-HIP_SCALE = 17.0  # (Need to find this lower value)
-THIGH_CALF_SCALE = 1.0 # (Use your existing scale)
+# HIP_SCALE = 17.0  # (Need to find this lower value)
+# THIGH_CALF_SCALE = 1.0 # (Use your existing scale)
+
+# action_scale_vector = np.array([
+#     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+#     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+#     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+#     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+# ])
+
+HIP_SCALE = 0.058823529411764705
+THIGH_SCALE = 1.0
+CALF_SCALE = 1.0
 
 action_scale_vector = np.array([
-    HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-    HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-    HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-    HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+    HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+    HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+    HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+    HIP_SCALE, THIGH_SCALE, CALF_SCALE,
 ])
 
 # final_action_12d = rsl_output / action_scale_vector
@@ -197,7 +206,7 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-new_scale = int(input(f"Adjust Scale? Current Scale {scale}"))
+new_scale = float(input(f"Adjust Scale? Current Scale {scale}"))
 
 reg = rsl_t[0][1200:1500]
 scaled = rsl_t[0][1200:1500]/new_scale
@@ -218,7 +227,7 @@ try:
     if scale_input: # Only update if the user entered something
         new_scale_float = float(scale_input)
         if new_scale_float == 0:
-             print("Scale cannot be zero. Using default scale (20.0).")
+             print("Scale cannot be zero. Using default scale (20.0): ")
              new_scale_float = scale
         scale = new_scale_float
         

@@ -258,6 +258,21 @@ class MLPController(Node):
             base_ang_vel  # Indices 45-47
         ])
 
+        # self.get_logger().info(f"raw_obs: {raw_obs}, raw_obs_shape {raw_obs.shape}")
+
+        # Assemble into the RSL-RL vector
+        rsl_obs = np.concatenate([
+            base_lin_vel,
+            base_ang_vel,
+            proj_gravity,
+            cmd_vel,
+            joint_pos_rel,
+            joint_vel,
+            last_action
+        ], axis=-1)
+
+        # self.get_logger().info(f"raw_obs: {rsl_obs}, raw_obs_shape {rsl_obs.shape}")
+
         return raw_obs.astype(np.float32)
 
     # --- Control Loop and Utilities (Unchanged) ---

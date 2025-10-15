@@ -189,37 +189,37 @@ class MLPController(Node):
     # IMU callback is REMOVED
 
     def remap_il_to_rsl_obs(il_obs_np):
-    """
-    Transforms a single 48-dim observation vector from the IL training order 
-    to the standard RSL-RL order.
+        """
+        Transforms a single 48-dim observation vector from the IL training order 
+        to the standard RSL-RL order.
 
-    IL Order: [Cmd(3), Q_rel(12), dQ(12), Action_prev(12), Grav(3), LinVel(3), AngVel(3)]
-    RSL Order: [LinVel(3), AngVel(3), Grav(3), Cmd(3), Q_rel(12), dQ(12), Action_prev(12)]
-    """
-    if il_obs_np.shape[-1] != 48:
-        raise ValueError(f"Input observation must be 48 elements, got {il_obs_np.shape[-1]}")
+        IL Order: [Cmd(3), Q_rel(12), dQ(12), Action_prev(12), Grav(3), LinVel(3), AngVel(3)]
+        RSL Order: [LinVel(3), AngVel(3), Grav(3), Cmd(3), Q_rel(12), dQ(12), Action_prev(12)]
+        """
+        if il_obs_np.shape[-1] != 48:
+            raise ValueError(f"Input observation must be 48 elements, got {il_obs_np.shape[-1]}")
 
-    # Extract features from the IL vector
-    cmd_vel       = il_obs_np[..., 0:3]
-    joint_pos_rel = il_obs_np[..., 3:15]
-    joint_vel     = il_obs_np[..., 15:27]
-    last_action   = il_obs_np[..., 27:39]
-    proj_gravity  = il_obs_np[..., 39:42]
-    base_lin_vel  = il_obs_np[..., 42:45]
-    base_ang_vel  = il_obs_np[..., 45:48]
+        # Extract features from the IL vector
+        cmd_vel       = il_obs_np[..., 0:3]
+        joint_pos_rel = il_obs_np[..., 3:15]
+        joint_vel     = il_obs_np[..., 15:27]
+        last_action   = il_obs_np[..., 27:39]
+        proj_gravity  = il_obs_np[..., 39:42]
+        base_lin_vel  = il_obs_np[..., 42:45]
+        base_ang_vel  = il_obs_np[..., 45:48]
 
-    # Assemble into the RSL-RL vector
-    rsl_obs = np.concatenate([
-        base_lin_vel,
-        base_ang_vel,
-        proj_gravity,
-        cmd_vel,
-        joint_pos_rel,
-        joint_vel,
-        last_action
-    ], axis=-1)
-    
-        return rsl_obs
+        # Assemble into the RSL-RL vector
+        rsl_obs = np.concatenate([
+            base_lin_vel,
+            base_ang_vel,
+            proj_gravity,
+            cmd_vel,
+            joint_pos_rel,
+            joint_vel,
+            last_action
+        ], axis=-1)
+        
+            return rsl_obs
     
     def construct_observation(self):
         """

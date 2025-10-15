@@ -91,7 +91,7 @@ class MLPController(Node):
         
         # --- **JOINT-SPECIFIC ACTION SCALING** ---
         # THIGH_CALF_SCALE = 1.0#0.4 
-        HIP_SCALE = 1.0#2.0
+        HIP_SCALE = 1.0 #2.0
         THIGH_SCALE = 1.0#1.8
         CALF_SCALE = 1.0
 
@@ -187,6 +187,39 @@ class MLPController(Node):
         self.base_ang_vel[2] = msg.twist.twist.angular.z
 
     # IMU callback is REMOVED
+
+    def remap_il_to_rsl_obs(il_obs_np):
+    """
+    Transforms a single 48-dim observation vector from the IL training order 
+    to the standard RSL-RL order.
+
+    IL Order: [Cmd(3), Q_rel(12), dQ(12), Action_prev(12), Grav(3), LinVel(3), AngVel(3)]
+    RSL Order: [LinVel(3), AngVel(3), Grav(3), Cmd(3), Q_rel(12), dQ(12), Action_prev(12)]
+    """
+    if il_obs_np.shape[-1] != 48:
+        raise ValueError(f"Input observation must be 48 elements, got {il_obs_np.shape[-1]}")
+
+    # Extract features from the IL vector
+    cmd_vel       = il_obs_np[..., 0:3]
+    joint_pos_rel = il_obs_np[..., 3:15]
+    joint_vel     = il_obs_np[..., 15:27]
+    last_action   = il_obs_np[..., 27:39]
+    proj_gravity  = il_obs_np[..., 39:42]
+    base_lin_vel  = il_obs_np[..., 42:45]
+    base_ang_vel  = il_obs_np[..., 45:48]
+
+    # Assemble into the RSL-RL vector
+    rsl_obs = np.concatenate([
+        base_lin_vel,
+        base_ang_vel,
+        proj_gravity,
+        cmd_vel,
+        joint_pos_rel,
+        joint_vel,
+        last_action
+    ], axis=-1)
+    
+        return rsl_obs
     
     def construct_observation(self):
         """
@@ -304,19 +337,13 @@ class MLPController(Node):
         with torch.no_grad():
             raw_action = self.model(obs_tensor).squeeze(0).cpu().numpy()
         
-        # Debug prints instead of IPython
-        # self.get_logger().info(f"Raw action range: [{raw_action.min():.4f}, {raw_action.max():.4f}]")
-        # self.get_logger().info(f"Raw action mean: {raw_action.mean():.4f}, std: {raw_action.std():.4f}")
-        # self.get_logger().info(f"Raw action: {raw_action}")
-        # self.get_logger().info(f"Raw action shape: {raw_action.shape}")
-        
         raw_output_msg = Float32MultiArray(data=raw_action.tolist())
         self.raw_mlp_output_pub.publish(raw_output_msg)
         
         # --- **CRITICAL: JOINT-SPECIFIC SCALING** ---
         # Note: Scaling is division (raw_action / scale_factor)
         # scaled_action = raw_action / self.action_scale_vector
-        scaled_action = raw_action * self.action_scale_vector
+        scaled_action = raw_action * self.action_scale_vector #multiplicative instead of division
 
         # self.get_logger().info(f"RBH SCALED ACTION (Index 9): {scaled_action[9]:.4f}") #######
         

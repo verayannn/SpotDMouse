@@ -14,18 +14,28 @@ import os
 import sys
 
 # --- Configuration Constants ---
-MODEL_PATH = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
+# MODEL_PATH = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
+MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/45degree_mlp.pt"
+# MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
 DEVICE = torch.device("cpu")
 # CRITICAL: Assuming static projected gravity based on training simplification
 STATIC_PROJECTED_GRAVITY = np.array([0.0, 0.0, -9.81]) 
 
-# --- Default Pose ---
+# --- Default Pose --- 45 degree
 default_pose_values = np.array([
     0.0, 0.785, -1.57,  # LF
     0.0, 0.785, -1.57,  # RF
     0.0, 0.785, -1.57,  # LB
     0.0, 0.785, -1.57,  # RB
 ])
+
+# --- Default Pose --- 30 degree
+# default_pose_values = np.array([
+#     0.0, 0.52, -1.05,
+#     0.0, 0.52, -1.05,
+#     0.0, 0.52, -1.05,
+#     0.0, 0.52, -1.05,
+# ])
 
 # Joint name list (for publishing order)
 joint_names = [
@@ -84,16 +94,18 @@ class MLPController(Node):
         # --- Control & Action Parameters ---
         self.control_frequency = 50.0 
         self.dt = 1.0 / self.control_frequency
-        self.action_smoothing = 0.25 
+        self.action_smoothing = 0.75 #.025
         self.cmd_timeout = 0.50
         self.last_cmd_time = self.get_clock().now()
         self.has_received_cmd = False
+
+        self.joint_data_received = False 
         
         # --- **JOINT-SPECIFIC ACTION SCALING** ---
         # THIGH_CALF_SCALE = 1.0#0.4 
-        HIP_SCALE = 1.0 #2.0
-        THIGH_SCALE = 1.0#1.8
-        CALF_SCALE = 1.0
+        HIP_SCALE = 1.0 #0.35#1.0#2.0
+        THIGH_SCALE = 1.0 #1.5#1.8
+        CALF_SCALE = 1.0 #2.0#1.0
 
         # self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
         
@@ -115,7 +127,7 @@ class MLPController(Node):
         self.get_logger().info(f"hip scales: {HIP_SCALE}, thigh scale: {THIGH_SCALE}, calf scale: {CALF_SCALE}")
         # --- Initialization ---
         self.initialized = False
-        self.init_duration = 3.0 
+        self.init_duration = 15.0 
         self.init_start_time = None  # Add this missing attribute
         self.control_timer = self.create_timer(self.dt, self.control_loop)
         
@@ -163,6 +175,8 @@ class MLPController(Node):
                 self.joint_positions[idx] = msg.position[i]
                 if len(msg.velocity) > i:
                     self.joint_velocities[idx] = msg.velocity[i]
+        if not self.joint_data_received:
+            self.joint_data_received = True
 
     def cmd_vel_callback(self, msg):
         """Update command velocities from user input."""
@@ -187,44 +201,12 @@ class MLPController(Node):
         self.base_ang_vel[2] = msg.twist.twist.angular.z
 
     # IMU callback is REMOVED
-
-    def remap_il_to_rsl_obs(il_obs_np):
-        """
-        Transforms a single 48-dim observation vector from the IL training order 
-        to the standard RSL-RL order.
-
-        IL Order: [Cmd(3), Q_rel(12), dQ(12), Action_prev(12), Grav(3), LinVel(3), AngVel(3)]
-        RSL Order: [LinVel(3), AngVel(3), Grav(3), Cmd(3), Q_rel(12), dQ(12), Action_prev(12)]
-        """
-        if il_obs_np.shape[-1] != 48:
-            raise ValueError(f"Input observation must be 48 elements, got {il_obs_np.shape[-1]}")
-
-        # Extract features from the IL vector
-        cmd_vel       = il_obs_np[..., 0:3]
-        joint_pos_rel = il_obs_np[..., 3:15]
-        joint_vel     = il_obs_np[..., 15:27]
-        last_action   = il_obs_np[..., 27:39]
-        proj_gravity  = il_obs_np[..., 39:42]
-        base_lin_vel  = il_obs_np[..., 42:45]
-        base_ang_vel  = il_obs_np[..., 45:48]
-
-        # Assemble into the RSL-RL vector
-        rsl_obs = np.concatenate([
-            base_lin_vel,
-            base_ang_vel,
-            proj_gravity,
-            cmd_vel,
-            joint_pos_rel,
-            joint_vel,
-            last_action
-        ], axis=-1)
-        
-            return rsl_obs
     
     def construct_observation(self):
         """
         CRITICAL: Construct 48-dimensional observation vector in the IL Training Order.
         IL Order: [Cmd(3) | Q_rel(12) | dQ(12) | Action_prev(12) | Grav(3) | LinVel(3) | AngVel(3)]
+        RSL Order: [LinVel(3), AngVel(3), Grav(3), Cmd(3), Q_rel(12), dQ(12), Action_prev(12)]
         """
         
         # 1. Command Velocities (3): [Vx_cmd, Vy_cmd, Wz_cmd]
@@ -248,32 +230,39 @@ class MLPController(Node):
         # 7. Base Angular Velocity (3)
         base_ang_vel = self.base_ang_vel
 
-        raw_obs = np.concatenate([
-            cmd_vels,
-            joint_pos_rel,
-            joint_vels,
-            last_actions,
-            proj_gravity, # Indices 39-41
-            base_lin_vel, # Indices 42-44
-            base_ang_vel  # Indices 45-47
-        ])
-
-        # self.get_logger().info(f"raw_obs: {raw_obs}, raw_obs_shape {raw_obs.shape}")
+        # raw_obs = np.concatenate([
+        #     cmd_vels,
+        #     joint_pos_rel,
+        #     joint_vels,
+        #     last_actions,
+        #     proj_gravity, # Indices 39-41
+        #     base_lin_vel, # Indices 42-44
+        #     base_ang_vel  # Indices 45-47
+        # ])
 
         # Assemble into the RSL-RL vector
         rsl_obs = np.concatenate([
             base_lin_vel,
             base_ang_vel,
             proj_gravity,
-            cmd_vel,
+            cmd_vels,
             joint_pos_rel,
-            joint_vel,
-            last_action
+            joint_vels,
+            last_actions
         ], axis=-1)
 
-        # self.get_logger().info(f"raw_obs: {rsl_obs}, raw_obs_shape {rsl_obs.shape}")
+        # rsl_obs = np.concatenate([
+        #     base_lin_vel,
+        #     base_ang_vel,
+        #     proj_gravity,
+        #     cmd_vels,
+        #     joint_pos_rel,
+        #     joint_vels,
+        #     last_actions
+        # ])
 
-        return raw_obs.astype(np.float32)
+        # return raw_obs.astype(np.float32)
+        return rsl_obs.astype(np.float32)
 
     # --- Control Loop and Utilities (Unchanged) ---
     def is_command_active(self):
@@ -300,23 +289,61 @@ class MLPController(Node):
             return True
         
         alpha = min(elapsed / self.init_duration, 1.0)
-        alpha = 0.5 - 0.5 * np.cos(np.pi * alpha) 
-        
+        alpha = 0.5 - 0.5 * np.cos(np.pi * alpha)
+
         target_positions = self.init_positions * (1 - alpha) + self.default_positions * alpha
         
+        segment_time = rclpy.duration.Duration(seconds=self.dt).to_msg()
+        target_velocities = np.zeros(12).tolist()
+
         traj_msg = JointTrajectory()
         traj_msg.joint_names = joint_names
         
         point = JointTrajectoryPoint(positions=target_positions.tolist(), 
-                                     time_from_start=rclpy.duration.Duration(seconds=self.dt).to_msg())
+                                     velocities=target_velocities, # Added velocities
+                                     time_from_start=segment_time)
         
         traj_msg.points = [point]
         self.joint_pub.publish(traj_msg)
-        
         return False
+
+    # def move_to_default_pose(self):
+    #     # (Logic is unchanged)
+    #     if self.init_start_time is None:
+    #         self.init_start_time = self.get_clock().now().nanoseconds * 1e-9
+    #         self.init_positions = self.joint_positions.copy()
+        
+    #     current_time = self.get_clock().now().nanoseconds * 1e-9
+    #     elapsed = current_time - self.init_start_time
+        
+    #     if elapsed >= self.init_duration:
+    #         self.initialized = True
+    #         self.get_logger().info("Default stance reached. Starting MLP control...")
+    #         return True
+        
+    #     alpha = min(elapsed / self.init_duration, 1.0)
+    #     alpha = 0.5 - 0.5 * np.cos(np.pi * alpha) 
+        
+    #     target_positions = self.init_positions * (1 - alpha) + self.default_positions * alpha
+        
+    #     traj_msg = JointTrajectory()
+    #     traj_msg.joint_names = joint_names
+        
+    #     point = JointTrajectoryPoint(positions=target_positions.tolist(), 
+    #                                  time_from_start=rclpy.duration.Duration(seconds=self.dt).to_msg())
+        
+    #     traj_msg.points = [point]
+    #     self.joint_pub.publish(traj_msg)
+        
+    #     return False
 
 
     def control_loop(self):
+
+        if not self.joint_data_received:
+            self.get_logger().warn("Waiting for initial joint_states...")
+            return
+        
         if not self.initialized:
             self.move_to_default_pose()
             return
@@ -352,13 +379,19 @@ class MLPController(Node):
         with torch.no_grad():
             raw_action = self.model(obs_tensor).squeeze(0).cpu().numpy()
         
+        # Debug prints instead of IPython
+        # self.get_logger().info(f"Raw action range: [{raw_action.min():.4f}, {raw_action.max():.4f}]")
+        # self.get_logger().info(f"Raw action mean: {raw_action.mean():.4f}, std: {raw_action.std():.4f}")
+        # self.get_logger().info(f"Raw action: {raw_action}")
+        # self.get_logger().info(f"Raw action shape: {raw_action.shape}")
+        
         raw_output_msg = Float32MultiArray(data=raw_action.tolist())
         self.raw_mlp_output_pub.publish(raw_output_msg)
         
         # --- **CRITICAL: JOINT-SPECIFIC SCALING** ---
         # Note: Scaling is division (raw_action / scale_factor)
         # scaled_action = raw_action / self.action_scale_vector
-        scaled_action = raw_action * self.action_scale_vector #multiplicative instead of division
+        scaled_action = raw_action * self.action_scale_vector
 
         # self.get_logger().info(f"RBH SCALED ACTION (Index 9): {scaled_action[9]:.4f}") #######
         

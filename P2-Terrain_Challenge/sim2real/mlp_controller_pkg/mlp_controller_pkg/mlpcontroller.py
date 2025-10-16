@@ -103,9 +103,9 @@ class MLPController(Node):
         
         # --- **JOINT-SPECIFIC ACTION SCALING** ---
         # THIGH_CALF_SCALE = 1.0#0.4 
-        # HIP_SCALE = 0.4 #0.35#1.0#2.0
-        # THIGH_SCALE = 0.85 #1.5#1.8
-        # CALF_SCALE = 1.15 #2.0#1.0
+        # HIP_SCALE = 0.2#0.4 
+        # THIGH_SCALE = 1.0#0.85 
+        # CALF_SCALE = 1.25#1.15 
 
         # # self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
 
@@ -117,11 +117,11 @@ class MLPController(Node):
         # ])
 
         HIP_BASE = 0.4
-        THIGH_BASE = 0.85  # Base scale for LF/RF/RB Thigh
-        CALF_BASE = 1.15   # Base scale for LF/RF/RB Calf
+        THIGH_BASE = 0.85  
+        CALF_BASE = 1.15   
         
-        LB_THIGH_BOOST = 1.5   # Massive increase for injected signal
-        LB_CALF_BOOST = 1.75   # Massive increase for injected signal
+        LB_THIGH_BOOST = 3.5#1.5   
+        LB_CALF_BOOST = 1.75   
         
         self.action_scale_vector = np.array([
             HIP_BASE, THIGH_BASE, CALF_BASE,  # LF
@@ -134,8 +134,7 @@ class MLPController(Node):
 
         # self.get_logger().info(
         #     f"Base scales (LF): H={HIP_BASE}, T={THIGH_BASE}, C={CALF_BASE}. "
-        #     f"LB scales: H={LB_HIP_SCALE}, T={LB_THIGH_SCALE}, C={LB_CALF_SCALE}. "
-        #     f"RB_C scale: {RB_CALF_SCALE}"
+        #     f"LB scales: T={LB_THIGH_BOOST}, C={LB_CALF_BOOST}. "
         # )
         # --- Initialization ---
         self.initialized = False
@@ -370,6 +369,13 @@ class MLPController(Node):
         
         with torch.no_grad():
             raw_action = self.model(obs_tensor).squeeze(0).cpu().numpy()
+
+        # LB Hip is index 6. Negative bias pushes the leg backward.
+        # LB_CALF_BACKWARD_BIAS = 0.10 # Using your last value, 0.05*2 = 0.10
+        
+        # if abs(self.cmd_vel_linear[0]) > 0.05: 
+            
+        #     raw_action[7] = raw_action[7] + LB_CALF_BACKWARD_BIAS
         
         # Debug prints instead of IPython
         # self.get_logger().info(f"Raw action range: [{raw_action.min():.4f}, {raw_action.max():.4f}]")

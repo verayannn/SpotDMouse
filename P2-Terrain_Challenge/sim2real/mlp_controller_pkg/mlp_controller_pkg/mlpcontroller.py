@@ -14,8 +14,8 @@ import os
 import sys
 
 # --- Configuration Constants ---
-MODEL_PATH = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
-# MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/45degree_mlp.pt"
+# MODEL_PATH = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
+MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/45degree_mlp.pt"
 # MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/30degree_mlp.pt"
 DEVICE = torch.device("cpu")
 # CRITICAL: Assuming static projected gravity based on training simplification
@@ -94,7 +94,7 @@ class MLPController(Node):
         # --- Control & Action Parameters ---
         self.control_frequency = 50.0 
         self.dt = 1.0 / self.control_frequency
-        self.action_smoothing = 0.25 #.025
+        self.action_smoothing = 0.65 #.025
         self.cmd_timeout = 0.50
         self.last_cmd_time = self.get_clock().now()
         self.has_received_cmd = False
@@ -103,28 +103,40 @@ class MLPController(Node):
         
         # --- **JOINT-SPECIFIC ACTION SCALING** ---
         # THIGH_CALF_SCALE = 1.0#0.4 
-        HIP_SCALE = 1.0 #0.35#1.0#2.0
-        THIGH_SCALE = 1.75 #1.5#1.8
-        CALF_SCALE = 1.75 #2.0#1.0
+        # HIP_SCALE = 0.4 #0.35#1.0#2.0
+        # THIGH_SCALE = 0.85 #1.5#1.8
+        # CALF_SCALE = 1.15 #2.0#1.0
 
-        # self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
-        
-        # # Scaling array for the 12 joints: [H, T, C, H, T, C, ...]
+        # # self.get_logger().info(f"thigh scales: {THIGH_CALF_SCALE}, hip scales:{HIP_SCALE}")
+
         # self.action_scale_vector = np.array([
-        #     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-        #     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-        #     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
-        #     HIP_SCALE, THIGH_CALF_SCALE, THIGH_CALF_SCALE,
+        #     HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+        #     HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+        #     HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+        #     HIP_SCALE, THIGH_SCALE, CALF_SCALE,
         # ])
 
+        HIP_BASE = 0.4
+        THIGH_BASE = 0.85  # Base scale for LF/RF/RB Thigh
+        CALF_BASE = 1.15   # Base scale for LF/RF/RB Calf
+        
+        LB_THIGH_BOOST = 1.5   # Massive increase for injected signal
+        LB_CALF_BOOST = 1.75   # Massive increase for injected signal
+        
         self.action_scale_vector = np.array([
-            HIP_SCALE, THIGH_SCALE, CALF_SCALE,
-            HIP_SCALE, THIGH_SCALE, CALF_SCALE,
-            HIP_SCALE, THIGH_SCALE, CALF_SCALE,
-            HIP_SCALE, THIGH_SCALE, CALF_SCALE,
+            HIP_BASE, THIGH_BASE, CALF_BASE,  # LF
+            HIP_BASE, THIGH_BASE, CALF_BASE,  # RF
+            HIP_BASE, LB_THIGH_BOOST, LB_CALF_BOOST, # LB <-- BOOSTED
+            HIP_BASE, THIGH_BASE, CALF_BASE,  # RB
         ])
 
-        self.get_logger().info(f"hip scales: {HIP_SCALE}, thigh scale: {THIGH_SCALE}, calf scale: {CALF_SCALE}")
+        # self.get_logger().info(f"hip scales: {HIP_SCALE}, thigh scale: {THIGH_SCALE}, calf scale: {CALF_SCALE}")
+
+        # self.get_logger().info(
+        #     f"Base scales (LF): H={HIP_BASE}, T={THIGH_BASE}, C={CALF_BASE}. "
+        #     f"LB scales: H={LB_HIP_SCALE}, T={LB_THIGH_SCALE}, C={LB_CALF_SCALE}. "
+        #     f"RB_C scale: {RB_CALF_SCALE}"
+        # )
         # --- Initialization ---
         self.initialized = False
         self.init_duration = 3.0 
@@ -192,13 +204,22 @@ class MLPController(Node):
     def odom_callback(self, msg):
         """Update base linear and angular velocities from Odometry."""
         # Use only the linear/angular components required for the 48-dim vector
+        # self.base_lin_vel[0] = msg.twist.twist.linear.x
+        # self.base_lin_vel[1] = msg.twist.twist.linear.y
+        # self.base_lin_vel[2] = msg.twist.twist.linear.z
+        
+        # self.base_ang_vel[0] = msg.twist.twist.angular.x
+        # self.base_ang_vel[1] = msg.twist.twist.angular.y
+        # self.base_ang_vel[2] = msg.twist.twist.angular.z
+
         self.base_lin_vel[0] = msg.twist.twist.linear.x
         self.base_lin_vel[1] = msg.twist.twist.linear.y
-        self.base_lin_vel[2] = msg.twist.twist.linear.z
-        
-        self.base_ang_vel[0] = msg.twist.twist.angular.x
-        self.base_ang_vel[1] = msg.twist.twist.angular.y
+        self.base_lin_vel[2] = 0.0 # <--- Set Z to 0 for RSL
+
+        self.base_ang_vel[0] = 0.0 # <--- Set X to 0
+        self.base_ang_vel[1] = 0.0 # <--- Set Y to 0
         self.base_ang_vel[2] = msg.twist.twist.angular.z
+
 
     # IMU callback is REMOVED
     
@@ -213,8 +234,9 @@ class MLPController(Node):
         cmd_vels = np.array([self.cmd_vel_linear[0], self.cmd_vel_linear[1], self.cmd_vel_angular[2]])
         
         # 2. Joint Positions (Relative) (12)
-        joint_pos_rel = self.default_positions - self.joint_positions #self.joint_positions - self.default_positions
+        joint_pos_rel = self.default_positions - self.joint_positions #IL: default-joint RL: joint-default
         
+        # joint_pos_rel[7] = -joint_pos_rel[7]
         # 3. Joint Velocities (12)
         joint_vels = self.joint_velocities
         
@@ -230,26 +252,26 @@ class MLPController(Node):
         # 7. Base Angular Velocity (3)
         base_ang_vel = self.base_ang_vel
 
-        raw_obs = np.concatenate([
-            cmd_vels,
-            joint_pos_rel,
-            joint_vels,
-            last_actions,
-            proj_gravity, # Indices 39-41
-            base_lin_vel, # Indices 42-44
-            base_ang_vel  # Indices 45-47
-        ])
-
-        # Assemble into the RSL-RL vector
-        # rsl_obs = np.concatenate([
-        #     base_lin_vel,
-        #     base_ang_vel,
-        #     proj_gravity,
+        # raw_obs = np.concatenate([
         #     cmd_vels,
         #     joint_pos_rel,
         #     joint_vels,
-        #     last_actions
-        # ], axis=-1)
+        #     last_actions,
+        #     proj_gravity, # Indices 39-41
+        #     base_lin_vel, # Indices 42-44
+        #     base_ang_vel  # Indices 45-47
+        # ])
+
+        # Assemble into the RSL-RL vector
+        rsl_obs = np.concatenate([
+            base_lin_vel,
+            base_ang_vel,
+            proj_gravity,
+            cmd_vels,
+            joint_pos_rel,
+            joint_vels,
+            last_actions
+        ], axis=-1)
 
         # rsl_obs = np.concatenate([
         #     base_lin_vel,
@@ -261,8 +283,8 @@ class MLPController(Node):
         #     last_actions
         # ])
 
-        return raw_obs.astype(np.float32)
-        # return rsl_obs.astype(np.float32)
+        # return raw_obs.astype(np.float32)
+        return rsl_obs.astype(np.float32)
 
     # --- Control Loop and Utilities (Unchanged) ---
     def is_command_active(self):
@@ -306,36 +328,6 @@ class MLPController(Node):
         traj_msg.points = [point]
         self.joint_pub.publish(traj_msg)
         return False
-
-    # def move_to_default_pose(self):
-    #     # (Logic is unchanged)
-    #     if self.init_start_time is None:
-    #         self.init_start_time = self.get_clock().now().nanoseconds * 1e-9
-    #         self.init_positions = self.joint_positions.copy()
-        
-    #     current_time = self.get_clock().now().nanoseconds * 1e-9
-    #     elapsed = current_time - self.init_start_time
-        
-    #     if elapsed >= self.init_duration:
-    #         self.initialized = True
-    #         self.get_logger().info("Default stance reached. Starting MLP control...")
-    #         return True
-        
-    #     alpha = min(elapsed / self.init_duration, 1.0)
-    #     alpha = 0.5 - 0.5 * np.cos(np.pi * alpha) 
-        
-    #     target_positions = self.init_positions * (1 - alpha) + self.default_positions * alpha
-        
-    #     traj_msg = JointTrajectory()
-    #     traj_msg.joint_names = joint_names
-        
-    #     point = JointTrajectoryPoint(positions=target_positions.tolist(), 
-    #                                  time_from_start=rclpy.duration.Duration(seconds=self.dt).to_msg())
-        
-    #     traj_msg.points = [point]
-    #     self.joint_pub.publish(traj_msg)
-        
-    #     return False
 
 
     def control_loop(self):

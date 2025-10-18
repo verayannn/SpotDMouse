@@ -59,9 +59,14 @@ Think of reverse clockwise as following the clockwise trajectory with the back o
 
 *Note: The movement appears subtle due to the robot's small size relative to the Spot-scale simulation environment - this is currenty being trained at a higher action scale to accommodate the size of the minipupper's servo capabilities.* Updated August 5th, 2025. It walks as expected in simulation.
 
+### RL Trained MLP Deployed in Live ropbot
+[ **View RL Trained MLP Deployed in the Live Robot**](https://drive.google.com/file/d/1V6eA2XB2u1r9KYyrS89x8FuwjQu7w_ac/view?usp=sharing)
+
+*Note: This robot follows omnidirecitonal commands and is following a command to walk forward while being adversrially tested by the expeiremnter
+
 ##  Critical Scaling Discoveries
 
-### 1. Action Space Scaling Paradox
+### 1. Action Space Scaling
 
 While most parameters required **downscaling** for the Mini Pupper, the action space required **upscaling** due to joint movement constraints.
 

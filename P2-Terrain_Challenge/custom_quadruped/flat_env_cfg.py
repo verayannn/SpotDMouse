@@ -280,7 +280,7 @@ class SpotRewardsCfg:
         params={
             "std": 0.05, #0.05
             "tanh_mult": 2.0,
-            "target_height": 0.02,#0.1 #Trying 0.5 and 0.4 to overcome latency resistance and gravity in reality.
+            "target_height": 0.02,#0.1 #Trying 0.5, 0.4, and 0.03 to overcome latency resistance and gravity in reality.
             "asset_cfg": SceneEntityCfg("robot", body_names=["lb3", "lf3", "rb3", "rf3"]),
         },
     )

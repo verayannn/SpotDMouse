@@ -276,11 +276,11 @@ class SpotRewardsCfg:
 
     foot_clearance = RewardTermCfg(
         func=spot_mdp.foot_clearance_reward,
-        weight=0.5,
+        weight=0.5,#Increased to 1.0 to train higher adhereance to the newly expected foot clearnace requirement.
         params={
             "std": 0.05, #0.05
             "tanh_mult": 2.0,
-            "target_height": 0.02,#0.1
+            "target_height": 0.02,#0.1 #Trying 0.5 and 0.4 to overcome latency resistance and gravity in reality.
             "asset_cfg": SceneEntityCfg("robot", body_names=["lb3", "lf3", "rb3", "rf3"]),
         },
     )

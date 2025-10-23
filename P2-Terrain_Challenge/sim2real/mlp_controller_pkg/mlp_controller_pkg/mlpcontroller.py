@@ -27,7 +27,7 @@ except ImportError:
 
 # --- Configuration Constants ---
 # MODEL_PATH = "/home/ubuntu/SpotDMouse/P2-Terrain_Challenge/IL_RSL_RL/models_rsl_format/best_model_rsl_format.pt"
-MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/45degree_mlp.pt"
+MODEL_PATH = "/home/ubuntu/rsl_rl_trainedmodels/002footclearance45degree_mlp.pt"
 DEVICE = torch.device("cpu")
 
 # Joint name list (maintains consistent ordering)
@@ -84,6 +84,13 @@ class UnifiedMLPController(Node):
             0.0, 0.785, -1.57,  # LB
             0.0, 0.785, -1.57,  # RB
         ])
+
+        # self.nominal_default_positions = np.array([
+        #     0.0, 0.52, -1.05,  # LF
+        #     0.0, 0.52, -1.05,  # RF
+        #     0.0, 0.52, -1.05,  # LB
+        #     0.0, 0.52, -1.05,  # RB
+        # ])
         
         # --- State Variables ---
         self.joint_positions = np.zeros(12)
@@ -107,12 +114,16 @@ class UnifiedMLPController(Node):
         self.control_dt = 1.0 / self.control_frequency
         self.interpolation_steps = int(self.control_frequency / self.mlp_frequency)
         
+
+        #toggle off global gains in lieu of local gains
+        # arbritrary = 0.55
         # --- Action Scaling (Tunable per joint type) ---
-        self.action_scale = {
-            'hip': 0.3,
-            'thigh': 0.75,#2.0,
-            'calf': 1.20#1.75
-        }
+        # self.action_scale = {
+        #     'hip': 0.15,
+        #     'thigh': 1.20 + arbritrary,
+        #     'calf': 1.20 + arbritrary
+        # }
+
         self.build_action_scale_vector()
         
         # --- Control Modes ---
@@ -149,7 +160,7 @@ class UnifiedMLPController(Node):
         self.get_logger().info("Unified MLP Controller initialized!")
         self.get_logger().info(f"MLP Rate: {self.mlp_frequency}Hz, Control Rate: {self.control_frequency}Hz")
         self.get_logger().info(f"Control Mode: {'Interpolation' if self.use_interpolation else 'Direct'}")
-        self.get_logger().info(f"Smoothing: {self.action_smoothing}, Action scales: H={self.action_scale['hip']}, T={self.action_scale['thigh']}, C={self.action_scale['calf']}")
+        # self.get_logger().info(f"Smoothing: {self.action_smoothing}, Action scales: H={self.action_scale['hip']}, T={self.action_scale['thigh']}, C={self.action_scale['calf']}")
         self.get_logger().info(f"NVRAM Available: {NVRAM_AVAILABLE}")
         if self.calibration_loaded:
             self.get_logger().info(f"Calibration loaded successfully from NVRAM")
@@ -184,12 +195,40 @@ class UnifiedMLPController(Node):
 
     def build_action_scale_vector(self):
         """Build joint-specific action scaling vector"""
+        # self.action_scale_vector = np.array([
+        #     self.action_scale['hip'], self.action_scale['thigh'], self.action_scale['calf'],
+        #     self.action_scale['hip'], self.action_scale['thigh'], self.action_scale['calf'],
+        #     self.action_scale['hip'], self.action_scale['thigh'], self.action_scale['calf'],
+        #     self.action_scale['hip'], self.action_scale['thigh'], self.action_scale['calf'],
+        # ])
+
+        ###################################
+        ###################################
+        ###################################
+
+        arbritrary = 1.0
+        HIP_BASE = 0.15
+        THIGH_BASE = 1.20 + arbritrary  
+        CALF_BASE = 1.20 + arbritrary
+
+        lf_arbritrary = 6.5    
+        LF_THIGH_BOOST = -1.20 - 2.0
+        LF_CALF_BOOST = (1.20 + lf_arbritrary)
+        
+        lb_arbritrary = 1.5
+        LB_THIGH_BOOST = -1.2#0.8   
+        LB_CALF_BOOST = -1 * (1.20 + lb_arbritrary)#0.8
+
         self.action_scale_vector = np.array([
-            self.action_scale['hip'], self.action_scale['thigh'], self.action_scale['calf'],
-            self.action_scale['hip'], self.action_scale['thigh'], self.action_scale['calf'],
-            self.action_scale['hip'], self.action_scale['thigh'], self.action_scale['calf'],
-            self.action_scale['hip'], self.action_scale['thigh'], self.action_scale['calf'],
+            HIP_BASE, LF_THIGH_BOOST, LF_CALF_BOOST,  # LF
+            HIP_BASE, THIGH_BASE, CALF_BASE,  # RF
+            HIP_BASE, LB_THIGH_BOOST, LB_CALF_BOOST, # LB
+            HIP_BASE, THIGH_BASE, CALF_BASE,  # RB
         ])
+
+        ###################################
+        ###################################
+        ###################################
 
     def build_gain_vectors(self):
         """Build joint-specific PID gain vectors"""
@@ -376,7 +415,7 @@ class UnifiedMLPController(Node):
         cmd_vels = np.array([self.cmd_vel_linear[0], self.cmd_vel_linear[1], self.cmd_vel_angular[2]])
         
         # CRITICAL: Use calibrated default positions for relative joint positions
-        joint_pos_rel = self.joint_positions - default_pos #default_pos - self.joint_positions  # IL convention
+        joint_pos_rel = self.joint_positions - default_pos #default_pos - self.joint_positions  # IL convention self.joint_positions - default_pos # RL Convention
         
         joint_vels = self.joint_velocities
         last_actions = self.last_actions

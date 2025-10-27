@@ -1,10 +1,6 @@
 import numpy as np
 import torch
 
-DEVICE = torch.device('cpu')
-goldroger_pth = "/Users/javierweddington/cortical/goldroger_epoch_95.pt"
-goldroger_model = torch.load(goldroger_pth, map_location=DEVICE, weights_only=False)
-
 def compute_gradients(model, inputs, target_class=None):
    
     inputs = inputs.requires_grad_(True)

@@ -77,4 +77,4 @@ def integrated_gradients_batch(model, input_tensor, baseline=None, target_class=
 
     return integrated_grads
 
-
+#ref: IG Videos (https://doi.org/10.54941/ahfe1006041)

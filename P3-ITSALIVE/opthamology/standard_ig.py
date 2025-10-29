@@ -15,13 +15,13 @@ def compute_gradients(model, inputs, target_class=None):
         target = output.gather(1,target_class.view(-1,1)).squeeze()
 
     model.zero_grad()
-    target.sum().tbackward(retain_graph=True)
+    target.sum().backward(retain_graph=True)
 
-    gradients = inp.grad
+    gradients = inputs.grad
 
     return output, inputs.grad.detach()
 
-def integrated_gradients(model, input_tensor, baselinei-None, target_class=None, steps=50):
+def integrated_gradients(model, input_tensor, baseline=None, target_class=None, steps=50):
     
     if baseline is None:
         baseline = torch.zeros_like(input_tensor)

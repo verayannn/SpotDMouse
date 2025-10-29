@@ -8,12 +8,14 @@ import bopt
 
 goldroger_pth = "/Users/javierweddington/cortical/goldroger_epoch_95.pt"
 charmander_pth = "/Users/javierweddington/cortical/best_charmander.pt"
+retinal_pth = "/Users/javierweddington/retinal/best_allstim_model.pt"
 
 device = torch.device("cpu")
 
 goldroger_model = torch.load(goldroger_pth, weights_only=False, map_location=device)
 charmander_model = torch.load(charmander_pth, weights_only=False, map_location=device)
+retina_model = torch.load(retinal_pth, weights_only=False, map_location=device)
 
 print(goldroger_model)
 print(charmander_model)
-
+print(retina_model)

@@ -35,6 +35,8 @@ with torch.no_grad():
 
 print(f"Output shape {output.shape}")
 
+original_img = mantis_tensor.detach().cpu().numpy()
+
 # Compute Integrated Gradients for all 15 units
 fig, axes = plt.subplots(3, 5, figsize=(15, 9))
 axes = axes.flatten()
@@ -52,4 +54,25 @@ for unit in range(15):
 
 plt.tight_layout()
 plt.suptitle('Integrated Gradients for all 15 Units', y=1.02, fontsize=16)
+plt.show()
+
+fig2, axes2 = plt.subplots(3, 5, figsize=(20, 12))
+axes2 = axes2.flatten()
+
+for unit in range(15):
+    attributions = integrated_gradients(network, mantis_frames, target_class=unit)
+    attr_frame = attributions.squeeze(0)[0, :, :].detach().cpu().numpy()
+
+    axes2[unit].imshow(original_img, cmap='gray')
+
+    positive_attr = np.maximum(attr_frame, 0)
+    threshold = np.percentile(positive_attr, 75)
+    masked_attr = np.ma.masked_where(positive_attr < threshold, positive_attr)
+
+    axes2[unit].imshow(masked_attr, cmap='Reds', alpha=0.7)
+    axes2[unit].set_title(f'Unit {unit} - Top 25% Positive Attribution')
+    axes2[unit].axis('off')
+
+plt.tight_layout()
+plt.suptitle('Top Positive Attributions Overlaid', y=1.0, fontsize=16)
 plt.show()

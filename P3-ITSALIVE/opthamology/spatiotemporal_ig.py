@@ -43,9 +43,10 @@ def spatiotemporal_integrated_gradients(model, input_tensor, interval=5, baselin
         interpolation = X_par_t + betas * (X_part_t - (X_par_t -1))
         
         X_par_t = [seg for partial in input_tensor]
+        #black segment
 
-        _ , gradients = compute_gradients(model, input_tensor, target_class)
-
+        _ , gradients = compute_gradients(model, X_par_t, target_class)
+       
 
         #where does the image get revelaed
         #generate s interpolation steps (b_1, b_s),  where Bj = j/s

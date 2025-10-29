@@ -31,25 +31,26 @@ def spatiotemporal_integrated_gradients(model, input_tensor, interval=5, baselin
      
     #Def Partial Input States
     T = input_tensor.size(1)
-    segment = T / interval
+    partial = T / interval
     
-    
-
-    alphas = torch.linspace(0, 1, steps + 1, device=input_tensor.device)
+    X_prime_par_t = [seg for partial in baseline] #Baselines
+    alphas = torch.linspace(t-1/T, t/T, partial + X_part_t, device=input_tensor.device)
 
     accumulated_gradients = torch.zeros_like(input_tensor)
     
-    for i, alpha in enumerate(alphas):
-        interpolated = baseline + alpha * (input_tensor - baseline)
-        _, gradients = compute_gradients(model, interpolated, target_class)
+    for t in range(1, T):
+        betas = torch.dot(alphas, T)-(t-1) #constrained by the alphas
+        interpolation = X_par_t + betas * (X_part_t - (X_par_t -1))
+        
+        X_par_t = [seg for partial in input_tensor]
 
-        if i == 0 or i == steps:
-            accumulated_gradients += gradients * 0.5
-        else:
-            accumulated_gradients += gradients
+        _ , gradients = compute_gradients(model, input_tensor, target_class)
 
-    avg_gradients = accumulated_gradients / steps
-    integrated_grads = (input_tensor - baseline) * avg_gradients
+
+        #where does the image get revelaed
+        #generate s interpolation steps (b_1, b_s),  where Bj = j/s
+        reveal = 
+        
 
     return integrated_grads
 

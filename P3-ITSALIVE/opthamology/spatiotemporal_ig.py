@@ -3,13 +3,13 @@ import torch
 
 #Computing the gradients should be the same
 def compute_gradients(model, inputs, target_class=None):
-   
+
     inputs = inputs.requires_grad_(True)
     output = model(inputs)
 
     if target_class is None:
         target_class = outputs.argmax(dim=1)
-    
+
     if isinstance(target_class, int):
         target = output[:,target_class]
     else:
@@ -23,35 +23,37 @@ def compute_gradients(model, inputs, target_class=None):
     return output, inputs.grad.detach()
 
 def spatiotemporal_integrated_gradients(model, input_tensor, interval=5, baseline=None, target_class=None, steps=50):
-    
+
     #Initialize X'
     if baseline is None:
         baseline = torch.zeros_like(input_tensor)
     assert baseline.shape == input_tensor.shape, "Should be [batch,history,height,width]"#Should we be integrating through the history or the batch?
-     
-    #Def Partial Input States
+
     T = input_tensor.size(1)
     partial = T / interval
-    
+
     X_prime_par_t = [seg for partial in baseline] #Baselines
-    alphas = torch.linspace(t-1/T, t/T, partial + X_part_t, device=input_tensor.device)
+    alphas = torch.linspace(t-1/T, t/T, partial + X_prime_par_t, device=input_tensor.device)
 
     accumulated_gradients = torch.zeros_like(input_tensor)
-    
-    for t in range(1, T):
+
+    for t in range(1, T, interval):
+        X_par_t = input_sensor[:,t:interval,:,:]
         betas = torch.dot(alphas, T)-(t-1) #constrained by the alphas
-        interpolation = X_par_t + betas * (X_part_t - (X_par_t -1))
-        
-        X_par_t = [seg for partial in input_tensor]
-        #black segment
+        interpolation = X_par_t + betas * (X_par_t - (X_par_t -1))
 
-        _ , gradients = compute_gradients(model, X_par_t, target_class)
-       
+        _ , gradients = compute_gradients(model, interpolation, target_class)
 
-        #where does the image get revelaed
-        #generate s interpolation steps (b_1, b_s),  where Bj = j/s
-        reveal = 
-        
+        #Implement the trapezoidal rule
+        if i == 0 or i == steps:
+            accumulated_gradients += gradients * 0.5
+        else:
+            accumulated_gradients += gradients
+
+    avg_gradients = accumulated_gradients / steps
+    integrated_grads = (input_tensor - baseline) * avg_gradients
+    
+    #compute frame atribution 
 
     return integrated_grads
 

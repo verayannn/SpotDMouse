@@ -13,12 +13,12 @@ mantis_image = Image.open(mantis_image_path)
 mantis_image = mantis_image.convert("L")
 
 transform = T.Compose([
-    T.Resize((68,102)),
+    T.Resize((100,100)),
     T.ToTensor()
     ])
 
 mantis_tensor = transform(mantis_image).squeeze(0)
-mantis_frames = mantis_tensor.repeat(60,1,1).unsqueeze(0).to(device)
+mantis_frames = mantis_tensor.repeat(30,1,1).unsqueeze(0).to(device)
 
 print(f"Input shape:{mantis_frames.shape}")
 
@@ -26,7 +26,7 @@ print(f"Input shape:{mantis_frames.shape}")
 #plt.imshow(mantis_frames.squeeze(0)[0,:,:].detach().cpu().numpy())
 #plt.show()
 
-pt_pth = "/Users/javierweddington/cortical/best_charmander.pt"
+pt_pth = "/Users/javierweddington/retinal/best_allstim_model.pt"
 network = torch.load(pt_pth, weights_only=False, map_location=device)
 network.eval()
 

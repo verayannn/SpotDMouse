@@ -21,7 +21,7 @@ def compute_gradients(model, inputs, target_class=None):
 
     return output.detach(), gradients
 
-def spatiotemporal_integrated_gradients(model, input_tensor, interval=5, baseline=None, target_class=None, steps=50):
+def spatiotemporal_integrated_gradients(model, input_tensor, baseline=None, target_class=None, steps_per_segment=50):
 
     #Initialize X'
     if baseline is None:
@@ -67,7 +67,7 @@ def spatiotemporal_integrated_gradients(model, input_tensor, interval=5, baselin
         IG_t = T * IG_t / (steps_per_segment - 1)
 
         frame_diff = input_tensor[:, t-1] - baseline[:, t-1]
-        SIG_t = frames_diff * IG_t
+        SIG_t = frame_diff * IG_t
 
         sig_attributions[:, t-1] = SIG_t
 

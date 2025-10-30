@@ -19,12 +19,12 @@ retinal input size: 30, 100, 100
 
 '''
 transform = T.Compose([
-    T.Resize((100,100)),
+    T.Resize((68,112)),
     T.ToTensor()
     ])
 
 mantis_tensor = transform(mantis_image).squeeze(0)
-mantis_frames = mantis_tensor.repeat(30,1,1).unsqueeze(0).to(device)
+mantis_frames = mantis_tensor.repeat(40,1,1).unsqueeze(0).to(device)
 
 print(f"Input shape:{mantis_frames.shape}")
 
@@ -32,10 +32,10 @@ print(f"Input shape:{mantis_frames.shape}")
 #plt.imshow(mantis_frames.squeeze(0)[0,:,:].detach().cpu().numpy())
 #plt.show()
 
-pt_pth = "/Users/javierweddington/retinal/best_allstim_model.pt"
+#pt_pth = "/Users/javierweddington/retinal/best_allstim_model.pt"
 
-network_name = "retinal"
-pt_pth = "/home/grandline/retinal/best_allstim_model.pt" #/Users/javierweddington/cortical/best_charmander.pt"
+network_name = "javier_cells_model"
+pt_pth = "/home/grandline/cortical/javier_cells_model.pt" #/Users/javierweddington/cortical/best_charmander.pt"
 
 network = torch.load(pt_pth, weights_only=False, map_location=device)
 network.eval()

@@ -6,12 +6,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-device = torch.device("cpu")
+device = torch.device("cuda:1")#torch.device("cpu")
 
-mantis_image_path = "/Users/javierweddington/Downloads/mantis.jpg"
+mantis_image_path = "/home/grandline/Downloads/mantis.jpg" #"/Users/javierweddington/Downloads/mantis.jpg"
 mantis_image = Image.open(mantis_image_path)
 mantis_image = mantis_image.convert("L")
 
+'''
+charmander input size: 60, 68, 102
+goldroger input size: 50, 60, 112
+retinal input size: 30, 100, 100
+
+'''
 transform = T.Compose([
     T.Resize((100,100)),
     T.ToTensor()
@@ -27,6 +33,10 @@ print(f"Input shape:{mantis_frames.shape}")
 #plt.show()
 
 pt_pth = "/Users/javierweddington/retinal/best_allstim_model.pt"
+
+network_name = "retinal"
+pt_pth = "/home/grandline/retinal/best_allstim_model.pt" #/Users/javierweddington/cortical/best_charmander.pt"
+
 network = torch.load(pt_pth, weights_only=False, map_location=device)
 network.eval()
 
@@ -54,7 +64,9 @@ for unit in range(15):
 
 plt.tight_layout()
 plt.suptitle('Integrated Gradients for all 15 Units', y=1.02, fontsize=16)
+plt.savefig(f"/home/grandline/standard_ig_plots/{network_name}_attrs.png")
 plt.show()
+plt.close()
 
 fig2, axes2 = plt.subplots(3, 5, figsize=(20, 12))
 axes2 = axes2.flatten()
@@ -75,4 +87,6 @@ for unit in range(15):
 
 plt.tight_layout()
 plt.suptitle('Top Positive Attributions Overlaid', y=1.0, fontsize=16)
+plt.savefig(f"/home/grandline/standard_ig_plots/{network_name}_overlay.png")
 plt.show()
+plt.close()

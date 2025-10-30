@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-#Computing the gradients should be the same
 def compute_gradients(model, inputs, target_class=None):
 
     inputs = inputs.requires_grad_(True)
@@ -27,48 +26,50 @@ def spatiotemporal_integrated_gradients(model, input_tensor, interval=5, baselin
     #Initialize X'
     if baseline is None:
         baseline = torch.zeros_like(input_tensor)
-    assert baseline.shape == input_tensor.shape, "Should be [batch,history,height,width]"#Should we be integrating through the history or the batch?
+
+    assert baseline.shape == input_tensor.shape, "baseline, input shapes mismatch"
 
     device = input_tensor.device
     batch_size = input_tensor.size(0)
     T = input_tensor.size(1)
-    
+
     sig_attributions = torch.zeros_like(input_tensor)
-    betas = torch.linspace(0,1, steps_per_segment, device=device)
 
-    segment_gradients = []
+    for t in range(1, T + 1):
 
-    for beta in betas:
+        betas = torch.linspace(0, 1, steps_per_segment, device=device)
 
-def spatiotemporal_integrated_gradients_batch(model, input_tensor, baseline=None, target_class=None,
-                              steps=50, batch_size=32):
-    if baseline is None:
-        baseline = torch.zeros_like(input_tensor)
+        segment_gradients = []
 
-    alphas = torch.linspace(0, 1, steps + 1, device=input_tensor.device)
+        for beta in betas:
 
-    scaled_inputs = []
-    for alpha in alphas:
-        interpolated = baseline + alpha * (input_tensor - baseline)
-        scaled_inputs.append(interpolated)
+            X_partial = baseline.clone()
 
-    scaled_inputs = torch.cat(scaled_inputs, dim=0)
+            if t > 1:
+                X_partial[:, :t-1] =  input_tensor[:, :t-1]
 
-    all_gradients = []
-    for i in range(0, scaled_inputs.shape[0], batch_size):
-        batch = scaled_inputs[i:i + batch_size]
-        _, grads = compute_gradients(model, batch, target_class)
-        all_gradients.append(grads)
+            X_partial[:, t-1] = baseline[:, t-1] + beta * (input_tensor[:, t-1] - baseline[:, t-1])
+            X_partial.requires_grad_(True)
 
-    all_gradients = torch.cat(all_gradients, dim=0)
-    all_gradients = all_gradients.view(steps + 1, *input_tensor.shape)
+            _, grads = compute_gradients(model, X_partial, target_class)
 
-    weights = torch.ones(steps + 1, device=input_tensor.device)
-    weights[0] = weights[-1] = 0.5
-    weights = weights.view(-1, *([1] * len(input_tensor.shape)))
+            grad_t = grads[:, t-1].clone()
 
-    avg_gradients = (all_gradients * weights).sum(dim=0) / steps
-    integrated_grads = (input_tensor - baseline) * avg_gradients
+            segment_gradients.append(grad_t)
 
-    return integrated_grads
+        segment_gradients = torch.stack(segment_gradients, dim=0)
+
+        IG_t = torch.zeros_like(segment_gradients[0])
+
+        for j in range(steps_per_segment - 1):
+            IG_t += 0.5 * (segment_gradients[j] + segment_gradients[j + 1])
+
+        IG_t = T * IG_t / (steps_per_segment - 1)
+
+        frame_diff = input_tensor[:, t-1] - baseline[:, t-1]
+        SIG_t = frames_diff * IG_t
+
+        sig_attributions[:, t-1] = SIG_t
+
+    return sig_attributions 
 

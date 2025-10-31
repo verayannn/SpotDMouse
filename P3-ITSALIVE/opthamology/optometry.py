@@ -19,7 +19,7 @@ retinal input size: 30, 100, 100
 
 '''
 transform = T.Compose([
-    T.Resize((68,112)),
+    T.Resize((72,72)),
     T.ToTensor()
     ])
 

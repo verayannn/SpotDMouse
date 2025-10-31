@@ -83,7 +83,7 @@ def spaitotemporal_integrated_gradients_batched(model, input_tensor, baseline=No
 
     sig_attributions = torch.zeros_like(input_tensor)
 
-    betas = torch.linspace(0, 1, steps_per_segement, device=device)
+    betas = torch.linspace(0, 1, steps_per_segment, device=device)
 
     for k in range(T_blocks):
 
@@ -116,10 +116,10 @@ def spaitotemporal_integrated_gradients_batched(model, input_tensor, baseline=No
 
         IG_k_sum = torch.zeros_like(segment_gradients[0])
        
-       for j in range(M):
-           IG_k_sum += 0.5 * (segment_gradients[j] + segment_gradients[j + 1])
-
-        IG_k = IG_k_sum / M
+        for j in range(M):
+            IG_k_sum += 0.5 * (segment_gradients[j] + segment_gradients[j + 1])
+            
+            IG_k = IG_k_sum / M
 
         block_diff = current_block_input - current_block_baseline
         SIG_k = block_diff * IG_k

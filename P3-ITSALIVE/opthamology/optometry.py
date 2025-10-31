@@ -5,6 +5,7 @@ from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import voltron
 
 device = torch.device("cuda:1")#torch.device("cpu")
 
@@ -53,7 +54,7 @@ axes = axes.flatten()
 
 for unit in range(15):
     attributions = integrated_gradients(network, mantis_frames, target_class=unit)
-
+    voltron.frames2gif(attributions.squeeze(0).detach().cpu().numpy(), f"/home/grandline/standard_ig_plots/frames_{unit}.gif")
     # Average across all 60 frames or show first frame
     attr_frame = attributions.squeeze(0)[0, :, :].detach().cpu().numpy()
 
@@ -90,3 +91,4 @@ plt.suptitle('Top Positive Attributions Overlaid', y=1.0, fontsize=16)
 plt.savefig(f"/home/grandline/standard_ig_plots/{network_name}_overlay.png")
 plt.show()
 plt.close()
+

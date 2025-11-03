@@ -20,7 +20,7 @@ def compute_gradients(model, inputs, target_class=None):
     return output.detach(), gradients
 
 def spatiotemporal_integrated_gradients(model, input_tensor, baseline=None, 
-                                       target_class=None, steps_per_segment=50):
+                                       target_class=None, steps_per_segment=20):
     if baseline is None:
         baseline = torch.zeros_like(input_tensor)
     

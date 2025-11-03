@@ -7,7 +7,7 @@ def compute_gradients(model, inputs, target_class=None):
     output = model(inputs)
 
     if target_class is None:
-        target_class = outputs.argmax(dim=1)
+        target_class = output.argmax(dim=1)
     
     if isinstance(target_class, int):
         target = output[:,target_class]
@@ -21,7 +21,7 @@ def compute_gradients(model, inputs, target_class=None):
 
     return output, inputs.grad.detach()
 
-def integrated_gradients(model, input_tensor, baseline=None, target_class=None, steps=50):
+def integrated_gradients(model, input_tensor, baseline=None, target_class=None, steps=20):
     
     if baseline is None:
         baseline = torch.zeros_like(input_tensor)

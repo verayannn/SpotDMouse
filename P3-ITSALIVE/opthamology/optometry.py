@@ -27,6 +27,37 @@ transform = T.Compose([
 mantis_tensor = transform(mantis_image).squeeze(0)
 mantis_frames = mantis_tensor.repeat(30,1).unsqueeze(0).to(device)
 
+#######################
+FRAME_COUNT = 30
+H, W = 100, 100
+FLASH_FRAME_INDEX = 14 # Frame 15 is at index 14
+
+# 1. Initialize a black baseline tensor [1, 30, 100, 100] (Batch, Time, H, W)
+dynamic_flash_frames = torch.zeros(1, FRAME_COUNT, H, W).to(device)
+
+# 2. Create the single white disk stimulus [100, 100]
+flash_frame = torch.zeros(H, W) 
+center_y, center_x = H // 2, W // 2
+radius = 20 # Define the size of the disk
+
+# Use a meshgrid to identify pixels inside the disk radius
+Y, X = torch.meshgrid(torch.arange(H), torch.arange(W), indexing='ij')
+distance_from_center = torch.sqrt((X - center_x)**2 + (Y - center_x)**2)
+
+# Set pixels within the radius to white (1.0)
+flash_frame[distance_from_center <= radius] = 1.0 
+
+# 3. Insert the flash into the sequence at Frame 15 (index 14)
+# Frames 0-13 and 15-29 remain black (baseline)
+dynamic_flash_frames[:, FLASH_FRAME_INDEX, :, :] = flash_frame.to(device) 
+
+# Replace the original static input tensor with the new dynamic tensor
+mantis_frames = dynamic_flash_frames
+
+print("dynamic flash frames shape (used for mantis_frames): ", mantis_frames.shape)
+#######################
+
+
 print(f"Input shape:{mantis_frames.shape}")
 
 #Plot example input frame

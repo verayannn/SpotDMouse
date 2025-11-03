@@ -38,3 +38,6 @@ plt.imshow(stigs.detach().cpu().numpy().squeeze(0)[0,:,:])
 plt.show()
 
 voltron.frames2gif(stigs.detach().cpu().numpy().squeeze(0), "/home/grandline/spatiotemporal_ig_plots/frames.gif")
+#What are the Natural Spatio TemporalRFs of the neurons that these models were trained on?
+#Show that IGs contains a mixed signal that doens't capture what SIG does
+#Make an SIG method of extracting the peak response in the unit.

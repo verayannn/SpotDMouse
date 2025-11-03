@@ -13,15 +13,15 @@ mantis_image = Image.open(mantis_image_path)
 mantis_image = mantis_image.convert("L")
 
 transform = T.Compose([
-    T.Resize((72,72)),
+    T.Resize((100,100)),
     T.ToTensor()
     ])
 
 mantis_tensor = transform(mantis_image).squeeze(0)
-mantis_frames = mantis_tensor.repeat(40,1,1).unsqueeze(0).to(device)
+mantis_frames = mantis_tensor.repeat(30,1,1).unsqueeze(0).to(device)
 print("mantis frames shape: ", mantis_frames.shape)
 
-model_pth = "/home/grandline/cortical/javier_cells_model.pt"
+model_pth = "/home/grandline/retinal/best_allstim_model.pt"
 model = torch.load(model_pth, weights_only=False, map_location=device)
 model.eval()
 
@@ -30,14 +30,14 @@ with torch.no_grad():
 
 print(f"output network shape:{output.shape}")
 
-stigs = stig(model, mantis_frames, target_class=2)
+for k in range(15):
+    stigs = stig(model, mantis_frames, target_class=k)
 
-print(f"Spatiotemporal Integrated Gradients: {stigs.shape}")
+    print("Stigs shape",stigs.shape)
 
-plt.imshow(stigs.detach().cpu().numpy().squeeze(0)[0,:,:])
-plt.show()
+    plt.imshow(stigs.detach().cpu().numpy().squeeze(0)[0,:,:])
+    plt.savefig(f"/home/grandline/spatiotemporal_ig_plots/first_frame_{k}")
+    plt.close()
 
-voltron.frames2gif(stigs.detach().cpu().numpy().squeeze(0), "/home/grandline/spatiotemporal_ig_plots/frames.gif")
-#What are the Natural Spatio TemporalRFs of the neurons that these models were trained on?
-#Show that IGs contains a mixed signal that doens't capture what SIG does
-#Make an SIG method of extracting the peak response in the unit.
+    stigs.detach().cpu().numpy().squeeze(0)[k,:,:]
+    voltron.frames2gif(stigs.detach().cpu().numpy().squeeze(0), f"/home/grandline/spatiotemporal_ig_plots/frames_{k}.gif")

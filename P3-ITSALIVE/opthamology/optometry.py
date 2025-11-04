@@ -25,7 +25,7 @@ transform = T.Compose([
     ])
 
 mantis_tensor = transform(mantis_image).squeeze(0)
-mantis_frames = mantis_tensor.repeat(30,1).unsqueeze(0).to(device)
+mantis_frames = mantis_tensor.repeat(30,1,1).unsqueeze(0).to(device)
 
 #######################
 FRAME_COUNT = 30
@@ -52,7 +52,7 @@ flash_frame[distance_from_center <= radius] = 1.0
 dynamic_flash_frames[:, FLASH_FRAME_INDEX, :, :] = flash_frame.to(device) 
 
 # Replace the original static input tensor with the new dynamic tensor
-mantis_frames = dynamic_flash_frames
+# mantis_frames = dynamic_flash_frames
 
 print("dynamic flash frames shape (used for mantis_frames): ", mantis_frames.shape)
 #######################

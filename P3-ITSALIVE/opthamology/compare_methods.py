@@ -8,7 +8,7 @@ from standard_ig import integrated_gradients as ig
 from spatiotemporal_ig import spatiotemporal_integrated_gradients as stig
 import torchvision.transforms as T
 import matplotlib.pyplot as plt
-
+import voltron.nn as vnn
 
 def compute_continuous_attributions_comparison(model, stimulus, target_unit, 
                                              window_size=30, stride=1,
@@ -30,14 +30,10 @@ def compute_continuous_attributions_comparison(model, stimulus, target_unit,
         baseline_window = baseline[t:t+window_size].unsqueeze(0)
         
         # Standard IG
-        ig_attr = ig(model, window, 
-                                     baseline=baseline_window,
-                                     target_class=target_unit)
+        ig_attr = ig(model, window, baseline=baseline_window, target_class=target_unit)
         
         # Spatiotemporal IG
-        stig_attr = stig(model, window,
-                                                       baseline=baseline_window,
-                                                       target_class=target_unit)
+        stig_attr = stig(model, window, baseline=baseline_window, target_class=target_unit)
         
         # Get model response
         with torch.no_grad():
@@ -128,6 +124,31 @@ def create_full_attribution_videos(ig_attrs, stig_attrs, output_path="attributio
             voltron.frames2gif(np.array(stig_sequence), 
                              f"{output_path}/frame_evolution/stig_frame_{frame_pos}.gif")
 
+def create_full_attribution_videos(ig_attrs, stig_attrs, output_path="attribution_videos"):
+    """Create videos for each frame position showing how its attribution changes"""
+    
+    import os
+    os.makedirs(f"{output_path}/frame_evolution", exist_ok=True)
+    
+    # For specific frame positions, show how attribution changes
+    frame_positions = [0, 10, 14, 20, 29]  # Key positions including flash
+    
+    for frame_pos in frame_positions:
+        ig_sequence = []
+        stig_sequence = []
+        
+        # Collect attributions for this frame position across all windows
+        for t in range(len(ig_attrs)):
+            if frame_pos < ig_attrs[t].shape[2]:  # Check if frame exists in this window
+                ig_sequence.append(ig_attrs[t, 0, frame_pos, :, :].cpu().numpy())
+                stig_sequence.append(stig_attrs[t, 0, frame_pos, :, :].cpu().numpy())
+        
+        if len(ig_sequence) > 0:
+            voltron.frames2gif(np.array(ig_sequence), 
+                             f"{output_path}/frame_evolution/ig_frame_{frame_pos}.gif")
+            voltron.frames2gif(np.array(stig_sequence), 
+                             f"{output_path}/frame_evolution/stig_frame_{frame_pos}.gif")
+
 device = torch.device("cuda:0")
 
 mantis_image_path = "/home/grandline/Downloads/mantis.jpg" #"/Users/javierweddington/Downloads/mantis.jpg"
@@ -189,5 +210,61 @@ ig_attrs, stig_attrs, responses = compute_continuous_attributions_comparison(
 # Visualize
 fig = visualize_attribution_differences(ig_attrs, stig_attrs, responses)
 plt.savefig('ig_vs_stig_comparison.png')
+
+create_full_attribution_videos(ig_attrs, stig_attrs)
+
+def compute_attributions_with_sliding_window(model, full_stimulus, target_unit, window_size=30):
+    """
+    Compute attributions using the same sliding window approach as present_stim
+    full_stimulus: shape (950, H, W) - long stimulus
+    Returns: attributions for each output timepoint (900 attributions)
+    """
+    
+    # Create dataset with sliding windows
+    dataset = vnn.ArtificialStimulus(full_stimulus, window_size)
+    
+    all_ig_attrs = []
+    all_stig_attrs = []
+    all_responses = []
+    
+    # Process each window
+    for i in range(len(dataset)):
+        # Get window - this matches what the model sees
+        window = dataset[i].unsqueeze(0).to(device)  # Shape: [1, 50, H, W]
+        
+        # Compute attributions for this window
+        ig_attr = ig(model, window, target_class=target_unit)
+        stig_attr = stig(model, window, target_class=target_unit)
+        
+        # Get response
+        with torch.no_grad():
+            response = model(window)[0, target_unit]
+        
+        # Store only the attribution for the "current" frame
+        # This matches how present_stim gives you one output per window
+        center_idx = window_size // 2  # or however your model determines output time
+        all_ig_attrs.append(ig_attr[0, center_idx])
+        all_stig_attrs.append(stig_attr[0, center_idx])
+        all_responses.append(response)
+    
+    return (torch.stack(all_ig_attrs), 
+            torch.stack(all_stig_attrs), 
+            torch.tensor(all_responses))
+
+# Use it exactly like present_stim
+full_stimulus = torch.zeros(950, 100, 100).to(device)
+full_stimulus[450] = flash_frame.to(device)  # Flash in middle
+
+# This gives you 900 attributions, one for each output
+ig_attrs, stig_attrs, responses = compute_attributions_with_sliding_window(
+    model, full_stimulus, target_unit=0, window_size=30
+)
+
+print(f"Output shapes: {ig_attrs.shape}")  # Should be [900, 100, 100]
+
+# Now you can make videos just like before
+voltron.frames2gif(ig_attrs.cpu().numpy(), "ig_sliding_window.gif")
+voltron.frames2gif(stig_attrs.cpu().numpy(), "stig_sliding_window.gif")
+
 
 create_full_attribution_videos(ig_attrs, stig_attrs)

@@ -103,6 +103,31 @@ def visualize_attribution_differences(ig_attrs, stig_attrs, responses,
     plt.tight_layout()
     return fig
 
+def create_full_attribution_videos(ig_attrs, stig_attrs, output_path="attribution_videos"):
+    """Create videos for each frame position showing how its attribution changes"""
+    
+    import os
+    os.makedirs(f"{output_path}/frame_evolution", exist_ok=True)
+    
+    # For specific frame positions, show how attribution changes
+    frame_positions = [0, 10, 14, 20, 29]  # Key positions including flash
+    
+    for frame_pos in frame_positions:
+        ig_sequence = []
+        stig_sequence = []
+        
+        # Collect attributions for this frame position across all windows
+        for t in range(len(ig_attrs)):
+            if frame_pos < ig_attrs[t].shape[2]:  # Check if frame exists in this window
+                ig_sequence.append(ig_attrs[t, 0, frame_pos, :, :].cpu().numpy())
+                stig_sequence.append(stig_attrs[t, 0, frame_pos, :, :].cpu().numpy())
+        
+        if len(ig_sequence) > 0:
+            voltron.frames2gif(np.array(ig_sequence), 
+                             f"{output_path}/frame_evolution/ig_frame_{frame_pos}.gif")
+            voltron.frames2gif(np.array(stig_sequence), 
+                             f"{output_path}/frame_evolution/stig_frame_{frame_pos}.gif")
+
 device = torch.device("cuda:0")
 
 mantis_image_path = "/home/grandline/Downloads/mantis.jpg" #"/Users/javierweddington/Downloads/mantis.jpg"
@@ -164,3 +189,5 @@ ig_attrs, stig_attrs, responses = compute_continuous_attributions_comparison(
 # Visualize
 fig = visualize_attribution_differences(ig_attrs, stig_attrs, responses)
 plt.savefig('ig_vs_stig_comparison.png')
+
+create_full_attribution_videos(ig_attrs, stig_attrs)

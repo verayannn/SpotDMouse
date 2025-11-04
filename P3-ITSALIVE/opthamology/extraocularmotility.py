@@ -73,7 +73,6 @@ for k in range(15):
     stigs.detach().cpu().numpy().squeeze(0)[k,:,:]
     voltron.frames2gif(stigs.detach().cpu().numpy().squeeze(0), f"/home/grandline/spatiotemporal_ig_plots/frames_{k}.gif")
 
-
 def test_motion_selectivity(model):
     """Test for differences between SIG and IG on motion stimulus"""
     

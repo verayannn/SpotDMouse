@@ -154,7 +154,7 @@ model.eval()
 
 # Create stimulus with flash at frame 14
 stimulus = torch.zeros(50, 100, 100).to(device)  # Longer than window
-stimulus[14] = flash_frame
+stimulus[14] = flash_frame.to(device)
 
 # Compare methods
 ig_attrs, stig_attrs, responses = compute_continuous_attributions_comparison(

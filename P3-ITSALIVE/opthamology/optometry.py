@@ -9,7 +9,7 @@ import voltron
 
 device = torch.device("cuda:1")#torch.device("cpu")
 
-mantis_image_path = "/home/grandline/Downloads/mantis.jpg" #"/Users/javierweddington/Downloads/mantis.jpg"
+mantis_image_path = "/home/grandline/Downloads/jollyroger.png" #"/Users/javierweddington/Downloads/mantis.jpg"
 mantis_image = Image.open(mantis_image_path)
 mantis_image = mantis_image.convert("L")
 

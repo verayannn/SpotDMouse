@@ -102,132 +102,200 @@ def spatiotemporal_integrated_gradients_corrected(model, input_tensor, baseline=
     stig_attributions = diff * avg_gradients
 
     return stig_attributions
-# import numpy as np
-# import torch
 
-# def compute_gradients(model, inputs, target_class=None):
-#     inputs = inputs.requires_grad_(True)
-#     output = model(inputs)
-    
-#     if target_class is None:
-#         target_class = output.argmax(dim=1)
-    
-#     if isinstance(target_class, int):
-#         target = output[:, target_class]
-#     else:
-#         target = output.gather(1, target_class.view(-1, 1)).squeeze()
-    
-#     model.zero_grad()
-#     target.sum().backward(retain_graph=True)
-#     gradients = inputs.grad.detach().clone()
-    
-#     return output.detach(), gradients
+import torch
 
-# def spatiotemporal_integrated_gradients(model, input_tensor, baseline=None, 
-#                                        target_class=None, steps_per_segment=20):
-#     if baseline is None:
-#         baseline = torch.zeros_like(input_tensor)
+def modified_stig_with_temporal_masking(model, input_tensor, baseline=None, 
+                                       target_class=None, steps=50):
+    """
+    Modified STIG that truly accounts for temporal dependencies
+    by masking future information during interpolation
+    """
+    if baseline is None:
+        baseline = torch.zeros_like(input_tensor)
     
-#     assert baseline.shape == input_tensor.shape, "baseline, input shapes mismatch"
+    batch_size, T, features = input_tensor.shape
+    attributions = torch.zeros_like(input_tensor)
     
-#     device = input_tensor.device
-#     T = input_tensor.size(1)
-#     sig_attributions = torch.zeros_like(input_tensor)
-#     M = steps_per_segment - 1
-    
-#     for t in range(1, T + 1):
-#         betas = torch.linspace(0, 1, steps_per_segment, device=device)
-#         segment_gradients = []
+    # For each timestep, compute its marginal contribution
+    for t in range(T):
+        accumulated_grads = torch.zeros(batch_size, features).to(input_tensor.device)
         
-#         for beta in betas:
-#             X_partial = baseline.clone()
+        for i in range(steps + 1):
+            alpha = i / steps
             
-#             if t > 1:
-#                 X_partial[:, :t-1] = input_tensor[:, :t-1]
+            # Create interpolated input with temporal masking
+            interpolated = baseline.clone()
             
-#             current_frame_idx = t - 1
-#             X_partial[:, current_frame_idx] = baseline[:, current_frame_idx] + beta * \
-#                                               (input_tensor[:, current_frame_idx] - baseline[:, current_frame_idx])
+            # Past timesteps are at full input value (history)
+            if t > 0:
+                interpolated[:, :t, :] = input_tensor[:, :t, :]
             
-#             X_partial.requires_grad_(True)
-#             _, grads = compute_gradients(model, X_partial, target_class)
-#             grad_t = grads[:, current_frame_idx].clone()
-#             segment_gradients.append(grad_t)
+            # Current timestep is interpolated
+            interpolated[:, t, :] = baseline[:, t, :] + alpha * (input_tensor[:, t, :] - baseline[:, t, :])
+            
+            # Future timesteps remain at baseline (no peeking)
+            # This is the KEY DIFFERENCE from standard STIG
+            
+            interpolated.requires_grad_(True)
+            output = model(interpolated)
+            
+            if target_class is None:
+                target = output.sum()
+            else:
+                target = output[:, target_class].sum()
+            
+            model.zero_grad()
+            target.backward()
+            
+            # Get gradient only for current timestep
+            grad_t = interpolated.grad[:, t, :]
+            
+            # Trapezoidal rule
+            weight = 0.5 if i == 0 or i == steps else 1.0
+            accumulated_grads += grad_t * weight
         
-#         segment_gradients = torch.stack(segment_gradients, dim=0)
-#         IG_t = torch.zeros_like(segment_gradients[0])
+        avg_grads = accumulated_grads / steps
         
-#         for j in range(M):
-#             IG_t += 0.5 * (segment_gradients[j] + segment_gradients[j + 1])
-        
-#         IG_t = IG_t / M
-#         frame_diff = input_tensor[:, current_frame_idx] - baseline[:, current_frame_idx]
-#         SIG_t = frame_diff * IG_t
-#         sig_attributions[:, current_frame_idx] = SIG_t
+        # Marginal attribution for timestep t given history
+        attributions[:, t, :] = (input_tensor[:, t, :] - baseline[:, t, :]) * avg_grads
     
-#     return sig_attributions
+    return attributions
 
-# #The following methods (batched and blocked) are implemented for speeding up wall clock time
-
-# def spaitotemporal_integrated_gradients_batched(model, input_tensor, baseline=None, target_class=None,steps_per_segment=50, block_size=1):
-
-#     if baseline is None:
-#         baseline = torch.zeros_like(input_tensor)
-
-#     assert baseline.shape == input_tensor.shape, "input and baseline mismatch"
-
-#     N, T, H, W  = input_tensor.shape
-
-#     device=input_tensor.device
-
-#     K = block_size
-#     T_blocks = T // K
-#     steps_per_segment = int(steps_per_segment)
-#     M = steps_per_segment - 1
-
-#     sig_attributions = torch.zeros_like(input_tensor)
-
-#     betas = torch.linspace(0, 1, steps_per_segment, device=device)
-
-#     for k in range(T_blocks):
-
-#         start_idx = k*K
-#         end_idx = (k+1) * K
-
-#         interpolated_inputs = []
-
-#         for beta in betas:
-
-#             X_partial = baseline.clone()
-
-#             if k > 0:
-#                 X_partial[:, :start_idx, :, :] = input_tensor[:, :start_idx, :, :]
-
-#             current_block_input = input_tensor[:, start_idx:end_idx, :, :]
-#             current_block_baseline = baseline[:, start_idx:end_idx, :, :]
-
-#             X_partial[:, start_idx:end_idx, :, :] = current_block_baseline + beta * (current_block_input - current_block_baseline)
-
-#             interpolated_inputs.append(X_partial)
-
-#         input_batch = torch.cat(interpolated_inputs, dim=0)
-
-#         _, grads_batch = compute_gradients(model, input_tensor, target_class)
-
-#         grads_reshaped = grads_batch.view(steps_per_segment, N, T, H, W)
-
-#         segment_gradients = grads_reshaped[:, :, start_idx:end_idx, :, :]
-
-#         IG_k_sum = torch.zeros_like(segment_gradients[0])
-       
-#         for j in range(M):
-#             IG_k_sum += 0.5 * (segment_gradients[j] + segment_gradients[j + 1])
+def history_aware_stig(model, input_tensor, baseline=None, target_class=None, steps=50):
+    """
+    STIG with history-dependent baseline that captures temporal flow
+    """
+    if baseline is None:
+        baseline = torch.zeros_like(input_tensor)
+    
+    batch_size, T, features = input_tensor.shape
+    attributions = torch.zeros_like(input_tensor)
+    
+    # Compute model output at each partial sequence
+    partial_outputs = []
+    for t in range(T + 1):
+        if t == 0:
+            partial_input = baseline.clone()
+        else:
+            partial_input = baseline.clone()
+            partial_input[:, :t, :] = input_tensor[:, :t, :]
+        
+        with torch.no_grad():
+            output = model(partial_input)
+            partial_outputs.append(output)
+    
+    # For each timestep, compute attribution using history-dependent baseline
+    for t in range(T):
+        # The baseline for timestep t is the model's state after seeing 0:t-1
+        if t == 0:
+            history_baseline = baseline[:, 0, :]
+            history_output = partial_outputs[0]
+        else:
+            # Use the actual input up to t-1 as the historical context
+            history_baseline = baseline[:, t, :]  # Still baseline value at t
+            history_output = partial_outputs[t]  # But model has seen 0:t-1
+        
+        # Now interpolate only timestep t, given the history
+        accumulated_grads = torch.zeros(batch_size, features).to(input_tensor.device)
+        
+        for i in range(steps + 1):
+            alpha = i / steps
             
-#             IG_k = IG_k_sum / M
+            interpolated = baseline.clone()
+            if t > 0:
+                interpolated[:, :t, :] = input_tensor[:, :t, :]
+            
+            # Interpolate current timestep
+            interpolated[:, t, :] = history_baseline + alpha * (input_tensor[:, t, :] - history_baseline)
+            
+            interpolated.requires_grad_(True)
+            output = model(interpolated)
+            
+            # Target is the change from history_output
+            if target_class is None:
+                target = (output - history_output.detach()).sum()
+            else:
+                target = (output[:, target_class] - history_output[:, target_class].detach()).sum()
+            
+            model.zero_grad()
+            target.backward()
+            
+            grad_t = interpolated.grad[:, t, :]
+            weight = 0.5 if i == 0 or i == steps else 1.0
+            accumulated_grads += grad_t * weight
+        
+        avg_grads = accumulated_grads / steps
+        attributions[:, t, :] = (input_tensor[:, t, :] - history_baseline) * avg_grads
+    
+    return attributions
 
-#         block_diff = current_block_input - current_block_baseline
-#         SIG_k = block_diff * IG_k
+def nonlinear_temporal_stig(model, input_tensor, baseline=None, target_class=None, 
+                           steps=50, temporal_decay=0.5):
+    """
+    STIG with non-linear temporal interpolation that weights recent history more
+    """
+    if baseline is None:
+        baseline = torch.zeros_like(input_tensor)
+    
+    batch_size, T, features = input_tensor.shape
+    
+    # Define non-linear temporal interpolation function
+    def temporal_interpolation_path(alpha, t, T):
+        """
+        Non-linear function that interpolates differently based on temporal position
+        Early timesteps interpolate faster, later ones slower
+        """
+        # Exponential decay based on position
+        position_weight = np.exp(-temporal_decay * t / T)
+        
+        # Modified interpolation that depends on temporal position
+        if alpha < position_weight:
+            # Faster interpolation for early timesteps
+            return alpha / position_weight
+        else:
+            # Slower for later timesteps
+            return 1.0
+    
+    accumulated_grads = torch.zeros_like(input_tensor)
+    
+    for i in range(steps + 1):
+        alpha = i / steps
+        
+        # Create temporally-aware interpolation
+        interpolated = baseline.clone()
+        
+        for t in range(T):
+            # Each timestep has its own interpolation schedule
+            t_alpha = temporal_interpolation_path(alpha, t, T)
+            interpolated[:, t, :] = baseline[:, t, :] + t_alpha * (input_tensor[:, t, :] - baseline[:, t, :])
+        
+        interpolated.requires_grad_(True)
+        output = model(interpolated)
+        
+        if target_class is None:
+            target = output.sum()
+        else:
+            target = output[:, target_class].sum()
+        
+        model.zero_grad()
+        target.backward()
+        
+        # Weight by derivative of the path
+        path_derivatives = torch.zeros(batch_size, T, features).to(input_tensor.device)
+        for t in range(T):
+            if alpha < np.exp(-temporal_decay * t / T):
+                path_derivatives[:, t, :] = 1.0 / np.exp(-temporal_decay * t / T)
+            else:
+                path_derivatives[:, t, :] = 0.0
+        
+        weighted_grads = interpolated.grad * path_derivatives
+        
+        weight = 0.5 if i == 0 or i == steps else 1.0
+        accumulated_grads += weighted_grads * weight
+    
+    avg_grads = accumulated_grads / steps
+    attributions = (input_tensor - baseline) * avg_grads
+    
+    return attributions
 
-#         sig_attributions[:, start_idx:end_idx, :,:] = SIG_k
-
-#     return sig_attributions

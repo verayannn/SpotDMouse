@@ -1,10 +1,10 @@
-import numpy as np
-import torch
-import torch.nn as nn
-import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-from spatiotemporal_ig import spatiotemporal_integrated_gradients as stig
-from standard_ig import integrated_gradients as ig
+# import numpy as np
+# import torch
+# import torch.nn as nn
+# import torchvision.transforms as transforms
+# import matplotlib.pyplot as plt
+# from spatiotemporal_ig import spatiotemporal_integrated_gradients as stig
+# from standard_ig import integrated_gradients as ig
 
 # class LN(nn.Module):
 #     def __init__(self, input_dim, hidden_dim, output_dim):
@@ -333,8 +333,76 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
-from spatiotemporal_ig import spatiotemporal_integrated_gradients as stig
+from spatiotemporal_ig import spatiotemporal_integrated_gradients_corrected as stig
 from standard_ig import integrated_gradients as ig
+import numpy as np
+import yfinance as yf
+from sklearn.preprocessing import StandardScaler
+
+def generate_stock_data(ticker="SPY", start_date="2010-01-01", end_date="2024-01-01", 
+                        seq_len=50, pred_horizon=10, train_ratio=0.8):
+    """
+    Downloads stock data and transforms it into sequences for time series prediction.
+    
+    Args:
+        ticker (str): Stock ticker symbol (e.g., 'SPY' for S&P 500 ETF).
+        start_date (str): Start date for data download.
+        end_date (str): End date for data download.
+        seq_len (int): Use past N steps as input sequence.
+        pred_horizon (int): Predict the Close price M steps ahead.
+        train_ratio (float): Fraction of data to use for training.
+        
+    Returns:
+        X_train, y_train, X_test, y_test (torch.Tensors)
+    """
+    
+    print(f"Downloading data for {ticker} from {start_date} to {end_date}...")
+    
+    # 1. Download Data
+    data = yf.download(ticker, start=start_date, end=end_date)
+    
+    # Use features: Open, High, Low, Close, Volume
+    features = ['Open', 'High', 'Low', 'Close', 'Volume']
+    df = data[features].copy()
+    
+    # 2. Preprocessing (Scaling)
+    # Important: Normalize features (e.g., prices) using the whole dataset
+    scaler = StandardScaler()
+    data_scaled = scaler.fit_transform(df.values)
+    
+    # 3. Create Sequences
+    X_sequences = []
+    y_sequences = [] # Target is the 'Close' price (index 3) pred_horizon steps ahead
+    
+    # We need enough data for the sequence (seq_len) and the prediction (pred_horizon)
+    for i in range(seq_len, len(data_scaled) - pred_horizon):
+        # Input X: sequence of scaled features
+        X_seq = data_scaled[i-seq_len:i, :]
+        
+        # Output y: scaled Close price, pred_horizon steps ahead
+        # Close price is the 4th column (index 3)
+        y_seq = data_scaled[i + pred_horizon, 3] 
+        
+        X_sequences.append(X_seq)
+        y_sequences.append(y_seq)
+    
+    X_sequences = np.array(X_sequences, dtype=np.float32)
+    y_sequences = np.array(y_sequences, dtype=np.float32)
+    
+    print(f"Total sequences created: {len(X_sequences)}")
+    print(f"X sequence shape: {X_sequences.shape}")
+    
+    # 4. Split Train/Test
+    n_train = int(len(X_sequences) * train_ratio)
+    
+    X_train = torch.from_numpy(X_sequences[:n_train])
+    y_train = torch.from_numpy(y_sequences[:n_train])
+    X_test = torch.from_numpy(X_sequences[n_train:])
+    y_test = torch.from_numpy(y_sequences[n_train:])
+    
+    print(f"Train samples: {len(X_train)}, Test samples: {len(X_test)}")
+    
+    return X_train, y_train, X_test, y_test
 
 # Generate Lorenz attractor data
 def generate_lorenz_data(n_samples=10000, dt=0.01, train_ratio=0.8):
@@ -501,24 +569,34 @@ def train_model(model, X_train, y_train, X_test, y_test, epochs=50, lr=0.001):
 def compare_methods_on_trained_models():
     # Generate data
     print("Generating Lorenz attractor data...")
-    X_train, y_train, X_test, y_test = generate_lorenz_data(n_samples=10000)
+    # X_train, y_train, X_test, y_test = generate_lorenz_data(n_samples=10000)
+    X_train, y_train, X_test, y_test = generate_stock_data(
+    ticker="GOOGL", # or "SPY" or any major stock/index
+    seq_len=**50**,       # Use 50 time steps (approx 10 trading weeks)
+    pred_horizon=**20**,  # Predict 20 steps ahead (approx 4 trading weeks)
+    )
     print(f"Training data shape: {X_train.shape}")
     print(f"Test data shape: {X_test.shape}")
     
     # Initialize models
+    # models = {
+    #     'Feedforward': LN_Lorenz(seq_len=20, input_dim=3, hidden_dim=64),
+    #     'GRU': RNN_Lorenz(input_size=3, hidden_size=64),
+    #     'LSTM': LSTM_Lorenz(input_size=3, hidden_size=64)
+    # }
+    # Update models initialization to input_dim=5 and use the new seq_len=50
     models = {
-        'Feedforward': LN_Lorenz(seq_len=20, input_dim=3, hidden_dim=64),
-        'GRU': RNN_Lorenz(input_size=3, hidden_size=64),
-        'LSTM': LSTM_Lorenz(input_size=3, hidden_size=64)
+        'Feedforward': LN_Lorenz(seq_len=50, input_dim=5, hidden_dim=64),
+        'GRU': RNN_Lorenz(input_size=5, hidden_size=64),
+        'LSTM': LSTM_Lorenz(input_size=5, hidden_size=64)
     }
-    
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
     # Train each model
     trained_models = {}
     for name, model in models.items():
         print(f"\nTraining {name} model...")
-        train_losses, test_losses = train_model(model, X_train, y_train, X_test, y_test, epochs=50)
+        train_losses, test_losses = train_model(model, X_train, y_train, X_test, y_test, epochs=200)
         trained_models[name] = model
         
         # Plot training curve

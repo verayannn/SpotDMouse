@@ -61,7 +61,7 @@ def stig_path_interpolation(input_tensor, baseline, alpha):
     return path_r_alpha, t.item()
 
 def spatiotemporal_integrated_gradients_corrected(model, input_tensor, baseline=None, 
-                                                  target_class=None, steps=50):
+                                                  target_class=None, steps=20):
     
     if baseline is None:
         baseline = torch.zeros_like(input_tensor)

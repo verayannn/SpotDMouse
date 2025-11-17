@@ -1,6 +1,7 @@
 # Mini Pupper Quadruped Locomotion with Reinforcement Learning
 
 A subproject documenting the development of training a Mini Pupper quadruped robot to walk using Reinforcement Learning (RSL RL PPO) in Isaac Lab.
+** Update : ** We have upgraded to the Mini Pupper 2 which has servo feebdack and and IMU sensor, enabling the robot with proprioception and oritenation w.r.t. gravity! New training and demo results incoming.
 
 ## Project Overview
 

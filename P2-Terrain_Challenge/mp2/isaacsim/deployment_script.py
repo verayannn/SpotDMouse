@@ -5,7 +5,7 @@ import time
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState, Imu
-rom geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist
 import threading
 
 class MP2RealObservation:
@@ -120,8 +120,21 @@ class MP2RLController(Node):
             self.cmd_vel_callback,
             10
         )
+
+        self.odom_sub = self.create_subscription(
+            Odometry,
+            '/odom',
+            self.odom_callback,
+            10
+        )
         
         self.get_logger().info('MP2 RL Controller initialized, listening to /cmd_vel')
+
+        def odom_callback(self, msg):
+            """Update base velocity from odometry"""
+            self.obs_handler.base_linear_velocity[0] = msg.twist.twist.linear.x
+            self.obs_handler.base_linear_velocity[1] = msg.twist.twist.linear.y
+            self.obs_handler.base_linear_velocity[2] = msg.twist.twist.linear.z
             
     def cmd_vel_callback(self, msg):
         """Handle incoming velocity commands from ROS2"""

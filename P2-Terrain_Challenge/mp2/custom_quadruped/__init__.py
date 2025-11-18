@@ -55,7 +55,7 @@ from . import agents
 ###############################
 
 gym.register(
-    id="Isaac-Velocity-Flat-Custom-Quad-v0",
+    id="Isaac-Velocity-Flat-Custom-Quad-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -71,7 +71,7 @@ gym.register(
 
 # ─────────── Flat‑terrain PLAY (fewer envs, no randomization) ───────────
 gym.register(
-    id="Isaac-Velocity-Flat-Custom-Quad-Play-v0",
+    id="Isaac-Velocity-Flat-Custom-Quad-Play-v1",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

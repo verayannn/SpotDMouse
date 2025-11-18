@@ -8,6 +8,22 @@ from sensor_msgs.msg import JointState, Imu
 from geometry_msgs.msg import Twist
 import threading
 from nav_msgs.msg import Odometry  # Add this line
+from models.actor_critic_mlp import ActorCriticMLP
+
+# Load your trained ActorCritic model
+checkpoint = torch.load("TRAINED_AC.pt")
+model = ActorCriticMLP(obs_dim=59, action_dim=12)
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
+
+# Extract just the actor (policy) network
+policy_only = model.actor
+
+# Export as TorchScript for deployment
+traced_policy = torch.jit.trace(policy_only, torch.randn(1, 59))
+torch.jit.save(traced_policy, "RSLRL_TRAINED_MLP.pt")
+
+print("Policy exported successfully!")
 
 class MP2RealObservation:
     def __init__(self, dt=0.02):
@@ -160,7 +176,14 @@ class MP2RLController(Node):
                 # Run policy inference
                 with torch.no_grad():
                     obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
-                    actions = self.policy(obs_tensor).squeeze().numpy()
+                    
+                    # Check if it's ActorCritic or just policy
+                    if hasattr(self.policy, 'get_action'):
+                        # It's an ActorCritic model
+                        actions = self.policy.get_action(obs_tensor, deterministic=True).squeeze().numpy()
+                    else:
+                        # It's a policy-only model
+                        actions = self.policy(obs_tensor).squeeze().numpy()
                 
                 # Update previous actions for next observation
                 self.obs_handler.update_previous_actions(actions)
@@ -171,12 +194,12 @@ class MP2RLController(Node):
                 self.esp32.servos_set_position_torque(servo_positions, torque)
                 
                 time.sleep(0.02)  # 50Hz control loop
-                
-        except KeyboardInterrupt:
-            self.get_logger().info('Stopping controller...')
-            # Set servos to safe position
-            safe_positions = [512] * 12  # Center position
-            self.esp32.servos_set_position_torque(safe_positions, [0] * 12)
+                    
+            except KeyboardInterrupt:
+                self.get_logger().info('Stopping controller...')
+                # Set servos to safe position
+                safe_positions = [512] * 12  # Center position
+                self.esp32.servos_set_position_torque(safe_positions, [0] * 12)
     
     def actions_to_servo_positions(self, actions):
         """Convert relative joint positions to servo positions"""
@@ -196,7 +219,7 @@ def main(args=None):
     
     print("Starting Mini Pupper RL Controller...")
     print("Listening for velocity commands on /cmd_vel")
-    print("Example: ros2 topic pub /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.3}}\" -r 10")
+    print("Example: ros2 topic pub /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}\" -r 10")
     print("\nPress Ctrl+C to stop")
     
     # Run control loop in separate thread

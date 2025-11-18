@@ -26,7 +26,7 @@ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import Lo
 # Pre-defined configs
 ##
 # from isaaclab_assets.robots.spot import SPOT_CFG  # isort: skip
-from isaaclab_tasks.manager_based.locomotion.velocity.config.custom_quadruped.custom_quad import CUSTOM_QUAD_CFG 
+from isaaclab_tasks.manager_based.locomotion.velocity.config.custom_quadruped_2.custom_quad import CUSTOM_QUAD_CFG 
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(

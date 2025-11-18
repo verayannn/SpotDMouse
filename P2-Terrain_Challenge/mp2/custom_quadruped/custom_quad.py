@@ -6,9 +6,7 @@ from math import pi
 
 CUSTOM_QUAD_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        # usd_path="/workspace/mini_pupper_ros/mini_pupper_description/usd/generated_mini_pupper/generated_mini_pupper.usd",
-        #Verify path
-        usd_path="/workspace/ros2_ws/src/mini_pupper_ros/mini_pupper_description/urdf/mini_pupper_2/mini_pupper_description/mini_pupper_description.usd",
+        usd_path="/workspace/mini_pupper_ros/mini_pupper_description/urdf/mini_pupper_2/mini_pupper_description/mini_pupper_description.usd",
         activate_contact_sensors=True,
     ),
     init_state=ArticulationCfg.InitialStateCfg(

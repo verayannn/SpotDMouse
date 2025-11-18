@@ -499,3 +499,14 @@ class SpotFlatEnvCfg_PLAY(SpotFlatEnvCfg):
         # disable randomization for play
         self.observations.policy.enable_corruption = False
             # remove random pushing event
+
+#Custom observation
+# def joint_effort(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+#     """The joint efforts (torques) of the asset.
+    
+#     Note: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their efforts returned.
+#     """
+#     # extract the used quantities (to enable type-hinting)
+#     asset: Articulation = env.scene[asset_cfg.name]
+#     # Get applied joint torques - this matches what your servo loads represent
+#     return asset.data.applied_torque[:, asset_cfg.joint_ids]

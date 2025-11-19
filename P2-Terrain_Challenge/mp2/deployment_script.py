@@ -27,7 +27,7 @@ print("Policy exported successfully!")
 
 class MP2RealObservation:
     def __init__(self, dt=0.02):
-        self.esp32 = ESP32Interface()
+        self.esp32 = esp32_interface# ESP32Interface()
         self.dt = dt
         self.prev_positions = None
         self.prev_actions = np.zeros(12)
@@ -131,7 +131,7 @@ class MP2RLController(Node):
             raise
 
         self.obs_handler = MP2RealObservation()
-        self.esp32 = ESP32Interface()
+        # self.esp32 = ESP32Interface()
         
         # Load trained policy
         self.policy = torch.jit.load(policy_path)

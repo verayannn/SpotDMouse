@@ -119,6 +119,17 @@ class MP2RLController(Node):
     def __init__(self, policy_path, obs_normalizer_path=None):
         super().__init__('mp2_rl_controller')
         
+        # Test ESP32 connection
+        try:
+            self.esp32 = ESP32Interface()
+            test_pos = self.esp32.servos_get_position()
+            if test_pos is None:
+                self.get_logger().error("ESP32 connection failed!")
+                raise RuntimeError("Cannot connect to ESP32")
+        except Exception as e:
+            self.get_logger().error(f"ESP32 initialization failed: {e}")
+            raise
+
         self.obs_handler = MP2RealObservation()
         self.esp32 = ESP32Interface()
         

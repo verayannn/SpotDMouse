@@ -190,13 +190,13 @@ def main(args=None):
     
     # Create controller node
     controller = MP2RLController(
-        policy_path="RSLRL_TRAINED_MLP.pt",
+        policy_path="/home/ubuntu/mp2_mlp/mp2_mlp.pt",
         obs_normalizer_path=None
     )
     
     print("Starting Mini Pupper RL Controller...")
     print("Listening for velocity commands on /cmd_vel")
-    print("Example: ros2 topic pub /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.3}}\" -r 10")
+    print("Example: ros2 topic pub /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.1, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}\" -r 10")
     print("\nPress Ctrl+C to stop")
     
     # Run control loop in separate thread

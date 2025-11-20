@@ -36,10 +36,10 @@ class IsaacSimObservationAligner:
         # Get default positions from Isaac Sim config
         # These are the standing positions your policy expects
         self.isaac_default_positions = np.array([
-            -0.1, 0.8, -1.5,  # LF (from simulation)
-             0.1, 0.8, -1.5,  # RF
-            -0.1, 0.8, -1.5,  # LB
-             0.1, 0.8, -1.5   # RB
+            0.0, 0.8, -1.57,  # LF (from simulation)
+             0.0, 0.8, -1.57,  # RF
+            0.0, 0.8, -1.57,  # LB
+             0.0, 0.8, -1.57   # RB
         ])
         
         # Get current robot positions

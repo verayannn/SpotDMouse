@@ -24,15 +24,6 @@ class IsaacSimObservationAligner:
             "base_lb1", "lb1_lb2", "lb2_lb3",  # LB leg
             "base_rb1", "rb1_rb2", "rb2_rb3"   # RB leg
         ]
-        
-        # Real robot servo order (ESP32)
-        # You need to verify this matches your hardware!
-        # self.esp32_servo_order = [
-        #     0, 1, 2,   # LF: hip, thigh, calf
-        #     3, 4, 5,   # RF: hip, thigh, calf
-        #     6, 7, 8,   # LB: hip, thigh, calf
-        #     9, 10, 11  # RB: hip, thigh, calf
-        # ]
 
         #executiuon order on device
         self.esp32_servo_order = [

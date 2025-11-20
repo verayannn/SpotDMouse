@@ -342,7 +342,7 @@ if __name__ == "__main__":
     import threading
     
     # Initialize controller
-    controller = FinalMLPController("policy.pt")
+    controller = FinalMLPController("/home/ubuntu/mp2_mlp/policy_only.pt")
     
     # Start control loop in background
     control_thread = threading.Thread(target=controller.control_loop)

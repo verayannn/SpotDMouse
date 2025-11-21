@@ -5,7 +5,7 @@ from collections import deque
 from MangDang.mini_pupper.ESP32Interface import ESP32Interface
 
 class FinalMLPController:
-    def __init__(self, policy_path="policy.pt"):
+    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_only.pt"):
         """Initialize the complete MLP controller with all corrections"""
         self.esp32 = ESP32Interface()
         time.sleep(0.5)

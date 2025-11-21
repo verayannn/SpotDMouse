@@ -2,7 +2,7 @@ from MangDang.mini_pupper.ESP32Interface import ESP32Interface
 import torch
 import numpy as np
 import time
-from mp2_mlp_controller import MP2IsaacRLController
+from mp2_mlp_controller import FinalMLPController as MP2IsaacRLController
 
 class JointDirectionTester:
     def __init__(self):

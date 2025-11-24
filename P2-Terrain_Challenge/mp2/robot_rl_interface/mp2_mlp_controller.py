@@ -67,7 +67,7 @@ class FinalMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # === Action Processing ===
-        self.ACTION_SCALE = 0.1
+        self.ACTION_SCALE = 0.2
         self.MAX_ACTION_CHANGE = 0.05
         self.prev_actions = np.zeros(12)
         

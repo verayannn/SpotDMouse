@@ -98,12 +98,14 @@ class FinalMLPController:
             if i % 10 == 0:
                 print(f"  Calibration {i}/{samples}")
         
-        # Calculate offsets - ONLY for gyro, NOT accelerometer!
-        self.accel_offset = np.zeros(3)  # Don't offset accelerometer - we need gravity!
+        # Calculate offsets
+        self.accel_offset = accel_sum / samples
         self.gyro_offset = gyro_sum / samples
         
-        # No gravity scaling needed if we're not offsetting accel
-        self.gravity_scale = 1.0
+        # Gravity should be ~9.81 on z-axis when upright
+        expected_gravity = 9.81
+        actual_gravity = np.linalg.norm(self.accel_offset)
+        self.gravity_scale = expected_gravity / actual_gravity if actual_gravity > 0 else 1.0
         
         print(f"IMU calibration complete:")
         print(f"  Accel offset: {self.accel_offset}")
@@ -112,24 +114,6 @@ class FinalMLPController:
     
     def get_observation(self):
         """Get complete observation with real sensor data"""
-        # try:
-        #     # === IMU Data ===
-        #     imu_data = self.esp32.imu_get_data()
-            
-        #     # Apply calibration to accelerometer
-        #     accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
-        #     accel_calibrated = (accel_raw - self.accel_offset) * self.gravity_scale
-            
-        #     # Apply calibration to gyroscope
-        #     gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
-        #     gyro_calibrated = gyro_raw - self.gyro_offset
-            
-        #     # Calculate projected gravity (normalized acceleration vector)
-        #     accel_norm = np.linalg.norm(accel_calibrated)
-        #     if accel_norm > 0.1:
-        #         projected_gravity = accel_calibrated / accel_norm
-        #     else:
-        #         projected_gravity = np.array([0, 0, -1])
         try:
             # === IMU Data ===
             imu_data = self.esp32.imu_get_data()
@@ -138,18 +122,16 @@ class FinalMLPController:
             accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
             accel_calibrated = (accel_raw - self.accel_offset) * self.gravity_scale
             
-            # DEBUG: Print raw vs calibrated
-            print(f"Raw accel: {accel_raw}")
-            print(f"Calibrated accel: {accel_calibrated}")
+            # Apply calibration to gyroscope
+            gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
+            gyro_calibrated = gyro_raw - self.gyro_offset
             
             # Calculate projected gravity (normalized acceleration vector)
             accel_norm = np.linalg.norm(accel_calibrated)
             if accel_norm > 0.1:
                 projected_gravity = accel_calibrated / accel_norm
             else:
-                projected_gravity = np.array([0, 0, -1])  # Default upright
-            
-            print(f"Projected gravity: {projected_gravity}")
+                projected_gravity = np.array([0, 0, -1])
             
             # === Joint Data ===
             raw_positions = np.array(self.esp32.servos_get_position())
@@ -167,12 +149,8 @@ class FinalMLPController:
             
             # Transform to Isaac's training reference frame
             # This is critical: MLP expects positions relative to its training defaults
-            # isaac_relative_positions = (true_angles - self.hardware_standing_angles + 
-            #                            self.isaac_training_defaults)
-                        # Simplified joint position calculation
-            # Just give relative positions from standing pose
-            isaac_relative_positions = true_angles - self.isaac_training_defaults
-            print(f"Joint positions (relative to training): {isaac_relative_positions[:6]}")
+            isaac_relative_positions = (true_angles - self.hardware_standing_angles + 
+                                       self.isaac_training_defaults)
             
             # Calculate joint velocities
             current_time = time.time()
@@ -224,30 +202,49 @@ class FinalMLPController:
         ])
     
     def process_actions(self, mlp_actions):
-        """Convert MLP actions to hardware servo commands - CORRECTED REFERENCE FRAME"""
-        print(f"Raw MLP actions: {mlp_actions[:6]}")
+        """Convert MLP actions to hardware servo commands"""
+        # DEBUG: Print raw actions from MLP
+        print(f"Raw MLP actions: {mlp_actions[:6]}")  # Show first 6 for LF and RF
         
-        # Scale actions
+        # Scale actions (MLP outputs are typically normalized)
         scaled = mlp_actions * self.ACTION_SCALE
         print(f"Scaled actions: {scaled[:6]}")
         
-        # Apply limits
-        limited = np.clip(scaled, -0.3, 0.3)
+        # Apply per-joint limits based on training
+        limited = scaled.copy()
+        for i in range(4):  # 4 legs
+            base_idx = i * 3
+            # Hip: smaller range
+            limited[base_idx] = np.clip(limited[base_idx], -0.5, 0.5)
+            # Thigh: medium range
+            limited[base_idx + 1] = np.clip(limited[base_idx + 1], -1.0, 1.0)
+            # Calf: medium range
+            limited[base_idx + 2] = np.clip(limited[base_idx + 2], -1.0, 1.0)
+        
         print(f"Limited actions: {limited[:6]}")
         
-        # Smooth actions
+        # Smooth actions to prevent jerky movements
         action_delta = limited - self.prev_actions
         action_delta = np.clip(action_delta, -self.MAX_ACTION_CHANGE, self.MAX_ACTION_CHANGE)
         smoothed = self.prev_actions + action_delta
+        
+        # Update for next iteration
         self.prev_actions = smoothed.copy()
         
-        # CORRECTED: Both observation and actions use training defaults as reference
-        # MLP actions are relative to training defaults, not hardware standing
-        target_angles = self.isaac_training_defaults + smoothed
-        print(f"Target angles (training frame): {target_angles[:6]}")
+        # === Reference Frame Translation ===
+        # MLP outputs are relative to Isaac training defaults
+        isaac_absolute = smoothed + self.isaac_training_defaults
+        print(f"Isaac absolute: {isaac_absolute[:6]}")
+        
+        # Transform from Isaac frame to hardware frame
+        # 1. Remove Isaac's training standing pose
+        # 2. Add hardware's actual standing pose
+        hardware_angles = (isaac_absolute - self.isaac_training_defaults + 
+                          self.hardware_standing_angles)
+        print(f"Hardware angles: {hardware_angles[:6]}")
         
         # Apply direction corrections for hardware
-        hardware_corrected = target_angles * self.joint_direction_multipliers
+        hardware_corrected = hardware_angles * self.joint_direction_multipliers
         print(f"Hardware corrected: {hardware_corrected[:6]}")
         
         # Convert to servo positions
@@ -255,8 +252,9 @@ class FinalMLPController:
         servo_positions = np.clip(servo_positions, 100, 924)
         print(f"Servo positions: {servo_positions[:6]}")
         
-        # Reorder for ESP32
+        # Reorder for ESP32 interface
         esp32_positions = servo_positions[self.isaac_to_esp32]
+        
         return [int(pos) for pos in esp32_positions]
     
     def control_loop(self):
@@ -274,14 +272,6 @@ class FinalMLPController:
                 if self.control_active:
                     # Get observation with all sensor data
                     obs = self.get_observation()
-
-                    # DEBUG: Check what policy sees
-                    if int(loop_start * 10) % 50 == 0:  # Every 5 seconds
-                        print(f"POLICY INPUT DEBUG:")
-                        print(f"  Gravity: {obs[6:9]}")
-                        print(f"  Commands: {obs[9:12]}")
-                        print(f"  Joint pos: {obs[12:24]}")
-                        print(f"  Expected standing: {self.isaac_training_defaults}")
                     
                     # Run policy inference
                     with torch.no_grad():

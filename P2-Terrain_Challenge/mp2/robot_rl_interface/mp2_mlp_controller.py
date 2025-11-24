@@ -67,8 +67,8 @@ class FinalMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # === Action Processing ===
-        self.ACTION_SCALE = 0.15
-        self.MAX_ACTION_CHANGE = 0.05
+        self.ACTION_SCALE = 0.05
+        self.MAX_ACTION_CHANGE = 0.02
         self.prev_actions = np.zeros(12)
         
         # === State Tracking ===
@@ -300,6 +300,15 @@ class FinalMLPController:
                                   f"{self.velocity_command[2]:.2f}] | "
                                   f"Actions: [{np.min(raw_actions):.2f}, "
                                   f"{np.max(raw_actions):.2f}]")
+                                              # DEBUG: Print key observation components
+                    if int(loop_start * 10) % 50 == 0:  # Every 5 seconds
+                        print(f"OBS DEBUG:")
+                        print(f"  Accel: {accel_calibrated}")
+                        print(f"  Gyro: {gyro_calibrated}")
+                        print(f"  Gravity: {projected_gravity}")
+                        print(f"  Velocities: {self.velocity_command}")
+                        print(f"  Joint pos: {isaac_relative_positions[:6]}")
+                        print(f"  Joint vel: {joint_velocities[:6]}")
                 
                 else:
                     # When not active, just maintain standing position

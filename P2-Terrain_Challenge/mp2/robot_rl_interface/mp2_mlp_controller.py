@@ -48,10 +48,10 @@ class FinalMLPController:
         
         # Isaac Sim training defaults (what the policy expects)
         self.isaac_training_defaults = np.array([
-            -0.1, 0.8, -1.5,  # LF
-             0.1, 0.8, -1.5,  # RF
-            -0.1, 0.8, -1.5,  # LB
-             0.1, 0.8, -1.5   # RB
+             0.0, 0.785, -1.57,  # LF
+             0.0, 0.785, -1.57,  # RF
+             0.0, 0.785, -1.57,  # LB
+             0.0, 0.785, -1.57   # RB
         ])
         
         # Get hardware's actual standing position
@@ -67,8 +67,8 @@ class FinalMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # === Action Processing ===
-        self.ACTION_SCALE = 0.05
-        self.MAX_ACTION_CHANGE = 0.02
+        self.ACTION_SCALE = 0.15
+        self.MAX_ACTION_CHANGE = 0.05
         self.prev_actions = np.zeros(12)
         
         # === State Tracking ===

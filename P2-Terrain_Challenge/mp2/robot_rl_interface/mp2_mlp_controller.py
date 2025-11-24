@@ -38,6 +38,7 @@ class FinalMLPController:
         
         print("Reading hardware standing position...")
         standing_servos = np.array(self.esp32.servos_get_position())
+        print(f"Raw servo positions: {standing_servos}")
         isaac_ordered_standing = standing_servos[self.esp32_servo_order]
         standing_radians = (isaac_ordered_standing - 512) / (1024 / (2 * np.pi))
         self.hardware_standing_angles = standing_radians / self.joint_direction_multipliers
@@ -61,6 +62,10 @@ class FinalMLPController:
         
         self.CONTROL_FREQUENCY = 50
         self.loop_times = deque(maxlen=50)
+        
+        # Debug timing
+        self.last_debug_time = time.time()
+        self.debug_interval = 2.0  # Debug every 2 seconds
         
     def calibrate_imu(self, samples=50):
         print("Keep robot still for IMU calibration...")
@@ -145,6 +150,31 @@ class FinalMLPController:
                 self.prev_actions
             ])
             
+            # Debug output every 2 seconds
+            if time.time() - self.last_debug_time >= self.debug_interval:
+                self.last_debug_time = time.time()
+                print("\n" + "="*80)
+                print("OBSERVATION DEBUG:")
+                print(f"Total observation size: {len(obs)}")
+                print("-"*80)
+                print(f"Linear Acceleration (calibrated): {accel_calibrated}")
+                print(f"Angular Velocity (calibrated): {gyro_calibrated}")
+                print(f"Projected Gravity: {projected_gravity}")
+                print(f"Velocity Command: {self.velocity_command}")
+                print("-"*40)
+                print("Joint Positions (relative to training default):")
+                for i in range(4):
+                    leg = ["LF", "RF", "LB", "RB"][i]
+                    idx = i * 3
+                    print(f"  {leg}: Hip={isaac_relative_positions[idx]:.3f}, "
+                          f"Thigh={isaac_relative_positions[idx+1]:.3f}, "
+                          f"Calf={isaac_relative_positions[idx+2]:.3f}")
+                print("-"*40)
+                print(f"Joint Velocities (min/max): {np.min(joint_velocities):.3f} / {np.max(joint_velocities):.3f}")
+                print(f"Joint Efforts (min/max): {np.min(joint_efforts):.3f} / {np.max(joint_efforts):.3f}")
+                print(f"Previous Actions: {self.prev_actions}")
+                print("="*80)
+            
             return obs
             
         except Exception as e:
@@ -164,6 +194,12 @@ class FinalMLPController:
         ])
     
     def process_actions(self, mlp_actions):
+        # Debug actions every 2 seconds
+        if time.time() - self.last_debug_time < 0.1:  # Just after observation debug
+            print("\nACTION DEBUG:")
+            print(f"Raw MLP outputs: {mlp_actions}")
+            print(f"Action range: [{np.min(mlp_actions):.3f}, {np.max(mlp_actions):.3f}]")
+        
         scaled = mlp_actions * self.ACTION_SCALE
         
         limited = scaled.copy()
@@ -191,6 +227,14 @@ class FinalMLPController:
         
         esp32_positions = servo_positions[self.isaac_to_esp32]
         
+        # More debug info
+        if time.time() - self.last_debug_time < 0.1:
+            print(f"Scaled actions: {scaled}")
+            print(f"Smoothed actions: {smoothed}")
+            print(f"Target angles (absolute): {isaac_absolute}")
+            print(f"Servo positions: {servo_positions}")
+            print("-"*80)
+        
         return [int(pos) for pos in esp32_positions]
     
     def control_loop(self):
@@ -216,13 +260,12 @@ class FinalMLPController:
                     
                     if len(self.loop_times) == self.loop_times.maxlen:
                         avg_time = np.mean(self.loop_times)
-                        if int(loop_start) % 10 == 0:
-                            print(f"Loop: {1/avg_time:.1f}Hz | "
+                        # Regular status update (not debug)
+                        if int(loop_start) % 50 == 0:  # Every second at 50Hz
+                            print(f"Status - Loop: {1/avg_time:.1f}Hz | "
                                   f"Cmd: [{self.velocity_command[0]:.2f}, "
                                   f"{self.velocity_command[1]:.2f}, "
-                                  f"{self.velocity_command[2]:.2f}] | "
-                                  f"Actions: [{np.min(raw_actions):.2f}, "
-                                  f"{np.max(raw_actions):.2f}]")
+                                  f"{self.velocity_command[2]:.2f}]")
                                   
                 else:
                     standing_servos = self.hardware_standing_angles * self.joint_direction_multipliers

@@ -59,8 +59,8 @@ class FinalMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # === Action Processing ===
-        self.ACTION_SCALE = 0.15
-        self.MAX_ACTION_CHANGE = 0.05
+        self.ACTION_SCALE = 0.3
+        self.MAX_ACTION_CHANGE = 0.1
         self.prev_actions = np.zeros(12)
         
         # === State Tracking ===
@@ -224,7 +224,7 @@ class FinalMLPController:
         ])
     
     def process_actions(self, mlp_actions):
-        """Convert MLP actions to hardware servo commands - SIMPLIFIED"""
+        """Convert MLP actions to hardware servo commands - CORRECTED REFERENCE FRAME"""
         print(f"Raw MLP actions: {mlp_actions[:6]}")
         
         # Scale actions
@@ -232,7 +232,7 @@ class FinalMLPController:
         print(f"Scaled actions: {scaled[:6]}")
         
         # Apply limits
-        limited = np.clip(scaled, -0.3, 0.3)  # Simple uniform limits
+        limited = np.clip(scaled, -0.3, 0.3)
         print(f"Limited actions: {limited[:6]}")
         
         # Smooth actions
@@ -241,18 +241,19 @@ class FinalMLPController:
         smoothed = self.prev_actions + action_delta
         self.prev_actions = smoothed.copy()
         
-        # SIMPLIFIED: MLP actions are DIRECT joint angle commands relative to standing pose
-        # No double transformation - just add to hardware standing position
-        target_angles = self.hardware_standing_angles + smoothed
-        print(f"Target angles: {target_angles[:6]}")
+        # CORRECTED: Both observation and actions use training defaults as reference
+        # MLP actions are relative to training defaults, not hardware standing
+        target_angles = self.isaac_training_defaults + smoothed
+        print(f"Target angles (training frame): {target_angles[:6]}")
         
-        # Apply direction corrections
+        # Apply direction corrections for hardware
         hardware_corrected = target_angles * self.joint_direction_multipliers
         print(f"Hardware corrected: {hardware_corrected[:6]}")
         
         # Convert to servo positions
         servo_positions = hardware_corrected * self.servo_scale + self.servo_offset
         servo_positions = np.clip(servo_positions, 100, 924)
+        print(f"Servo positions: {servo_positions[:6]}")
         
         # Reorder for ESP32
         esp32_positions = servo_positions[self.isaac_to_esp32]

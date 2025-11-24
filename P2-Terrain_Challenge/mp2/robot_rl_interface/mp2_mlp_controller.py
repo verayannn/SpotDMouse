@@ -36,22 +36,16 @@ class FinalMLPController:
              0.0, 0.785, -1.57   # RB
         ])
         
-        print("Reading hardware standing position...")
-        standing_servos = np.array(self.esp32.servos_get_position())
-        print(f"Raw servo positions: {standing_servos}")
-        isaac_ordered_standing = standing_servos[self.esp32_servo_order]
-        standing_radians = (isaac_ordered_standing - 512) / (1024 / (2 * np.pi))
-        self.hardware_standing_angles = standing_radians / self.joint_direction_multipliers
-        print(f"Hardware standing angles: {self.hardware_standing_angles}")
-        
         self.servo_offset = 512
         self.servo_scale = 1024 / (2 * np.pi)
         
-        self.ACTION_SCALE = 0.15
-        self.MAX_ACTION_CHANGE = 0.05
+        # Start VERY conservative
+        self.ACTION_SCALE = 0.01  # Much smaller!
+        self.MAX_ACTION_CHANGE = 0.01  # Much smaller!
         self.prev_actions = np.zeros(12)
         
-        self.prev_positions = self.hardware_standing_angles.copy()
+        # Initialize with training defaults for safety
+        self.prev_positions = np.zeros(12)  # Will store relative positions
         self.prev_time = time.time()
         self.velocity_command = np.zeros(3)
         self.control_active = False
@@ -65,7 +59,7 @@ class FinalMLPController:
         
         # Debug timing
         self.last_debug_time = time.time()
-        self.debug_interval = 2.0  # Debug every 2 seconds
+        self.debug_interval = 2.0
         
     def calibrate_imu(self, samples=50):
         print("Keep robot still for IMU calibration...")
@@ -98,7 +92,6 @@ class FinalMLPController:
         print(f"  Gyro offset: {self.gyro_offset}")
         print(f"  Gravity scale: {self.gravity_scale}")
     
-
     def get_observation(self):
         try:
             imu_data = self.esp32.imu_get_data()
@@ -125,20 +118,20 @@ class FinalMLPController:
             isaac_loads = raw_loads[self.esp32_servo_order]
             
             hardware_radians = (isaac_positions - self.servo_offset) / self.servo_scale
-            joint_positions = hardware_radians / self.joint_direction_multipliers
+            joint_positions_actual = hardware_radians / self.joint_direction_multipliers
             
-            # The observation should be the actual joint positions, not relative
-            isaac_joint_positions = joint_positions
+            # Calculate positions relative to training defaults (what the policy expects)
+            joint_positions_relative = joint_positions_actual - self.isaac_training_defaults
             
             current_time = time.time()
             dt = current_time - self.prev_time
             if dt > 0.001:
-                joint_velocities = (isaac_joint_positions - self.prev_positions) / dt
+                joint_velocities = (joint_positions_relative - self.prev_positions) / dt
                 joint_velocities = np.clip(joint_velocities, -10, 10)
             else:
                 joint_velocities = np.zeros(12)
             
-            self.prev_positions = isaac_joint_positions.copy()
+            self.prev_positions = joint_positions_relative.copy()
             self.prev_time = current_time
             
             joint_efforts = np.clip(isaac_loads / 500.0, -10, 10)
@@ -148,7 +141,7 @@ class FinalMLPController:
                 gyro_calibrated,
                 projected_gravity,
                 self.velocity_command,
-                isaac_joint_positions,  # Use actual positions
+                joint_positions_relative,  # Relative positions
                 joint_velocities,
                 joint_efforts,
                 self.prev_actions
@@ -170,9 +163,9 @@ class FinalMLPController:
                 for i in range(4):
                     leg = ["LF", "RF", "LB", "RB"][i]
                     idx = i * 3
-                    print(f"  {leg}: Hip={isaac_relative_positions[idx]:.3f}, "
-                          f"Thigh={isaac_relative_positions[idx+1]:.3f}, "
-                          f"Calf={isaac_relative_positions[idx+2]:.3f}")
+                    print(f"  {leg}: Hip={joint_positions_relative[idx]:.3f}, "
+                          f"Thigh={joint_positions_relative[idx+1]:.3f}, "
+                          f"Calf={joint_positions_relative[idx+2]:.3f}")
                 print("-"*40)
                 print(f"Joint Velocities (min/max): {np.min(joint_velocities):.3f} / {np.max(joint_velocities):.3f}")
                 print(f"Joint Efforts (min/max): {np.min(joint_efforts):.3f} / {np.max(joint_efforts):.3f}")
@@ -183,18 +176,20 @@ class FinalMLPController:
             
         except Exception as e:
             print(f"Error getting observation: {e}")
+            import traceback
+            traceback.print_exc()
             return self._get_safe_observation()
     
     def _get_safe_observation(self):
         return np.concatenate([
-            np.zeros(3),
-            np.zeros(3),
-            np.array([0, 0, -1]),
-            self.velocity_command,
-            self.isaac_training_defaults,
-            np.zeros(12),
-            np.zeros(12),
-            self.prev_actions
+            np.array([0, 0, -9.81]),     # Gravity
+            np.zeros(3),                 # No rotation
+            np.array([0, 0, -1]),        # Gravity direction
+            self.velocity_command,       # Current command
+            np.zeros(12),                # Zero relative position
+            np.zeros(12),                # No velocity
+            np.zeros(12),                # No effort
+            self.prev_actions            # Previous actions
         ])
     
     def process_actions(self, mlp_actions):
@@ -209,9 +204,9 @@ class FinalMLPController:
         limited = scaled.copy()
         for i in range(4):
             base_idx = i * 3
-            limited[base_idx] = np.clip(limited[base_idx], -0.5, 0.5)
-            limited[base_idx + 1] = np.clip(limited[base_idx + 1], -1.0, 1.0)
-            limited[base_idx + 2] = np.clip(limited[base_idx + 2], -1.0, 1.0)
+            limited[base_idx] = np.clip(limited[base_idx], -0.1, 0.1)      # Hip
+            limited[base_idx + 1] = np.clip(limited[base_idx + 1], -0.2, 0.2)  # Thigh  
+            limited[base_idx + 2] = np.clip(limited[base_idx + 2], -0.2, 0.2)  # Calf
         
         action_delta = limited - self.prev_actions
         action_delta = np.clip(action_delta, -self.MAX_ACTION_CHANGE, self.MAX_ACTION_CHANGE)
@@ -231,20 +226,33 @@ class FinalMLPController:
         
         # More debug info
         if time.time() - self.last_debug_time < 0.1:
-            print(f"Scaled actions: {scaled}")
-            print(f"Smoothed actions: {smoothed}")
-            print(f"Target angles (absolute): {isaac_absolute}")
-            print(f"Servo positions: {servo_positions}")
+            print(f"Scaled actions: {scaled[:6]}...")  # First 6 for brevity
+            print(f"Smoothed actions: {smoothed[:6]}...")
+            print(f"Target angles: {target_positions[:6]}...")
+            print(f"Servo positions: {servo_positions[:6]}...")
             print("-"*80)
         
         return [int(pos) for pos in esp32_positions]
+    
+    def go_to_default_stance(self):
+        """Safely move to default stance"""
+        print("Moving to default stance...")
+        target_positions = self.isaac_training_defaults
+        hardware_corrected = target_positions * self.joint_direction_multipliers
+        servo_positions = hardware_corrected * self.servo_scale + self.servo_offset
+        servo_positions = np.clip(servo_positions, 100, 924)
+        esp32_positions = servo_positions[self.isaac_to_esp32]
+        
+        self.esp32.servos_set_position([int(pos) for pos in esp32_positions])
+        time.sleep(1.0)
+        print("At default stance")
     
     def control_loop(self):
         dt_target = 1.0 / self.CONTROL_FREQUENCY
         
         print(f"\nControl loop started at {self.CONTROL_FREQUENCY}Hz")
-        print("Waiting for velocity commands...")
-        print("Use set_velocity_command(vx, vy, vyaw) to control robot")
+        print("Moving to safe default stance first...")
+        self.go_to_default_stance()
         
         while not self.shutdown:
             loop_start = time.time()
@@ -262,25 +270,25 @@ class FinalMLPController:
                     
                     if len(self.loop_times) == self.loop_times.maxlen:
                         avg_time = np.mean(self.loop_times)
-                        # Regular status update (not debug)
+                        # Regular status update
                         if int(loop_start) % 50 == 0:  # Every second at 50Hz
                             print(f"Status - Loop: {1/avg_time:.1f}Hz | "
                                   f"Cmd: [{self.velocity_command[0]:.2f}, "
                                   f"{self.velocity_command[1]:.2f}, "
-                                  f"{self.velocity_command[2]:.2f}]")
+                                  f"{self.velocity_command[2]:.2f}] | "
+                                  f"Action scale: {self.ACTION_SCALE:.3f}")
                                   
                 else:
-                    standing_servos = self.hardware_standing_angles * self.joint_direction_multipliers
-                    servo_positions = standing_servos * self.servo_scale + self.servo_offset
-                    servo_positions = np.clip(servo_positions, 100, 924)
-                    esp32_positions = servo_positions[self.isaac_to_esp32]
-                    self.esp32.servos_set_position([int(pos) for pos in esp32_positions])
+                    # Hold default stance when not active
+                    pass
                     
             except Exception as e:
                 print(f"Control loop error: {e}")
                 import traceback
                 traceback.print_exc()
                 self.control_active = False
+                # Go to safe stance on error
+                self.go_to_default_stance()
             
             elapsed = time.time() - loop_start
             self.loop_times.append(elapsed)
@@ -309,13 +317,7 @@ class FinalMLPController:
         self.control_active = False
         self.shutdown = True
         time.sleep(0.1)
-        
-        print("Returning to standing position...")
-        standing_servos = self.hardware_standing_angles * self.joint_direction_multipliers
-        servo_positions = standing_servos * self.servo_scale + self.servo_offset
-        servo_positions = np.clip(servo_positions, 100, 924)
-        esp32_positions = servo_positions[self.isaac_to_esp32]
-        self.esp32.servos_set_position([int(pos) for pos in esp32_positions])
+        self.go_to_default_stance()
 
 
 if __name__ == "__main__":
@@ -336,15 +338,17 @@ if __name__ == "__main__":
             print("  a/d: strafe left/right")
             print("  q/e: turn left/right")
             print("  space: stop")
+            print("  t: test stand (very small movements)")
+            print("  scale <value>: set action scale (e.g., scale 0.02)")
             print("  x: exit")
             print("="*60)
             
             cmd = input("Enter command: ").strip().lower()
             
             if cmd == 'w':
-                controller.set_velocity_command(0.3, 0.0, 0.0)
+                controller.set_velocity_command(0.2, 0.0, 0.0)
             elif cmd == 's':
-                controller.set_velocity_command(-0.3, 0.0, 0.0)
+                controller.set_velocity_command(-0.2, 0.0, 0.0)
             elif cmd == 'a':
                 controller.set_velocity_command(0.0, 0.2, 0.0)
             elif cmd == 'd':
@@ -355,18 +359,19 @@ if __name__ == "__main__":
                 controller.set_velocity_command(0.0, 0.0, -0.2)
             elif cmd == ' ':
                 controller.set_velocity_command(0.0, 0.0, 0.0)
-            elif cmd == 't':  # Test mode - just try to maintain standing
-                print("Test mode - maintaining standing position")
-                controller.ACTION_SCALE = 0.01  # Very small actions
+            elif cmd == 't':
+                print("Test mode - very small movements")
+                controller.ACTION_SCALE = 0.005  # Even smaller!
+                controller.MAX_ACTION_CHANGE = 0.005
                 controller.set_velocity_command(0.0, 0.0, 0.0)
-                controller.control_active = True
-            elif cmd.startswith('scale'):  # Allow setting action scale
+            elif cmd.startswith('scale'):
                 try:
                     scale = float(cmd.split()[1])
-                    controller.ACTION_SCALE = np.clip(scale, 0.001, 0.5)
+                    controller.ACTION_SCALE = np.clip(scale, 0.001, 0.1)  # Max 0.1 for safety
+                    controller.MAX_ACTION_CHANGE = controller.ACTION_SCALE
                     print(f"Action scale set to: {controller.ACTION_SCALE}")
                 except:
-                    print("Usage: scale <value>  (e.g., scale 0.05)")
+                    print("Usage: scale <value>  (e.g., scale 0.02)")
             elif cmd == 'x':
                 break
             else:

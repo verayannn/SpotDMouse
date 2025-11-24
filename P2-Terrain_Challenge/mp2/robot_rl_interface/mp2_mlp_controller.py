@@ -28,11 +28,20 @@ class FinalMLPController:
             self.isaac_to_esp32[esp_idx] = i
         
         # Direction multipliers (from hardware testing)
+        # self.joint_direction_multipliers = np.array([
+        #     -1.0,  1.0,  1.0,  # LF: hip inward, thigh/calf forward positive
+        #      1.0, -1.0, -1.0,  # RF: hip outward, thigh/calf forward negative
+        #     -1.0,  1.0,  1.0,  # LB: hip inward, thigh/calf forward positive
+        #     -1.0, -1.0, -1.0,  # RB: hip outward, thigh/calf forward negative
+        # ])
+
+                # Direction multipliers (based on real hardware vs simulation mapping)
+        # If real and sim have same positive direction: 1.0, if opposite: -1.0
         self.joint_direction_multipliers = np.array([
-            -1.0,  1.0,  1.0,  # LF: hip inward, thigh/calf forward positive
-             1.0, -1.0, -1.0,  # RF: hip outward, thigh/calf forward negative
-            -1.0,  1.0,  1.0,  # LB: hip inward, thigh/calf forward positive
-            -1.0, -1.0, -1.0,  # RB: hip outward, thigh/calf forward negative
+            -1.0, -1.0, -1.0,  # LF: hip (real outward+ vs sim inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
+            -1.0,  1.0,  1.0,  # RF: hip (real inward+ vs sim outward+), thigh (both backward+), calf (both extend+)  
+             1.0, -1.0, -1.0,  # LB: hip (both inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
+             1.0,  1.0,  1.0,  # RB: hip (both outward+), thigh (both backward+), calf (both extend+)
         ])
         
         # === Reference Frame Translation ===
@@ -58,8 +67,8 @@ class FinalMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # === Action Processing ===
-        self.ACTION_SCALE = 0.25
-        self.MAX_ACTION_CHANGE = 0.1
+        self.ACTION_SCALE = 0.1
+        self.MAX_ACTION_CHANGE = 0.05
         self.prev_actions = np.zeros(12)
         
         # === State Tracking ===

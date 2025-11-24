@@ -98,6 +98,7 @@ class FinalMLPController:
         print(f"  Gyro offset: {self.gyro_offset}")
         print(f"  Gravity scale: {self.gravity_scale}")
     
+
     def get_observation(self):
         try:
             imu_data = self.esp32.imu_get_data()
@@ -107,6 +108,9 @@ class FinalMLPController:
             
             gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
             gyro_calibrated = gyro_raw - self.gyro_offset
+            
+            # Convert gyro from degrees/s to rad/s
+            gyro_calibrated = gyro_calibrated * (np.pi / 180.0)
             
             accel_norm = np.linalg.norm(accel_calibrated)
             if accel_norm > 0.1:
@@ -121,20 +125,20 @@ class FinalMLPController:
             isaac_loads = raw_loads[self.esp32_servo_order]
             
             hardware_radians = (isaac_positions - self.servo_offset) / self.servo_scale
-            true_angles = hardware_radians / self.joint_direction_multipliers
+            joint_positions = hardware_radians / self.joint_direction_multipliers
             
-            isaac_relative_positions = (true_angles - self.hardware_standing_angles + 
-                                       self.isaac_training_defaults)
+            # The observation should be the actual joint positions, not relative
+            isaac_joint_positions = joint_positions
             
             current_time = time.time()
             dt = current_time - self.prev_time
             if dt > 0.001:
-                joint_velocities = (isaac_relative_positions - self.prev_positions) / dt
+                joint_velocities = (isaac_joint_positions - self.prev_positions) / dt
                 joint_velocities = np.clip(joint_velocities, -10, 10)
             else:
                 joint_velocities = np.zeros(12)
             
-            self.prev_positions = isaac_relative_positions.copy()
+            self.prev_positions = isaac_joint_positions.copy()
             self.prev_time = current_time
             
             joint_efforts = np.clip(isaac_loads / 500.0, -10, 10)
@@ -144,7 +148,7 @@ class FinalMLPController:
                 gyro_calibrated,
                 projected_gravity,
                 self.velocity_command,
-                isaac_relative_positions,
+                isaac_joint_positions,  # Use actual positions
                 joint_velocities,
                 joint_efforts,
                 self.prev_actions
@@ -195,7 +199,7 @@ class FinalMLPController:
     
     def process_actions(self, mlp_actions):
         # Debug actions every 2 seconds
-        if time.time() - self.last_debug_time < 0.1:  # Just after observation debug
+        if time.time() - self.last_debug_time < 0.1:
             print("\nACTION DEBUG:")
             print(f"Raw MLP outputs: {mlp_actions}")
             print(f"Action range: [{np.min(mlp_actions):.3f}, {np.max(mlp_actions):.3f}]")
@@ -215,13 +219,11 @@ class FinalMLPController:
         
         self.prev_actions = smoothed.copy()
         
-        isaac_absolute = smoothed + self.isaac_training_defaults
+        # Actions are deltas from training defaults
+        target_positions = self.isaac_training_defaults + smoothed
         
-        hardware_angles = (isaac_absolute - self.isaac_training_defaults + 
-                          self.hardware_standing_angles)
-        
-        hardware_corrected = hardware_angles * self.joint_direction_multipliers
-        
+        # Convert to hardware
+        hardware_corrected = target_positions * self.joint_direction_multipliers
         servo_positions = hardware_corrected * self.servo_scale + self.servo_offset
         servo_positions = np.clip(servo_positions, 100, 924)
         
@@ -358,6 +360,13 @@ if __name__ == "__main__":
                 controller.ACTION_SCALE = 0.01  # Very small actions
                 controller.set_velocity_command(0.0, 0.0, 0.0)
                 controller.control_active = True
+            elif cmd.startswith('scale'):  # Allow setting action scale
+                try:
+                    scale = float(cmd.split()[1])
+                    controller.ACTION_SCALE = np.clip(scale, 0.001, 0.5)
+                    print(f"Action scale set to: {controller.ACTION_SCALE}")
+                except:
+                    print("Usage: scale <value>  (e.g., scale 0.05)")
             elif cmd == 'x':
                 break
             else:

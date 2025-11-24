@@ -149,8 +149,12 @@ class FinalMLPController:
             
             # Transform to Isaac's training reference frame
             # This is critical: MLP expects positions relative to its training defaults
-            isaac_relative_positions = (true_angles - self.hardware_standing_angles + 
-                                       self.isaac_training_defaults)
+            # isaac_relative_positions = (true_angles - self.hardware_standing_angles + 
+            #                            self.isaac_training_defaults)
+                        # Simplified joint position calculation
+            # Just give relative positions from standing pose
+            isaac_relative_positions = true_angles - self.hardware_standing_angles
+            print(f"Joint positions (relative): {isaac_relative_positions[:6]}")
             
             # Calculate joint velocities
             current_time = time.time()
@@ -251,6 +255,14 @@ class FinalMLPController:
                 if self.control_active:
                     # Get observation with all sensor data
                     obs = self.get_observation()
+
+                    # DEBUG: Check what policy sees
+                    if int(loop_start * 10) % 50 == 0:  # Every 5 seconds
+                        print(f"POLICY INPUT DEBUG:")
+                        print(f"  Gravity: {obs[6:9]}")
+                        print(f"  Commands: {obs[9:12]}")
+                        print(f"  Joint pos: {obs[12:24]}")
+                        print(f"  Expected standing: {self.isaac_training_defaults}")
                     
                     # Run policy inference
                     with torch.no_grad():

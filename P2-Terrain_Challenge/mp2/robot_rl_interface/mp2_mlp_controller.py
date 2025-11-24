@@ -98,14 +98,12 @@ class FinalMLPController:
             if i % 10 == 0:
                 print(f"  Calibration {i}/{samples}")
         
-        # Calculate offsets
-        self.accel_offset = accel_sum / samples
+        # Calculate offsets - ONLY for gyro, NOT accelerometer!
+        self.accel_offset = np.zeros(3)  # Don't offset accelerometer - we need gravity!
         self.gyro_offset = gyro_sum / samples
         
-        # Gravity should be ~9.81 on z-axis when upright
-        expected_gravity = 9.81
-        actual_gravity = np.linalg.norm(self.accel_offset)
-        self.gravity_scale = expected_gravity / actual_gravity if actual_gravity > 0 else 1.0
+        # No gravity scaling needed if we're not offsetting accel
+        self.gravity_scale = 1.0
         
         print(f"IMU calibration complete:")
         print(f"  Accel offset: {self.accel_offset}")
@@ -114,6 +112,24 @@ class FinalMLPController:
     
     def get_observation(self):
         """Get complete observation with real sensor data"""
+        # try:
+        #     # === IMU Data ===
+        #     imu_data = self.esp32.imu_get_data()
+            
+        #     # Apply calibration to accelerometer
+        #     accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
+        #     accel_calibrated = (accel_raw - self.accel_offset) * self.gravity_scale
+            
+        #     # Apply calibration to gyroscope
+        #     gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
+        #     gyro_calibrated = gyro_raw - self.gyro_offset
+            
+        #     # Calculate projected gravity (normalized acceleration vector)
+        #     accel_norm = np.linalg.norm(accel_calibrated)
+        #     if accel_norm > 0.1:
+        #         projected_gravity = accel_calibrated / accel_norm
+        #     else:
+        #         projected_gravity = np.array([0, 0, -1])
         try:
             # === IMU Data ===
             imu_data = self.esp32.imu_get_data()
@@ -122,16 +138,18 @@ class FinalMLPController:
             accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
             accel_calibrated = (accel_raw - self.accel_offset) * self.gravity_scale
             
-            # Apply calibration to gyroscope
-            gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
-            gyro_calibrated = gyro_raw - self.gyro_offset
+            # DEBUG: Print raw vs calibrated
+            print(f"Raw accel: {accel_raw}")
+            print(f"Calibrated accel: {accel_calibrated}")
             
             # Calculate projected gravity (normalized acceleration vector)
             accel_norm = np.linalg.norm(accel_calibrated)
             if accel_norm > 0.1:
                 projected_gravity = accel_calibrated / accel_norm
             else:
-                projected_gravity = np.array([0, 0, -1])
+                projected_gravity = np.array([0, 0, -1])  # Default upright
+            
+            print(f"Projected gravity: {projected_gravity}")
             
             # === Joint Data ===
             raw_positions = np.array(self.esp32.servos_get_position())
@@ -153,8 +171,8 @@ class FinalMLPController:
             #                            self.isaac_training_defaults)
                         # Simplified joint position calculation
             # Just give relative positions from standing pose
-            isaac_relative_positions = true_angles - self.hardware_standing_angles
-            print(f"Joint positions (relative): {isaac_relative_positions[:6]}")
+            isaac_relative_positions = true_angles - self.isaac_training_defaults
+            print(f"Joint positions (relative to training): {isaac_relative_positions[:6]}")
             
             # Calculate joint velocities
             current_time = time.time()

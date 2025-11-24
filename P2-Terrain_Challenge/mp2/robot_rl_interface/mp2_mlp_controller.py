@@ -29,21 +29,21 @@ class FinalMLPController:
 
         # Direction multipliers (based on real hardware vs simulation mapping)
         # If real and sim have same positive direction: 1.0, if opposite: -1.0
-        # self.joint_direction_multipliers = np.array([
-        #     -1.0, -1.0, -1.0,  # LF: hip (real outward+ vs sim inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
-        #     -1.0,  1.0,  1.0,  # RF: hip (real inward+ vs sim outward+), thigh (both backward+), calf (both extend+)  
-        #      1.0, -1.0, -1.0,  # LB: hip (both inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
-        #      1.0,  1.0,  1.0,  # RB: hip (both outward+), thigh (both backward+), calf (both extend+)
-        # ])
+        self.joint_direction_multipliers = np.array([
+            -1.0, -1.0, -1.0,  # LF: hip (real outward+ vs sim inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
+            -1.0,  1.0,  1.0,  # RF: hip (real inward+ vs sim outward+), thigh (both backward+), calf (both extend+)  
+             1.0, -1.0, -1.0,  # LB: hip (both inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
+             1.0,  1.0,  1.0,  # RB: hip (both outward+), thigh (both backward+), calf (both extend+)
+        ])
         
         # Direction multipliers (REVERSED - testing if mapping was backwards)
         # If real and sim have same positive direction: 1.0, if opposite: -1.0
-        self.joint_direction_multipliers = np.array([
-             1.0,  1.0,  1.0,  # LF: Try reversing all
-             1.0, -1.0, -1.0,  # RF: Try reversing hip
-            -1.0,  1.0,  1.0,  # LB: Try reversing hip
-            -1.0, -1.0, -1.0,  # RB: Try reversing all
-        ])
+        # self.joint_direction_multipliers = np.array([
+        #      1.0,  1.0,  1.0,  # LF: Try reversing all
+        #      1.0, -1.0, -1.0,  # RF: Try reversing hip
+        #     -1.0,  1.0,  1.0,  # LB: Try reversing hip
+        #     -1.0, -1.0, -1.0,  # RB: Try reversing all
+        # ])
         # === Reference Frame Translation ===
         
         # Isaac Sim training defaults (what the policy expects)

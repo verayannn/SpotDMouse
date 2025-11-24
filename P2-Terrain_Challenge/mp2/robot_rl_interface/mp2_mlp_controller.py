@@ -26,24 +26,24 @@ class FinalMLPController:
         self.isaac_to_esp32 = np.zeros(12, dtype=int)
         for i, esp_idx in enumerate(self.esp32_servo_order):
             self.isaac_to_esp32[esp_idx] = i
-        
-        # Direction multipliers (from hardware testing)
-        # self.joint_direction_multipliers = np.array([
-        #     -1.0,  1.0,  1.0,  # LF: hip inward, thigh/calf forward positive
-        #      1.0, -1.0, -1.0,  # RF: hip outward, thigh/calf forward negative
-        #     -1.0,  1.0,  1.0,  # LB: hip inward, thigh/calf forward positive
-        #     -1.0, -1.0, -1.0,  # RB: hip outward, thigh/calf forward negative
-        # ])
 
-                # Direction multipliers (based on real hardware vs simulation mapping)
+        # Direction multipliers (based on real hardware vs simulation mapping)
+        # If real and sim have same positive direction: 1.0, if opposite: -1.0
+        # self.joint_direction_multipliers = np.array([
+        #     -1.0, -1.0, -1.0,  # LF: hip (real outward+ vs sim inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
+        #     -1.0,  1.0,  1.0,  # RF: hip (real inward+ vs sim outward+), thigh (both backward+), calf (both extend+)  
+        #      1.0, -1.0, -1.0,  # LB: hip (both inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
+        #      1.0,  1.0,  1.0,  # RB: hip (both outward+), thigh (both backward+), calf (both extend+)
+        # ])
+        
+        # Direction multipliers (REVERSED - testing if mapping was backwards)
         # If real and sim have same positive direction: 1.0, if opposite: -1.0
         self.joint_direction_multipliers = np.array([
-            -1.0, -1.0, -1.0,  # LF: hip (real outward+ vs sim inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
-            -1.0,  1.0,  1.0,  # RF: hip (real inward+ vs sim outward+), thigh (both backward+), calf (both extend+)  
-             1.0, -1.0, -1.0,  # LB: hip (both inward+), thigh (real forward+ vs sim backward+), calf (real flex+ vs sim extend+)
-             1.0,  1.0,  1.0,  # RB: hip (both outward+), thigh (both backward+), calf (both extend+)
+             1.0,  1.0,  1.0,  # LF: Try reversing all
+             1.0, -1.0, -1.0,  # RF: Try reversing hip
+            -1.0,  1.0,  1.0,  # LB: Try reversing hip
+            -1.0, -1.0, -1.0,  # RB: Try reversing all
         ])
-        
         # === Reference Frame Translation ===
         
         # Isaac Sim training defaults (what the policy expects)
@@ -67,8 +67,8 @@ class FinalMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # === Action Processing ===
-        self.ACTION_SCALE = 0.1
-        self.MAX_ACTION_CHANGE = 0.05
+        self.ACTION_SCALE = 0.3
+        self.MAX_ACTION_CHANGE = 0.1
         self.prev_actions = np.zeros(12)
         
         # === State Tracking ===
@@ -211,8 +211,12 @@ class FinalMLPController:
     
     def process_actions(self, mlp_actions):
         """Convert MLP actions to hardware servo commands"""
+        # DEBUG: Print raw actions from MLP
+        print(f"Raw MLP actions: {mlp_actions[:6]}")  # Show first 6 for LF and RF
+        
         # Scale actions (MLP outputs are typically normalized)
         scaled = mlp_actions * self.ACTION_SCALE
+        print(f"Scaled actions: {scaled[:6]}")
         
         # Apply per-joint limits based on training
         limited = scaled.copy()
@@ -225,6 +229,8 @@ class FinalMLPController:
             # Calf: medium range
             limited[base_idx + 2] = np.clip(limited[base_idx + 2], -1.0, 1.0)
         
+        print(f"Limited actions: {limited[:6]}")
+        
         # Smooth actions to prevent jerky movements
         action_delta = limited - self.prev_actions
         action_delta = np.clip(action_delta, -self.MAX_ACTION_CHANGE, self.MAX_ACTION_CHANGE)
@@ -236,19 +242,23 @@ class FinalMLPController:
         # === Reference Frame Translation ===
         # MLP outputs are relative to Isaac training defaults
         isaac_absolute = smoothed + self.isaac_training_defaults
+        print(f"Isaac absolute: {isaac_absolute[:6]}")
         
         # Transform from Isaac frame to hardware frame
         # 1. Remove Isaac's training standing pose
         # 2. Add hardware's actual standing pose
         hardware_angles = (isaac_absolute - self.isaac_training_defaults + 
                           self.hardware_standing_angles)
+        print(f"Hardware angles: {hardware_angles[:6]}")
         
         # Apply direction corrections for hardware
         hardware_corrected = hardware_angles * self.joint_direction_multipliers
+        print(f"Hardware corrected: {hardware_corrected[:6]}")
         
         # Convert to servo positions
         servo_positions = hardware_corrected * self.servo_scale + self.servo_offset
         servo_positions = np.clip(servo_positions, 100, 924)
+        print(f"Servo positions: {servo_positions[:6]}")
         
         # Reorder for ESP32 interface
         esp32_positions = servo_positions[self.isaac_to_esp32]

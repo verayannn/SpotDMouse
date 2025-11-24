@@ -353,6 +353,11 @@ if __name__ == "__main__":
                 controller.set_velocity_command(0.0, 0.0, -0.2)
             elif cmd == ' ':
                 controller.set_velocity_command(0.0, 0.0, 0.0)
+            elif cmd == 't':  # Test mode - just try to maintain standing
+                print("Test mode - maintaining standing position")
+                controller.ACTION_SCALE = 0.01  # Very small actions
+                controller.set_velocity_command(0.0, 0.0, 0.0)
+                controller.control_active = True
             elif cmd == 'x':
                 break
             else:

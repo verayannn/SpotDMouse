@@ -36,14 +36,6 @@ class FinalMLPController:
              1.0,  1.0,  1.0,  # RB: hip (both outward+), thigh (both backward+), calf (both extend+)
         ])
         
-        # Direction multipliers (REVERSED - testing if mapping was backwards)
-        # If real and sim have same positive direction: 1.0, if opposite: -1.0
-        # self.joint_direction_multipliers = np.array([
-        #      1.0,  1.0,  1.0,  # LF: Try reversing all
-        #      1.0, -1.0, -1.0,  # RF: Try reversing hip
-        #     -1.0,  1.0,  1.0,  # LB: Try reversing hip
-        #     -1.0, -1.0, -1.0,  # RB: Try reversing all
-        # ])
         # === Reference Frame Translation ===
         
         # Isaac Sim training defaults (what the policy expects)
@@ -210,59 +202,38 @@ class FinalMLPController:
         ])
     
     def process_actions(self, mlp_actions):
-        """Convert MLP actions to hardware servo commands"""
-        # DEBUG: Print raw actions from MLP
-        print(f"Raw MLP actions: {mlp_actions[:6]}")  # Show first 6 for LF and RF
+        """Convert MLP actions to hardware servo commands - SIMPLIFIED"""
+        print(f"Raw MLP actions: {mlp_actions[:6]}")
         
-        # Scale actions (MLP outputs are typically normalized)
+        # Scale actions
         scaled = mlp_actions * self.ACTION_SCALE
         print(f"Scaled actions: {scaled[:6]}")
         
-        # Apply per-joint limits based on training
-        limited = scaled.copy()
-        for i in range(4):  # 4 legs
-            base_idx = i * 3
-            # Hip: smaller range
-            limited[base_idx] = np.clip(limited[base_idx], -0.5, 0.5)
-            # Thigh: medium range
-            limited[base_idx + 1] = np.clip(limited[base_idx + 1], -1.0, 1.0)
-            # Calf: medium range
-            limited[base_idx + 2] = np.clip(limited[base_idx + 2], -1.0, 1.0)
-        
+        # Apply limits
+        limited = np.clip(scaled, -0.3, 0.3)  # Simple uniform limits
         print(f"Limited actions: {limited[:6]}")
         
-        # Smooth actions to prevent jerky movements
+        # Smooth actions
         action_delta = limited - self.prev_actions
         action_delta = np.clip(action_delta, -self.MAX_ACTION_CHANGE, self.MAX_ACTION_CHANGE)
         smoothed = self.prev_actions + action_delta
-        
-        # Update for next iteration
         self.prev_actions = smoothed.copy()
         
-        # === Reference Frame Translation ===
-        # MLP outputs are relative to Isaac training defaults
-        isaac_absolute = smoothed + self.isaac_training_defaults
-        print(f"Isaac absolute: {isaac_absolute[:6]}")
+        # SIMPLIFIED: MLP actions are DIRECT joint angle commands relative to standing pose
+        # No double transformation - just add to hardware standing position
+        target_angles = self.hardware_standing_angles + smoothed
+        print(f"Target angles: {target_angles[:6]}")
         
-        # Transform from Isaac frame to hardware frame
-        # 1. Remove Isaac's training standing pose
-        # 2. Add hardware's actual standing pose
-        hardware_angles = (isaac_absolute - self.isaac_training_defaults + 
-                          self.hardware_standing_angles)
-        print(f"Hardware angles: {hardware_angles[:6]}")
-        
-        # Apply direction corrections for hardware
-        hardware_corrected = hardware_angles * self.joint_direction_multipliers
+        # Apply direction corrections
+        hardware_corrected = target_angles * self.joint_direction_multipliers
         print(f"Hardware corrected: {hardware_corrected[:6]}")
         
         # Convert to servo positions
         servo_positions = hardware_corrected * self.servo_scale + self.servo_offset
         servo_positions = np.clip(servo_positions, 100, 924)
-        print(f"Servo positions: {servo_positions[:6]}")
         
-        # Reorder for ESP32 interface
+        # Reorder for ESP32
         esp32_positions = servo_positions[self.isaac_to_esp32]
-        
         return [int(pos) for pos in esp32_positions]
     
     def control_loop(self):

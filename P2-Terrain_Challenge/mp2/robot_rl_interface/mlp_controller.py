@@ -181,6 +181,19 @@ class MatchedMLPController:
             print(f"Raw: [{raw_actions.min():.3f}, {raw_actions.max():.3f}]")
             print(f"Out: [{actions.min():.3f}, {actions.max():.3f}]")
         
+        if self.debug_counter % 100 == 0:  # Every 2 seconds
+            print(f"\n--- Step {self.debug_counter} | Cmd: {self.velocity_command} ---")
+            print(f"Joint Pos Rel (per leg):")
+            print(f"  LF: [{joint_pos_rel[0]:+.2f}, {joint_pos_rel[1]:+.2f}, {joint_pos_rel[2]:+.2f}]")
+            print(f"  RF: [{joint_pos_rel[3]:+.2f}, {joint_pos_rel[4]:+.2f}, {joint_pos_rel[5]:+.2f}]")
+            print(f"  LB: [{joint_pos_rel[6]:+.2f}, {joint_pos_rel[7]:+.2f}, {joint_pos_rel[8]:+.2f}]")
+            print(f"  RB: [{joint_pos_rel[9]:+.2f}, {joint_pos_rel[10]:+.2f}, {joint_pos_rel[11]:+.2f}]")
+            print(f"Actions (per leg):")
+            print(f"  LF: [{actions[0]:+.2f}, {actions[1]:+.2f}, {actions[2]:+.2f}]")
+            print(f"  RF: [{actions[3]:+.2f}, {actions[4]:+.2f}, {actions[5]:+.2f}]")
+            print(f"  LB: [{actions[6]:+.2f}, {actions[7]:+.2f}, {actions[8]:+.2f}]")
+            print(f"  RB: [{actions[9]:+.2f}, {actions[10]:+.2f}, {actions[11]:+.2f}]")
+        
         return actions
     
     def control_loop(self):

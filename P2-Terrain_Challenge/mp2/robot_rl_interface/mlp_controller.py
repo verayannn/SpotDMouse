@@ -52,7 +52,7 @@ class MatchedMLPController:
         
         # Based on sim data: actions range ±1.5, joint_pos_rel ranges ±0.25
         self.action_clip = 1.5           # Match sim action range
-        self.obs_joint_pos_clip = 0.4    # Slightly wider than sim's ±0.25 for safety
+        self.obs_joint_pos_clip = 0.8#0.4    # Slightly wider than sim's ±0.25 for safety
         self.obs_joint_vel_clip = 1.5    # Match sim's joint velocity range
         self.obs_ang_vel_clip = 2.0      # Match sim's angular velocity range
         
@@ -273,6 +273,11 @@ if __name__ == "__main__":
                 ctrl.set_velocity_command(0, 0, -0.15)
             elif cmd == ' ' or cmd == '':
                 ctrl.set_velocity_command(0, 0, 0)
+            elif cmd == 'z':
+                ctrl.velocity_command = np.array([0.0, 0.0, 0.0])
+                ctrl.control_active = True
+                ctrl.startup_steps = 0
+                print("Zero velocity, active control")
             elif cmd == 'x':
                 break
     except KeyboardInterrupt:

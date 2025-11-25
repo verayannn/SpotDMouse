@@ -42,14 +42,8 @@ class WorkingMLPController:
         self.servo_scale = 1024 / (2 * np.pi)  # ~163 counts/radian
         
         # From training config
-<<<<<<< HEAD
-        self.ACTION_SCALE = 0.1
-
-        #self.ACTION_SCALE = 0.05        
-=======
         self.ACTION_SCALE = 0.05
         
->>>>>>> d5d5a4df0f79952c967610393115bfad22b65b49
         # Calibrate: find servo positions that correspond to Isaac defaults
         print("Calibrating to Isaac default pose...")
         self._calibrate()

@@ -4,7 +4,7 @@ import numpy as np
 
 # Define CORRECT paths based on your file system
 realbot_path = "/Users/javierweddington/isaaclabstock/realbot_compare/realbot_obs_action_logs/"
-sim_path = "/Users/javierweddington/isaaclabstock/isaaclabstock/obs_action_logs/"
+sim_path = '/Users/javierweddington/isaaclabstock/directional_obs_action_logs/obs_action_logs_x_015/'#"/Users/javierweddington/isaaclabstock/isaaclabstock/obs_action_logs/"
 
 # Load all 4 movements for real robot
 movements = ['Forward', 'Backward', 'Left', 'Right']

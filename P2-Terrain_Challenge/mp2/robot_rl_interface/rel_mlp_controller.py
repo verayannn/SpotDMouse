@@ -1,10 +1,9 @@
 import numpy as np
 import torch
 import time
-from collections import deque
 from MangDang.mini_pupper.ESP32Interface import ESP32Interface
 
-class WorkingMLPController:
+class SimplifiedMLPController:
     def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_only.pt"):
         self.esp32 = ESP32Interface()
         time.sleep(0.5)
@@ -13,40 +12,29 @@ class WorkingMLPController:
         self.policy.eval()
         print(f"Loaded policy from {policy_path}")
         
-        # Hardware mapping: Isaac joint index -> ESP32 servo index
-        # Isaac order: LF(0,1,2), RF(3,4,5), LB(6,7,8), RB(9,10,11)
-        # ESP32 order: RF(0,1,2), LF(3,4,5), RB(6,7,8), LB(9,10,11)
+        # Servo order: Isaac index -> ESP32 servo index
         self.esp32_servo_order = [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]
         
-        # Inverse mapping for writing
-        self.isaac_to_esp32 = np.argsort(self.esp32_servo_order)
-
-        # Direction multipliers: real_angle * multiplier = sim_angle
+        # Direction multipliers to convert hardware motion to sim motion
         self.direction_multipliers = np.array([
-            -1.0, -1.0, -1.0,  # LF: all inverted
-            -1.0,  1.0,  1.0,  # RF: hip inverted, thigh/calf same
-             1.0, -1.0, -1.0,  # LB: hip same, thigh/calf inverted
-             1.0,  1.0,  1.0,  # RB: all same
-        ])
-        
-        # Isaac default pose (what policy considers "zero" for joint_pos_rel)
-        self.isaac_defaults = np.array([
-             0.0, 0.785, -1.57,  # LF
-             0.0, 0.785, -1.57,  # RF
-             0.0, 0.785, -1.57,  # LB
-             0.0, 0.785, -1.57   # RB
+            -1.0, -1.0, -1.0,  # LF
+            -1.0,  1.0,  1.0,  # RF
+             1.0, -1.0, -1.0,  # LB
+             1.0,  1.0,  1.0,  # RB
         ])
         
         # Servo constants
         self.servo_center = 512
         self.servo_scale = 1024 / (2 * np.pi)  # ~163 counts/radian
         
-        # From training config
-        self.ACTION_SCALE = 0.05
+        # Action scale from training
+        self.ACTION_SCALE = 0.5  # Use the actual training value!
         
-        # Calibrate: find servo positions that correspond to Isaac defaults
-        print("Calibrating to Isaac default pose...")
-        self._calibrate()
+        # Record the standing pose servo positions
+        print("Recording standing pose...")
+        raw = np.array(self.esp32.servos_get_position())
+        self.standing_servos = raw[self.esp32_servo_order].astype(float)
+        print(f"Standing servo positions (Isaac order): {self.standing_servos}")
         
         # State
         self.prev_actions = np.zeros(12)
@@ -64,104 +52,79 @@ class WorkingMLPController:
         self.CONTROL_FREQUENCY = 50
         self.debug_counter = 0
         
-    def _calibrate(self):
-        """
-        Determine the servo positions that correspond to the Isaac default pose.
-        When robot is in standing pose, servos should produce isaac_defaults.
-        """
-        # Read current servo positions (robot should be in standing pose)
-        raw_servos = np.array(self.esp32.servos_get_position())
-        isaac_ordered = raw_servos[self.esp32_servo_order]
-        
-        # Convert to radians (hardware frame)
-        hardware_radians = (isaac_ordered - self.servo_center) / self.servo_scale
-        
-        # Convert to sim frame
-        sim_radians = hardware_radians * self.direction_multipliers
-        
-        print(f"Current servo positions (Isaac order): {isaac_ordered}")
-        print(f"Hardware radians: {hardware_radians}")
-        print(f"Sim frame angles: {sim_radians}")
-        print(f"Isaac defaults:   {self.isaac_defaults}")
-        
-        # The offset between current sim angles and Isaac defaults
-        # At standing, sim_radians should equal isaac_defaults
-        # If not, we need to account for this offset
-        self.calibration_offset = sim_radians - self.isaac_defaults
-        print(f"Calibration offset: {self.calibration_offset}")
-        print(f"(This should be near zero if robot is in proper standing pose)")
-        
     def _calibrate_imu(self, samples=50):
         print("Keep robot still...")
         gyro_sum = np.zeros(3)
-        
-        for i in range(samples):
+        for _ in range(samples):
             data = self.esp32.imu_get_data()
             gyro_sum += np.array([data['gx'], data['gy'], data['gz']])
             time.sleep(0.02)
-            
         self.gyro_offset = gyro_sum / samples
         print(f"Gyro offset: {self.gyro_offset}")
     
     def read_joint_positions(self):
-        """Read servo positions and convert to joint_pos_rel (sim frame, relative to defaults)."""
-        raw_servos = np.array(self.esp32.servos_get_position())
-        isaac_ordered = raw_servos[self.esp32_servo_order]
+        """
+        Read servos and return joint_pos_rel (deviation from standing pose, in sim frame).
+        At standing pose, this returns zeros.
+        """
+        raw = np.array(self.esp32.servos_get_position())
+        isaac_ordered = raw[self.esp32_servo_order].astype(float)
         
-        # To radians (hardware frame)
-        hardware_radians = (isaac_ordered - self.servo_center) / self.servo_scale
+        # Deviation from standing pose in servo units
+        servo_delta = isaac_ordered - self.standing_servos
         
-        # To sim frame
-        sim_radians = hardware_radians * self.direction_multipliers
+        # Convert to radians
+        delta_radians = servo_delta / self.servo_scale
         
-        # Relative to Isaac defaults (this is what joint_pos_rel means)
-        joint_pos_rel = sim_radians - self.isaac_defaults - self.calibration_offset
+        # Convert to sim frame (apply direction multipliers)
+        joint_pos_rel = delta_radians * self.direction_multipliers
         
         return joint_pos_rel
     
     def write_joint_positions(self, actions):
-        """Convert policy actions to servo commands and send."""
-        # Actions are offsets from default pose, scaled
+        """
+        Convert policy actions to servo commands.
+        Actions are desired joint_pos_rel values (deviations from standing, in sim frame).
+        """
+        # Scale actions
         target_pos_rel = actions * self.ACTION_SCALE
         
-        # Absolute position in sim frame
-        target_sim = self.isaac_defaults + target_pos_rel
+        # Convert from sim frame to hardware frame
+        delta_radians = target_pos_rel * self.direction_multipliers
         
-        # To hardware frame (multiply by same direction multipliers - they're self-inverse for ±1)
-        target_hardware = target_sim * self.direction_multipliers
+        # Convert to servo units
+        servo_delta = delta_radians * self.servo_scale
         
-        # To servo units
-        servo_positions = target_hardware * self.servo_scale + self.servo_center
-        servo_positions = np.clip(servo_positions, 150, 874)  # Safe range
+        # Add to standing pose
+        target_servos = self.standing_servos + servo_delta
+        target_servos = np.clip(target_servos, 150, 874)
         
         # Reorder for ESP32
-        esp32_positions = np.zeros(12)
-        for isaac_idx in range(12):
-            esp32_idx = self.esp32_servo_order[isaac_idx]
-            esp32_positions[esp32_idx] = servo_positions[isaac_idx]
+        esp32_out = np.zeros(12)
+        esp32_out[self.esp32_servo_order] = target_servos
         
-        self.esp32.servos_set_position([int(pos) for pos in esp32_positions])
+        self.esp32.servos_set_position([int(p) for p in esp32_out])
     
     def get_observation(self):
         """Build observation vector for policy."""
-        # IMU
         imu_data = self.esp32.imu_get_data()
         
         # Angular velocity (calibrated gyro)
         gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
         base_ang_vel = gyro_raw - self.gyro_offset
         
+        # Projected gravity (accelerometer already in correct convention)
         accel = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
         accel_norm = np.linalg.norm(accel)
         if accel_norm > 0.1:
-            projected_gravity = accel / accel_norm  # No negation!
+            projected_gravity = accel / accel_norm
         else:
             projected_gravity = np.array([0, 0, -1])
         
-        # Base linear velocity - zeros (policy should handle this via domain randomization)
+        # Base linear velocity - zeros
         base_lin_vel = np.zeros(3)
         
-        # Joint positions (relative to defaults)
+        # Joint positions (deviation from standing)
         joint_pos_rel = self.read_joint_positions()
         
         # Joint velocities
@@ -169,7 +132,6 @@ class WorkingMLPController:
         dt = current_time - self.prev_time
         if dt > 0.001:
             joint_vel_raw = (joint_pos_rel - self.prev_joint_pos_rel) / dt
-            # Low-pass filter
             alpha = 0.4
             joint_vel = alpha * joint_vel_raw + (1 - alpha) * self.prev_joint_vel
             joint_vel = np.clip(joint_vel, -1.5, 1.5)
@@ -201,35 +163,29 @@ class WorkingMLPController:
         """Single control loop iteration."""
         obs, joint_pos_rel, joint_vel = self.get_observation()
         
-        # Run policy
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
             actions = self.policy(obs_tensor).squeeze().numpy()
         
-        # Store for next observation
         self.prev_actions = actions.copy()
-        
-        # Send to servos
         self.write_joint_positions(actions)
         
-        # Debug output
         self.debug_counter += 1
-        if self.debug_counter % 50 == 0:  # Every second at 50Hz
+        if self.debug_counter % 50 == 0:
             print(f"\n--- Step {self.debug_counter} ---")
             print(f"Velocity cmd: {self.velocity_command}")
-            print(f"Joint pos rel: [{joint_pos_rel.min():.3f}, {joint_pos_rel.max():.3f}]")
+            print(f"Joint pos rel: [{joint_pos_rel.min():.4f}, {joint_pos_rel.max():.4f}]")
             print(f"Joint vel:     [{joint_vel.min():.3f}, {joint_vel.max():.3f}]")
             print(f"Actions:       [{actions.min():.3f}, {actions.max():.3f}]")
-            print(f"Sample actions: [{actions[0]:.2f}, {actions[1]:.2f}, {actions[2]:.2f}, {actions[3]:.2f}]")
+            print(f"Actions * scale: [{(actions*self.ACTION_SCALE).min():.3f}, {(actions*self.ACTION_SCALE).max():.3f}]")
         
         return actions
     
     def control_loop(self):
-        """Main control loop."""
         dt_target = 1.0 / self.CONTROL_FREQUENCY
         
         print(f"\nControl loop started at {self.CONTROL_FREQUENCY}Hz")
-        print("Use set_velocity_command(vx, vy, vyaw) to move")
+        print("Commands: w/s/a/d/q/e = move, space = stop, x = exit")
         
         while not self.shutdown:
             loop_start = time.time()
@@ -255,7 +211,6 @@ class WorkingMLPController:
         ])
         if np.any(np.abs(self.velocity_command) > 0.01):
             if not self.control_active:
-                # Reset state when starting
                 self.prev_actions = np.zeros(12)
                 self.prev_joint_pos_rel = self.read_joint_positions()
                 self.prev_joint_vel = np.zeros(12)
@@ -274,12 +229,16 @@ class WorkingMLPController:
 if __name__ == "__main__":
     import threading
     
-    controller = WorkingMLPController("/home/ubuntu/mp2_mlp/policy_only.pt")
+    controller = SimplifiedMLPController("/home/ubuntu/mp2_mlp/policy_only.pt")
+    
+    # Quick sanity check
+    print("\n--- Sanity Check ---")
+    pos = controller.read_joint_positions()
+    print(f"Joint pos rel at standing: {pos}")
+    print(f"(Should be very close to zeros)")
     
     thread = threading.Thread(target=controller.control_loop)
     thread.start()
-    
-    print("\nCommands: w=forward, s=back, a=left, d=right, q/e=turn, space=stop, x=exit")
     
     try:
         while True:

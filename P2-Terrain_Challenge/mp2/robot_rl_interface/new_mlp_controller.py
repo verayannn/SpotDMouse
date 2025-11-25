@@ -47,7 +47,7 @@ class CorrectedMLPController:
         self._calibrate_standing_pose()
         
         # Action scaling (from training config)
-        self.ACTION_SCALE = 0.25  # Check your training config for this value
+        self.ACTION_SCALE = 0.5  # Check your training config for this value
         
         # State variables
         self.prev_actions = np.zeros(12)

@@ -49,7 +49,7 @@ class SimplifiedMLPController:
         print("Calibrating IMU...")
         self._calibrate_imu()
         
-        self.CONTROL_FREQUENCY = 50
+        self.CONTROL_FREQUENCY = 30
         self.debug_counter = 0
         
     def _calibrate_imu(self, samples=50):

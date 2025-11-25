@@ -42,9 +42,14 @@ class WorkingMLPController:
         self.servo_scale = 1024 / (2 * np.pi)  # ~163 counts/radian
         
         # From training config
+<<<<<<< HEAD
         self.ACTION_SCALE = 0.1
 
         #self.ACTION_SCALE = 0.05        
+=======
+        self.ACTION_SCALE = 0.05
+        
+>>>>>>> d5d5a4df0f79952c967610393115bfad22b65b49
         # Calibrate: find servo positions that correspond to Isaac defaults
         print("Calibrating to Isaac default pose...")
         self._calibrate()
@@ -152,7 +157,7 @@ class WorkingMLPController:
         gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
         base_ang_vel = gyro_raw - self.gyro_offset
         
-        accel = np.array([imu['ax'], imu['ay'], imu['az']])
+        accel = np.array([imu_data['ax'], imu[_data'ay'], imu_data['az']])
         accel_norm = np.linalg.norm(accel)
         if accel_norm > 0.1:
             projected_gravity = accel / accel_norm  # No negation!

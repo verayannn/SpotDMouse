@@ -167,10 +167,27 @@ class SimplifiedMLPController:
         """Single control loop iteration."""
         obs, joint_pos_rel, joint_vel = self.get_observation()
         
+        # with torch.no_grad():
+        #     obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
+        #     actions = self.policy(obs_tensor).squeeze().numpy()
+        
+        # self.prev_actions = actions.copy()
+        # self.write_joint_positions(actions)
+        
+        # self.debug_counter += 1
+        # if self.debug_counter % 50 == 0:
+        #     print(f"\n--- Step {self.debug_counter} ---")
+        #     print(f"Velocity cmd: {self.velocity_command}")
+        #     print(f"Joint pos rel: [{joint_pos_rel.min():.4f}, {joint_pos_rel.max():.4f}]")
+        #     print(f"Joint vel:     [{joint_vel.min():.3f}, {joint_vel.max():.3f}]")
+        #     print(f"Actions:       [{actions.min():.3f}, {actions.max():.3f}]")
+        #     print(f"Actions * scale: [{(actions*self.ACTION_SCALE).min():.3f}, {(actions*self.ACTION_SCALE).max():.3f}]")
+        
+        # return actions
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
-            actions = self.policy(obs_tensor).squeeze().numpy()
-
+            raw_actions = self.policy(obs_tensor).squeeze().numpy()
+    
         # Step 1: Exponential smoothing
         smoothed = self.action_smoothing * raw_actions + (1 - self.action_smoothing) * self.prev_actions
         
@@ -187,11 +204,8 @@ class SimplifiedMLPController:
             print(f"\n--- Step {self.debug_counter} ---")
             print(f"Velocity cmd: {self.velocity_command}")
             print(f"Joint pos rel: [{joint_pos_rel.min():.4f}, {joint_pos_rel.max():.4f}]")
-            print(f"Joint vel:     [{joint_vel.min():.3f}, {joint_vel.max():.3f}]")
-            print(f"Actions:       [{actions.min():.3f}, {actions.max():.3f}]")
-            print(f"Actions * scale: [{(actions*self.ACTION_SCALE).min():.3f}, {(actions*self.ACTION_SCALE).max():.3f}]")
+            print(f"Raw actions:   [{raw_actions.min():.3f}, {raw_actions.max():.3f}]")
             print(f"Smooth actions:[{actions.min():.3f}, {actions.max():.3f}]")
-
         
         return actions
     

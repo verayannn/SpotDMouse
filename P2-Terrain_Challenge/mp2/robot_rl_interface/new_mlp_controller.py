@@ -4,7 +4,7 @@ import time
 from collections import deque
 from MangDang.mini_pupper.ESP32Interface import ESP32Interface
 
-class CorrectedMLPController:
+class WorkingMLPController:
     def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_only.pt"):
         self.esp32 = ESP32Interface()
         time.sleep(0.5)
@@ -13,24 +13,23 @@ class CorrectedMLPController:
         self.policy.eval()
         print(f"Loaded policy from {policy_path}")
         
-        # Hardware mapping: Isaac index -> ESP32 servo index
+        # Hardware mapping: Isaac joint index -> ESP32 servo index
+        # Isaac order: LF(0,1,2), RF(3,4,5), LB(6,7,8), RB(9,10,11)
+        # ESP32 order: RF(0,1,2), LF(3,4,5), RB(6,7,8), LB(9,10,11)
         self.esp32_servo_order = [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]
         
-        # Inverse mapping: ESP32 index -> Isaac index
-        self.isaac_to_esp32 = np.zeros(12, dtype=int)
-        for isaac_idx, esp_idx in enumerate(self.esp32_servo_order):
-            self.isaac_to_esp32[esp_idx] = isaac_idx
+        # Inverse mapping for writing
+        self.isaac_to_esp32 = np.argsort(self.esp32_servo_order)
 
-        # Direction multipliers: multiply real angles by these to get sim angles
-        # (and multiply sim angles by these to get real angles - same operation)
-        self.real_to_sim_multipliers = np.array([
-            -1.0, -1.0, -1.0,  # LF
-            -1.0,  1.0,  1.0,  # RF
-             1.0, -1.0, -1.0,  # LB
-             1.0,  1.0,  1.0,  # RB
+        # Direction multipliers: real_angle * multiplier = sim_angle
+        self.direction_multipliers = np.array([
+            -1.0, -1.0, -1.0,  # LF: all inverted
+            -1.0,  1.0,  1.0,  # RF: hip inverted, thigh/calf same
+             1.0, -1.0, -1.0,  # LB: hip same, thigh/calf inverted
+             1.0,  1.0,  1.0,  # RB: all same
         ])
         
-        # Isaac training default pose (in sim coordinates)
+        # Isaac default pose (what policy considers "zero" for joint_pos_rel)
         self.isaac_defaults = np.array([
              0.0, 0.785, -1.57,  # LF
              0.0, 0.785, -1.57,  # RF
@@ -38,18 +37,18 @@ class CorrectedMLPController:
              0.0, 0.785, -1.57   # RB
         ])
         
-        # Servo conversion constants
+        # Servo constants
         self.servo_center = 512
-        self.servo_scale = 1024 / (2 * np.pi)  # ~163 counts per radian
+        self.servo_scale = 1024 / (2 * np.pi)  # ~163 counts/radian
         
-        # Calibrate standing pose
-        print("Reading hardware standing position...")
-        self._calibrate_standing_pose()
+        # From training config
+        self.ACTION_SCALE = 0.5
         
-        # Action scaling (from training config)
-        self.ACTION_SCALE = 0.5  # Check your training config for this value
+        # Calibrate: find servo positions that correspond to Isaac defaults
+        print("Calibrating to Isaac default pose...")
+        self._calibrate()
         
-        # State variables
+        # State
         self.prev_actions = np.zeros(12)
         self.prev_joint_pos_rel = np.zeros(12)
         self.prev_joint_vel = np.zeros(12)
@@ -58,216 +57,197 @@ class CorrectedMLPController:
         self.control_active = False
         self.shutdown = False
         
-        # Calibrate IMU
+        # IMU calibration
         print("Calibrating IMU...")
         self._calibrate_imu()
         
         self.CONTROL_FREQUENCY = 50
-        self.loop_times = deque(maxlen=50)
+        self.debug_counter = 0
         
-    def _calibrate_standing_pose(self):
+    def _calibrate(self):
         """
-        Read current servo positions and establish the mapping between
-        hardware standing pose and Isaac default pose.
+        Determine the servo positions that correspond to the Isaac default pose.
+        When robot is in standing pose, servos should produce isaac_defaults.
         """
+        # Read current servo positions (robot should be in standing pose)
         raw_servos = np.array(self.esp32.servos_get_position())
-        isaac_ordered_servos = raw_servos[self.esp32_servo_order]
+        isaac_ordered = raw_servos[self.esp32_servo_order]
         
-        # Convert to radians (in hardware frame, centered at servo_center)
-        hardware_radians = (isaac_ordered_servos - self.servo_center) / self.servo_scale
+        # Convert to radians (hardware frame)
+        hardware_radians = (isaac_ordered - self.servo_center) / self.servo_scale
         
         # Convert to sim frame
-        sim_frame_standing = hardware_radians * self.real_to_sim_multipliers
+        sim_radians = hardware_radians * self.direction_multipliers
         
-        # This is what the sim would call "absolute joint positions" at standing
-        # For joint_pos_rel, we need: current_pos - default_pos
-        # At standing, joint_pos_rel should be 0
-        # So we store the offset needed
-        self.standing_offset_sim = sim_frame_standing  # Should be close to isaac_defaults
-        
-        print(f"Hardware servos (Isaac order): {isaac_ordered_servos}")
+        print(f"Current servo positions (Isaac order): {isaac_ordered}")
         print(f"Hardware radians: {hardware_radians}")
-        print(f"Sim frame standing: {sim_frame_standing}")
-        print(f"Expected Isaac defaults: {self.isaac_defaults}")
-        print(f"Difference: {sim_frame_standing - self.isaac_defaults}")
+        print(f"Sim frame angles: {sim_radians}")
+        print(f"Isaac defaults:   {self.isaac_defaults}")
+        
+        # The offset between current sim angles and Isaac defaults
+        # At standing, sim_radians should equal isaac_defaults
+        # If not, we need to account for this offset
+        self.calibration_offset = sim_radians - self.isaac_defaults
+        print(f"Calibration offset: {self.calibration_offset}")
+        print(f"(This should be near zero if robot is in proper standing pose)")
         
     def _calibrate_imu(self, samples=50):
-        print("Keep robot still for IMU calibration...")
-        
+        print("Keep robot still...")
         gyro_sum = np.zeros(3)
-        accel_sum = np.zeros(3)
         
         for i in range(samples):
             data = self.esp32.imu_get_data()
-            accel_sum += np.array([data['ax'], data['ay'], data['az']])
             gyro_sum += np.array([data['gx'], data['gy'], data['gz']])
             time.sleep(0.02)
             
         self.gyro_offset = gyro_sum / samples
-        self.accel_offset = accel_sum / samples
-        
         print(f"Gyro offset: {self.gyro_offset}")
-        print(f"Accel offset: {self.accel_offset}")
     
-    def _read_joint_positions_sim_frame(self):
-        """Read servo positions and convert to sim frame."""
+    def read_joint_positions(self):
+        """Read servo positions and convert to joint_pos_rel (sim frame, relative to defaults)."""
         raw_servos = np.array(self.esp32.servos_get_position())
         isaac_ordered = raw_servos[self.esp32_servo_order]
         
-        # Convert to radians in hardware frame
+        # To radians (hardware frame)
         hardware_radians = (isaac_ordered - self.servo_center) / self.servo_scale
         
-        # Convert to sim frame
-        sim_frame = hardware_radians * self.real_to_sim_multipliers
+        # To sim frame
+        sim_radians = hardware_radians * self.direction_multipliers
         
-        return sim_frame
+        # Relative to Isaac defaults (this is what joint_pos_rel means)
+        joint_pos_rel = sim_radians - self.isaac_defaults - self.calibration_offset
+        
+        return joint_pos_rel
     
-    def _sim_actions_to_servo_commands(self, sim_actions):
-        """Convert sim-frame action deltas to servo commands."""
-        # Actions are deltas from default pose (scaled)
-        scaled_actions = sim_actions * self.ACTION_SCALE
+    def write_joint_positions(self, actions):
+        """Convert policy actions to servo commands and send."""
+        # Actions are offsets from default pose, scaled
+        target_pos_rel = actions * self.ACTION_SCALE
         
-        # Target position in sim frame = default + action
-        target_sim = self.isaac_defaults + scaled_actions
+        # Absolute position in sim frame
+        target_sim = self.isaac_defaults + target_pos_rel
         
-        # Convert to hardware frame
-        target_hardware = target_sim * self.real_to_sim_multipliers  # Same operation for inverse
+        # To hardware frame (multiply by same direction multipliers - they're self-inverse for ±1)
+        target_hardware = target_sim * self.direction_multipliers
         
-        # Convert to servo units
+        # To servo units
         servo_positions = target_hardware * self.servo_scale + self.servo_center
-        servo_positions = np.clip(servo_positions, 100, 924)
+        servo_positions = np.clip(servo_positions, 150, 874)  # Safe range
         
         # Reorder for ESP32
-        esp32_positions = servo_positions[self.isaac_to_esp32]
+        esp32_positions = np.zeros(12)
+        for isaac_idx in range(12):
+            esp32_idx = self.esp32_servo_order[isaac_idx]
+            esp32_positions[esp32_idx] = servo_positions[isaac_idx]
         
-        return [int(pos) for pos in esp32_positions]
+        self.esp32.servos_set_position([int(pos) for pos in esp32_positions])
     
     def get_observation(self):
-        try:
-            # IMU data
-            imu_data = self.esp32.imu_get_data()
-            
-            # Base angular velocity (from gyro, calibrated)
-            gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
-            base_ang_vel = gyro_raw - self.gyro_offset
-            
-            # Projected gravity (from accelerometer)
-            accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
-            accel_calibrated = accel_raw  # Don't subtract offset for gravity direction
-            accel_norm = np.linalg.norm(accel_calibrated)
-            if accel_norm > 0.1:
-                projected_gravity = -accel_calibrated / accel_norm  # Negative because accel measures reaction to gravity
-            else:
-                projected_gravity = np.array([0, 0, -1])
-            
-            # Base linear velocity - zeros (policy should cope with noise in training)
-            base_lin_vel = np.zeros(3)
-            
-            # Joint positions in sim frame
-            joint_pos_sim = self._read_joint_positions_sim_frame()
-            
-            # Relative to default (this is what joint_pos_rel computes in Isaac)
-            joint_pos_rel = joint_pos_sim - self.isaac_defaults
-            
-            # Joint velocities
-            current_time = time.time()
-            dt = current_time - self.prev_time
-            if dt > 0.001:
-                joint_vel_raw = (joint_pos_rel - self.prev_joint_pos_rel) / dt
-                # Low-pass filter
-                alpha = 0.3
-                joint_vel = alpha * joint_vel_raw + (1 - alpha) * self.prev_joint_vel
-                # Clip to match sim range
-                joint_vel = np.clip(joint_vel, -1.5, 1.5)
-            else:
-                joint_vel = self.prev_joint_vel
-            
-            self.prev_joint_pos_rel = joint_pos_rel.copy()
-            self.prev_joint_vel = joint_vel.copy()
-            self.prev_time = current_time
-            
-            # Joint efforts - zeros for now
-            joint_efforts = np.zeros(12)
-            
-            # Build observation in EXACT order from training config
-            obs = np.concatenate([
-                base_lin_vel,           # 3: base_lin_vel
-                base_ang_vel,           # 3: base_ang_vel
-                projected_gravity,      # 3: projected_gravity
-                self.velocity_command,  # 3: velocity_commands
-                joint_pos_rel,          # 12: joint_pos_rel
-                joint_vel,              # 12: joint_vel_rel
-                joint_efforts,          # 12: joint_effort
-                self.prev_actions       # 12: last_action
-            ])
-            
-            return obs, joint_pos_rel  # Return joint_pos_rel for debugging
-            
-        except Exception as e:
-            print(f"Error getting observation: {e}")
-            import traceback
-            traceback.print_exc()
-            return self._get_safe_observation(), np.zeros(12)
+        """Build observation vector for policy."""
+        # IMU
+        imu_data = self.esp32.imu_get_data()
+        
+        # Angular velocity (calibrated gyro)
+        gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
+        base_ang_vel = gyro_raw - self.gyro_offset
+        
+        # Projected gravity from accelerometer
+        accel = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
+        accel_norm = np.linalg.norm(accel)
+        if accel_norm > 0.1:
+            # Accelerometer measures reaction to gravity, so negate
+            projected_gravity = -accel / accel_norm
+        else:
+            projected_gravity = np.array([0, 0, -1])
+        
+        # Base linear velocity - zeros (policy should handle this via domain randomization)
+        base_lin_vel = np.zeros(3)
+        
+        # Joint positions (relative to defaults)
+        joint_pos_rel = self.read_joint_positions()
+        
+        # Joint velocities
+        current_time = time.time()
+        dt = current_time - self.prev_time
+        if dt > 0.001:
+            joint_vel_raw = (joint_pos_rel - self.prev_joint_pos_rel) / dt
+            # Low-pass filter
+            alpha = 0.4
+            joint_vel = alpha * joint_vel_raw + (1 - alpha) * self.prev_joint_vel
+            joint_vel = np.clip(joint_vel, -1.5, 1.5)
+        else:
+            joint_vel = self.prev_joint_vel
+        
+        self.prev_joint_pos_rel = joint_pos_rel.copy()
+        self.prev_joint_vel = joint_vel.copy()
+        self.prev_time = current_time
+        
+        # Joint efforts - zeros
+        joint_effort = np.zeros(12)
+        
+        # Build observation
+        obs = np.concatenate([
+            base_lin_vel,           # 3
+            base_ang_vel,           # 3
+            projected_gravity,      # 3
+            self.velocity_command,  # 3
+            joint_pos_rel,          # 12
+            joint_vel,              # 12
+            joint_effort,           # 12
+            self.prev_actions       # 12
+        ]).astype(np.float32)
+        
+        return obs, joint_pos_rel, joint_vel
     
-    def _get_safe_observation(self):
-        return np.concatenate([
-            np.zeros(3),  # base_lin_vel
-            np.zeros(3),  # base_ang_vel
-            np.array([0, 0, -1]),  # projected_gravity
-            self.velocity_command,
-            np.zeros(12),  # joint_pos_rel
-            np.zeros(12),  # joint_vel
-            np.zeros(12),  # joint_effort
-            self.prev_actions
-        ])
+    def control_step(self):
+        """Single control loop iteration."""
+        obs, joint_pos_rel, joint_vel = self.get_observation()
+        
+        # Run policy
+        with torch.no_grad():
+            obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
+            actions = self.policy(obs_tensor).squeeze().numpy()
+        
+        # Store for next observation
+        self.prev_actions = actions.copy()
+        
+        # Send to servos
+        self.write_joint_positions(actions)
+        
+        # Debug output
+        self.debug_counter += 1
+        if self.debug_counter % 50 == 0:  # Every second at 50Hz
+            print(f"\n--- Step {self.debug_counter} ---")
+            print(f"Velocity cmd: {self.velocity_command}")
+            print(f"Joint pos rel: [{joint_pos_rel.min():.3f}, {joint_pos_rel.max():.3f}]")
+            print(f"Joint vel:     [{joint_vel.min():.3f}, {joint_vel.max():.3f}]")
+            print(f"Actions:       [{actions.min():.3f}, {actions.max():.3f}]")
+            print(f"Sample actions: [{actions[0]:.2f}, {actions[1]:.2f}, {actions[2]:.2f}, {actions[3]:.2f}]")
+        
+        return actions
     
     def control_loop(self):
+        """Main control loop."""
         dt_target = 1.0 / self.CONTROL_FREQUENCY
         
         print(f"\nControl loop started at {self.CONTROL_FREQUENCY}Hz")
-        print("Commands: set_velocity_command(vx, vy, vyaw)")
-        
-        debug_counter = 0
+        print("Use set_velocity_command(vx, vy, vyaw) to move")
         
         while not self.shutdown:
             loop_start = time.time()
             
-            try:
-                if self.control_active:
-                    obs, joint_pos_rel = self.get_observation()
-                    
-                    # Debug print every 2 seconds
-                    debug_counter += 1
-                    if debug_counter % 100 == 0:
-                        print(f"\n--- Debug (step {debug_counter}) ---")
-                        print(f"joint_pos_rel: {joint_pos_rel}")
-                        print(f"Range: [{joint_pos_rel.min():.3f}, {joint_pos_rel.max():.3f}]")
-                        print(f"Velocity cmd: {self.velocity_command}")
-                    
-                    with torch.no_grad():
-                        obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
-                        raw_actions = self.policy(obs_tensor).squeeze().numpy()
-                    
-                    # Store for next observation
-                    self.prev_actions = raw_actions.copy()
-                    
-                    # Convert to servo commands
-                    servo_commands = self._sim_actions_to_servo_commands(raw_actions)
-                    self.esp32.servos_set_position(servo_commands)
-                    
-            except Exception as e:
-                print(f"Control loop error: {e}")
-                import traceback
-                traceback.print_exc()
-                self.control_active = False
+            if self.control_active:
+                try:
+                    self.control_step()
+                except Exception as e:
+                    print(f"Error: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    self.control_active = False
             
             elapsed = time.time() - loop_start
-            self.loop_times.append(elapsed)
-            
             if elapsed < dt_target:
                 time.sleep(dt_target - elapsed)
-        
-        print("Control loop stopped")
     
     def set_velocity_command(self, vx, vy, vyaw):
         self.velocity_command = np.array([
@@ -275,8 +255,18 @@ class CorrectedMLPController:
             np.clip(vy, -0.35, 0.35),
             np.clip(vyaw, -0.30, 0.30)
         ])
-        self.control_active = np.any(self.velocity_command != 0)
-        print(f"Command: {self.velocity_command}, Active: {self.control_active}")
+        if np.any(np.abs(self.velocity_command) > 0.01):
+            if not self.control_active:
+                # Reset state when starting
+                self.prev_actions = np.zeros(12)
+                self.prev_joint_pos_rel = self.read_joint_positions()
+                self.prev_joint_vel = np.zeros(12)
+                self.prev_time = time.time()
+            self.control_active = True
+            print(f"Active: cmd={self.velocity_command}")
+        else:
+            self.control_active = False
+            print("Stopped")
     
     def stop(self):
         self.control_active = False
@@ -286,34 +276,35 @@ class CorrectedMLPController:
 if __name__ == "__main__":
     import threading
     
-    controller = CorrectedMLPController("/home/ubuntu/mp2_mlp/policy_only.pt")
+    controller = WorkingMLPController("/home/ubuntu/mp2_mlp/policy_only.pt")
     
-    control_thread = threading.Thread(target=controller.control_loop)
-    control_thread.start()
+    thread = threading.Thread(target=controller.control_loop)
+    thread.start()
+    
+    print("\nCommands: w=forward, s=back, a=left, d=right, q/e=turn, space=stop, x=exit")
     
     try:
         while True:
-            cmd = input("Command (w/s/a/d/q/e/space/x): ").strip().lower()
-            
+            cmd = input("> ").strip().lower()
             if cmd == 'w':
-                controller.set_velocity_command(0.2, 0.0, 0.0)
+                controller.set_velocity_command(0.15, 0, 0)
             elif cmd == 's':
-                controller.set_velocity_command(-0.2, 0.0, 0.0)
+                controller.set_velocity_command(-0.15, 0, 0)
             elif cmd == 'a':
-                controller.set_velocity_command(0.0, 0.2, 0.0)
+                controller.set_velocity_command(0, 0.15, 0)
             elif cmd == 'd':
-                controller.set_velocity_command(0.0, -0.2, 0.0)
+                controller.set_velocity_command(0, -0.15, 0)
             elif cmd == 'q':
-                controller.set_velocity_command(0.0, 0.0, 0.2)
+                controller.set_velocity_command(0, 0, 0.15)
             elif cmd == 'e':
-                controller.set_velocity_command(0.0, 0.0, -0.2)
+                controller.set_velocity_command(0, 0, -0.15)
             elif cmd == ' ' or cmd == '':
-                controller.set_velocity_command(0.0, 0.0, 0.0)
+                controller.set_velocity_command(0, 0, 0)
             elif cmd == 'x':
                 break
-                
     except KeyboardInterrupt:
         pass
     
     controller.stop()
-    control_thread.join()
+    thread.join()
+    print("Done")

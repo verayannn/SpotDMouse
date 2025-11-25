@@ -395,7 +395,11 @@ if __name__ == "__main__":
     for idx, name in enumerate(joint_names):
         print(f"\n--- Joint {idx}: {name} ---")
         input("Press Enter to test this joint...")
+<<<<<<< HEAD
         ctrl.test_single_joint(idx, amplitude=0.9)
+=======
+        ctrl.test_single_joint(idx, amplitude=0.5)
+>>>>>>> 09f9a94b39bc46d1953f898d42c5e6575ff873de
         
         result = input("Did it move correctly? (y/n): ").strip().lower()
         if result != 'y':

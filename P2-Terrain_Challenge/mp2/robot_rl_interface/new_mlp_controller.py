@@ -155,12 +155,10 @@ class WorkingMLPController:
         gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
         base_ang_vel = gyro_raw - self.gyro_offset
         
-        # Projected gravity from accelerometer
-        accel = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
+        accel = np.array([imu['ax'], imu['ay'], imu['az']])
         accel_norm = np.linalg.norm(accel)
         if accel_norm > 0.1:
-            # Accelerometer measures reaction to gravity, so negate
-            projected_gravity = -accel / accel_norm
+            projected_gravity = accel / accel_norm  # No negation!
         else:
             projected_gravity = np.array([0, 0, -1])
         

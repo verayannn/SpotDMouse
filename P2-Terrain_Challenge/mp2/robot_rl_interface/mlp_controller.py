@@ -51,6 +51,10 @@ class SimplifiedMLPController:
         
         self.CONTROL_FREQUENCY = 30
         self.debug_counter = 0
+
+        #Action Smoothing
+        self.action_smoothing = 0.5      # 0.3-0.6 typical range
+        self.max_action_delta = 0.2      # Max change per step
         
     def _calibrate_imu(self, samples=50):
         print("Keep robot still...")
@@ -166,6 +170,14 @@ class SimplifiedMLPController:
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
             actions = self.policy(obs_tensor).squeeze().numpy()
+
+        # Step 1: Exponential smoothing
+        smoothed = self.action_smoothing * raw_actions + (1 - self.action_smoothing) * self.prev_actions
+        
+        # Step 2: Rate limiting
+        delta = smoothed - self.prev_actions
+        delta = np.clip(delta, -self.max_action_delta, self.max_action_delta)
+        actions = self.prev_actions + delta
         
         self.prev_actions = actions.copy()
         self.write_joint_positions(actions)
@@ -178,6 +190,8 @@ class SimplifiedMLPController:
             print(f"Joint vel:     [{joint_vel.min():.3f}, {joint_vel.max():.3f}]")
             print(f"Actions:       [{actions.min():.3f}, {actions.max():.3f}]")
             print(f"Actions * scale: [{(actions*self.ACTION_SCALE).min():.3f}, {(actions*self.ACTION_SCALE).max():.3f}]")
+            print(f"Smooth actions:[{actions.min():.3f}, {actions.max():.3f}]")
+
         
         return actions
     

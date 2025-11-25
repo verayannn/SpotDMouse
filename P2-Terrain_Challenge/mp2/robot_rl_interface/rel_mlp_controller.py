@@ -28,7 +28,7 @@ class SimplifiedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)  # ~163 counts/radian
         
         # Action scale from training
-        self.ACTION_SCALE = 0.1  # Use the actual training value!
+        self.ACTION_SCALE = 0.15  # Use the actual training value!
         
         # Record the standing pose servo positions
         print("Recording standing pose...")

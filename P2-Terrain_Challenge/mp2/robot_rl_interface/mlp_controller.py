@@ -110,6 +110,9 @@ class MatchedMLPController:
             projected_gravity = accel / accel_norm
         else:
             projected_gravity = np.array([0, 0, -1])
+
+        ###    
+        projected_gravity = np.array([0.0, 0.0, -1.0])
         
         base_lin_vel = np.zeros(3)
         
@@ -195,6 +198,18 @@ class MatchedMLPController:
             print(f"  RF: [{actions[3]:+.2f}, {actions[4]:+.2f}, {actions[5]:+.2f}]")
             print(f"  LB: [{actions[6]:+.2f}, {actions[7]:+.2f}, {actions[8]:+.2f}]")
             print(f"  RB: [{actions[9]:+.2f}, {actions[10]:+.2f}, {actions[11]:+.2f}]")
+        
+        if self.debug_counter == 49:
+            print("\n=== COMPLETE OBSERVATION VECTOR ===")
+            print(f"base_lin_vel:      {obs[0:3]}")
+            print(f"base_ang_vel:      {obs[3:6]}")
+            print(f"projected_gravity: {obs[6:9]}")
+            print(f"velocity_cmd:      {obs[9:12]}")
+            print(f"joint_pos_rel:     {obs[12:24]}")
+            print(f"joint_vel:         {obs[24:36]}")
+            print(f"joint_effort:      {obs[36:48]}")
+            print(f"prev_actions:      {obs[48:60]}")
+            print("===================================\n")
         
         return actions
     

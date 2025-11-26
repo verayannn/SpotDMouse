@@ -150,12 +150,32 @@ class MatchedMLPController:
         return obs, joint_pos_rel_raw, joint_vel
     
     def control_step(self):
+        if hasattr(self, 'test_mode') and self.test_mode:
+            # Bypass policy entirely - just send zeros
+            actions = np.zeros(12)
+            self.write_joint_positions(actions)
+            self.debug_counter += 1
+            if self.debug_counter % 100 == 0:
+                pos = self.read_joint_positions()
+                print(f"Test mode - Pos: [{pos.min():.3f}, {pos.max():.3f}]")
+            return actions
+
         obs, joint_pos_rel, joint_vel = self.get_observation()
+
+        # Print on FIRST step
+        if self.debug_counter == 0:
+            print("\n=== FIRST STEP OBSERVATION ===")
+            print(f"joint_pos_rel: {joint_pos_rel}")
+            print(f"prev_actions:  {self.prev_actions}")
         
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
             raw_actions = self.policy(obs_tensor).squeeze().numpy()
         
+        if self.debug_counter == 0:
+            print(f"raw_actions:   {raw_actions}")
+            print("===============================\n")
+
         # Clip to simulation range
         raw_actions = np.clip(raw_actions, -self.action_clip, self.action_clip)
         
@@ -295,6 +315,12 @@ if __name__ == "__main__":
                 ctrl.control_active = True
                 ctrl.startup_steps = 0
                 print("Zero velocity, active control")
+            elif cmd == 't':  # Test mode - fixed zero actions
+                print("Test mode: Sending zero actions continuously")
+                ctrl.velocity_command = np.array([0.0, 0.0, 0.0])
+                ctrl.prev_actions = np.zeros(12)
+                ctrl.control_active = True
+                ctrl.test_mode = True  # Add this flag
             elif cmd == 'x':
                 break
     except KeyboardInterrupt:

@@ -194,7 +194,7 @@ class MatchedMLPController:
         if self.debug_counter == 0:
             print(f"raw_actions:   {raw_actions}")
             print("===============================\n")
-            
+
         raw_actions = raw_actions - self.rest_bias
 
         # Clip to simulation range
@@ -251,6 +251,12 @@ class MatchedMLPController:
             print(f"joint_effort:      {obs[36:48]}")
             print(f"prev_actions:      {obs[48:60]}")
             print("===================================\n")
+        
+        if self.debug_counter % 100 == 0:
+            print(f"\n--- Step {self.debug_counter} | Cmd: {self.velocity_command} ---")
+            print(f"Pos: [{joint_pos_rel.min():.3f}, {joint_pos_rel.max():.3f}]")
+            print(f"Raw-bias: [{raw_actions.min():.3f}, {raw_actions.max():.3f}]")
+            print(f"Out: [{actions.min():.3f}, {actions.max():.3f}]")
         
         return actions
     
@@ -370,12 +376,15 @@ if __name__ == "__main__":
                 ctrl.control_active = True
                 ctrl.startup_steps = 0
                 print("Zero velocity, active control")
-            elif cmd == 't':  # Test mode - fixed zero actions
-                print("Test mode: Sending zero actions continuously")
-                ctrl.velocity_command = np.array([0.0, 0.0, 0.0])
-                ctrl.prev_actions = np.zeros(12)
-                ctrl.control_active = True
-                ctrl.test_mode = True  # Add this flag
+            elif cmd == 't':
+                if hasattr(ctrl, 'test_mode') and ctrl.test_mode:
+                    ctrl.test_mode = False
+                    print("Test mode OFF")
+                else:
+                    print("Test mode: Sending zero actions continuously")
+                    ctrl.prev_actions = np.zeros(12)
+                    ctrl.test_mode = True
+                    ctrl.control_active = True
             elif cmd == 'x':
                 break
     except KeyboardInterrupt:

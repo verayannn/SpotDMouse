@@ -100,6 +100,8 @@ class MatchedMLPController:
         
         gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
         base_ang_vel = gyro_raw - self.gyro_offset
+        ####
+        base_ang_vel = np.zeros(3)
         base_ang_vel = np.clip(base_ang_vel, -self.obs_ang_vel_clip, self.obs_ang_vel_clip)
         
         accel = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])

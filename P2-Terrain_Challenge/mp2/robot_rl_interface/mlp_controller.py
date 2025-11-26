@@ -65,6 +65,25 @@ class MatchedMLPController:
         self.startup_duration = 25       # 0.5 second ramp at 50Hz
         
         self.debug_counter = 0
+
+        print("Measuring policy rest bias...")
+        self._measure_rest_bias()
+    
+    def _measure_rest_bias(self):
+        """Measure what the policy outputs for a perfect standing observation."""
+        # Create perfect standing observation
+        rest_obs = np.zeros(60, dtype=np.float32)
+        rest_obs[6:9] = [0, 0, -1]  # projected_gravity
+        
+        with torch.no_grad():
+            self.rest_bias = self.policy(torch.tensor(rest_obs).unsqueeze(0)).squeeze().numpy()
+        
+        print(f"Rest bias: [{self.rest_bias.min():.3f}, {self.rest_bias.max():.3f}]")
+        print(f"  LF: [{self.rest_bias[0]:+.2f}, {self.rest_bias[1]:+.2f}, {self.rest_bias[2]:+.2f}]")
+        print(f"  RF: [{self.rest_bias[3]:+.2f}, {self.rest_bias[4]:+.2f}, {self.rest_bias[5]:+.2f}]")
+        print(f"  LB: [{self.rest_bias[6]:+.2f}, {self.rest_bias[7]:+.2f}, {self.rest_bias[8]:+.2f}]")
+        print(f"  RB: [{self.rest_bias[9]:+.2f}, {self.rest_bias[10]:+.2f}, {self.rest_bias[11]:+.2f}]")
+
         
     def _calibrate_imu(self, samples=50):
         print("Keep robot still...")
@@ -175,6 +194,8 @@ class MatchedMLPController:
         if self.debug_counter == 0:
             print(f"raw_actions:   {raw_actions}")
             print("===============================\n")
+            
+        raw_actions = raw_actions - self.rest_bias
 
         # Clip to simulation range
         raw_actions = np.clip(raw_actions, -self.action_clip, self.action_clip)

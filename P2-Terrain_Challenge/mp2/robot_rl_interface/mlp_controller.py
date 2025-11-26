@@ -254,6 +254,25 @@ class MatchedMLPController:
             if elapsed < dt_target:
                 time.sleep(dt_target - elapsed)
     
+    # def set_velocity_command(self, vx, vy, vyaw):
+    #     self.velocity_command = np.array([
+    #         np.clip(vx, -0.35, 0.40),
+    #         np.clip(vy, -0.35, 0.35),
+    #         np.clip(vyaw, -0.30, 0.30)
+    #     ])
+    #     if np.any(np.abs(self.velocity_command) > 0.01):
+    #         if not self.control_active:
+    #             self.prev_actions = np.zeros(12)
+    #             self.prev_joint_pos_rel = self.read_joint_positions()
+    #             self.prev_joint_vel = np.zeros(12)
+    #             self.prev_time = time.time()
+    #             self.startup_steps = 0
+    #         self.control_active = True
+    #         print(f"Active: {self.velocity_command}")
+    #     else:
+    #         self.control_active = False
+    #         self.startup_steps = 0
+    #         print("Stopped")
     def set_velocity_command(self, vx, vy, vyaw):
         self.velocity_command = np.array([
             np.clip(vx, -0.35, 0.40),
@@ -263,10 +282,25 @@ class MatchedMLPController:
         if np.any(np.abs(self.velocity_command) > 0.01):
             if not self.control_active:
                 self.prev_actions = np.zeros(12)
-                self.prev_joint_pos_rel = self.read_joint_positions()
+                self.prev_joint_pos_rel = np.zeros(12)  # Force to zero
                 self.prev_joint_vel = np.zeros(12)
                 self.prev_time = time.time()
                 self.startup_steps = 0
+                
+                # TEST: What does policy output for perfect observation?
+                test_obs = np.zeros(60, dtype=np.float32)
+                test_obs[6:9] = [0, 0, -1]  # projected_gravity
+                with torch.no_grad():
+                    test_actions = self.policy(torch.tensor(test_obs).unsqueeze(0)).squeeze().numpy()
+                print(f"\n=== Policy output for PERFECT zero observation ===")
+                print(f"Actions: [{test_actions.min():.3f}, {test_actions.max():.3f}]")
+                print(f"Per leg:")
+                print(f"  LF: [{test_actions[0]:+.2f}, {test_actions[1]:+.2f}, {test_actions[2]:+.2f}]")
+                print(f"  RF: [{test_actions[3]:+.2f}, {test_actions[4]:+.2f}, {test_actions[5]:+.2f}]")
+                print(f"  LB: [{test_actions[6]:+.2f}, {test_actions[7]:+.2f}, {test_actions[8]:+.2f}]")
+                print(f"  RB: [{test_actions[9]:+.2f}, {test_actions[10]:+.2f}, {test_actions[11]:+.2f}]")
+                print("=================================================\n")
+                
             self.control_active = True
             print(f"Active: {self.velocity_command}")
         else:

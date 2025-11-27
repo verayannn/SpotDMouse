@@ -379,6 +379,7 @@ if __name__ == "__main__":
             elif cmd == 't':
                 if hasattr(ctrl, 'test_mode') and ctrl.test_mode:
                     ctrl.test_mode = False
+                    ctrl.control_active = False
                     print("Test mode OFF")
                 else:
                     print("Test mode: Sending zero actions continuously")

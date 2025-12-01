@@ -7,67 +7,63 @@ import numpy as np
 import omni.appwindow  # Contains handle to keyboard
 from isaacsim.core.api import World
 from isaacsim.core.utils.prims import define_prim, get_prim_at_path
-from minipupper_flat_terrain_policy import MiniPupperFlatTerrainPolicy
+from minipupper_isaaclab_policy import MiniPupperIsaacLabPolicy
 from isaacsim.storage.native import get_assets_root_path
 
-first_step = True
-reset_needed = False
+# Create world with same physics settings as training
+my_world = World(
+    stage_units_in_meters=1.0,
+    physics_dt=0.002,  # Match your training: 500Hz sim, but 0.002 dt
+    rendering_dt=1/50
+)
 
-# initialize robot on first step, run robot advance
-def on_physics_step(step_size) -> None:
-    global first_step
-    global reset_needed
-    if first_step:
-        minipupper.initialize()
-        first_step = False
-    elif reset_needed:
-        my_world.reset(True)
-        reset_needed = False
-        first_step = True
-    else:
-        minipupper.forward(step_size, base_command)
-
-
-# spawn world
-my_world = World(stage_units_in_meters=1.0, physics_dt=1 / 500, rendering_dt=1 / 50)
+# Add ground plane
 assets_root_path = get_assets_root_path()
 if assets_root_path is None:
     carb.log_error("Could not find Isaac Sim assets folder")
 
-# spawn warehouse scene
-prim = define_prim("/World/Ground", "Xform")
-asset_path = assets_root_path + "/Isaac/Environments/Grid/default_environment.usd"
-prim.GetReferences().AddReference(asset_path)
+ground_prim = define_prim("/World/Ground", "Xform")
+ground_path = assets_root_path + "/Isaac/Environments/Grid/default_environment.usd"
+ground_prim.GetReferences().AddReference(ground_path)
 
-# spawn robot - adjusted position for Mini Pupper's smaller size
-minipupper = MiniPupperFlatTerrainPolicy(
+# Create robot
+minipupper = MiniPupperIsaacLabPolicy(
     prim_path="/World/MiniPupper",
     name="MiniPupper",
-    position=np.array([0, 0, 0.15]),  # Lower spawn height for smaller robot
+    position=np.array([0, 0, 0.15])
 )
+
+# Reset world and initialize robot
 my_world.reset()
-my_world.add_physics_callback("physics_step", callback_fn=on_physics_step)
+minipupper.initialize(my_world)
 
-# robot command - matching your training ranges
+# Command tracking
 base_command = np.zeros(3)
+step_count = 0
 
-i = 0
+# Main simulation loop
 while simulation_app.is_running():
-    my_world.step(render=True)
-    if my_world.is_stopped():
-        reset_needed = True
     if my_world.is_playing():
-        if i >= 0 and i < 80:
-            # forward - within your training range
-            base_command = np.array([0.3, 0, 0])
-        elif i >= 80 and i < 130:
-            # rotate with forward motion
-            base_command = np.array([0.2, 0, 0.2])
-        elif i >= 130 and i < 200:
-            # sideways - within your training range
-            base_command = np.array([0, 0.2, 0])
-        elif i == 200:
-            i = 0
-        i += 1
+        # Update commands
+        if step_count < 1000:
+            base_command = np.array([0.3, 0, 0])  # forward
+        elif step_count < 1500:
+            base_command = np.array([0.2, 0, 0.2])  # turn
+        elif step_count < 2000:
+            base_command = np.array([0, 0.2, 0])  # sideways
+        else:
+            step_count = 0
+            
+        # Step robot controller
+        minipupper.forward(my_world.physics_dt, base_command)
+        step_count += 1
+    
+    # Step world
+    my_world.step(render=True)
+    
+    # Handle reset
+    if my_world.is_stopped() and my_world.is_playing():
+        my_world.stop()
+        my_world.play()
 
-simulation_app.close()
+simulation_app.close() 

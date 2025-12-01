@@ -7,7 +7,7 @@ import numpy as np
 import omni.appwindow  # Contains handle to keyboard
 from isaacsim.core.api import World
 from isaacsim.core.utils.prims import define_prim, get_prim_at_path
-from minipupper_isaaclab_policy import MiniPupperIsaacLabPolicy
+from minipupper_flat_terrain_policy import MiniPupperIsaacLabPolicy
 from isaacsim.storage.native import get_assets_root_path
 
 # Create world with same physics settings as training

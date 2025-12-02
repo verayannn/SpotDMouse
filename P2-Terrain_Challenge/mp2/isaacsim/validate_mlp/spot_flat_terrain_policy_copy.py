@@ -43,8 +43,7 @@ class SpotFlatTerrainPolicy(PolicyController):
             assets_root_path + "/Isaac/Samples/Policies/Spot_Policies/spot_env.yaml",
         )
         self._action_scale = 0.2
-        self._previous_action = np.zeros(12)
-        self._policy_counter = 0
+        self._previous_action =_counter = 0
 
     def _compute_observation(self, command):
         """

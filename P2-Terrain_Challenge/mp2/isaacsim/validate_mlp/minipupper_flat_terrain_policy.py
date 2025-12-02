@@ -1,174 +1,109 @@
-import torch
+from typing import Optional
 import numpy as np
-from typing import Optional, List
-from isaacsim.core.api import World
-from isaacsim.core.articulations import ArticulationView
-from isaacsim.core.utils.prims import get_prim_at_path
+import omni
+import omni.kit.commands
 from isaacsim.core.utils.rotations import quat_to_rot_matrix
+from isaacsim.core.utils.types import ArticulationAction
+from isaacsim.robot.policy.examples.controllers import PolicyController
+from isaacsim.storage.native import get_assets_root_path
 
-# Import the actual robot config from your training
-import sys
-# Ensure this path is correct for your environment
-sys.path.append("/workspace/isaaclab")
-from isaaclab_tasks.manager_based.locomotion.velocity.config.custom_quadruped_2.custom_quad import CUSTOM_QUAD_CFG
+class MPFlatTerrainPolicy(PolicyController):
+    """The Spot quadruped"""
 
-class MiniPupperIsaacLabPolicy:
-    """Mini Pupper with IsaacLab-trained policy"""
-    
     def __init__(
         self,
         prim_path: str,
-        name: str = "minipupper",
+        root_path: Optional[str] = None,
+        name: str = "mp2",
+        usd_path: Optional[str] = None,
         position: Optional[np.ndarray] = None,
         orientation: Optional[np.ndarray] = None,
-    ):
-        self.prim_path = prim_path
-        self.name = name
-        self.position = position
-        
-        # Load the JIT policy
-        # NOTE: Ensure this path points to the 'jit.pt' or 'policy.pt' exported 
-        # specifically for deployment (which usually includes normalization).
-        self.policy = torch.jit.load(
-            "/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl/logs/rsl_rl/harvardrun_45/2025-11-18_00-57-12/exported/policy.pt"
+    ) -> None:
+        """
+        Initialize robot and load RL policy.
+
+        Args:
+            prim_path (str) -- prim path of the robot on the stage
+            root_path (Optional[str]): The path to the articulation root of the robot
+            name (str) -- name of the quadruped
+            usd_path (str) -- robot usd filepath in the directory
+            position (np.ndarray) -- position of the robot
+            orientation (np.ndarray) -- orientation of the robot
+
+        """
+        assets_root_path = get_assets_root_path()
+        if usd_path == None:
+            usd_path = "/workspace/mini_pupper_ros/mini_pupper_description/urdf/mini_pupper_2/mini_pupper_description/mini_pupper_description.usd"
+
+        super().__init__(name, prim_path, root_path, usd_path, position, orientation)
+
+        self.load_policy(
+            "/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl/logs/rsl_rl/harvardrun_45/2025-11-18_00-57-12/exported/policy.pt",
+            "/workspace/isaaclab/scripts/reinforcement_learning/rsl_rl/logs/rsl_rl/harvardrun_45/2025-11-18_00-57-12/params/env.yaml",
         )
-        self.policy.eval()
-        
-        # --- CONFIGURATION MATCHING ---
-        # 1. Expected Policy Joint Order (MUST match SpotActionsCfg)
-        self.policy_joint_names = [
-            "base_lf1", "lf1_lf2", "lf2_lf3",
-            "base_rf1", "rf1_rf2", "rf2_rf3",
-            "base_lb1", "lb1_lb2", "lb2_lb3",
-            "base_rb1", "rb1_rb2", "rb2_rb3"
-        ]
-        
-        # 2. Action Scale (From SpotActionsCfg)
-        self.action_scale = 0.5
-        
-        # 3. Default Positions (Must match the order of self.policy_joint_names)
-        # Verify these match the default angles of your robot in the idle standing pose
-        self.default_pos = np.array([
-            0.0, 0.785, -1.57,  # LF
-            0.0, 0.785, -1.57,  # RF
-            0.0, 0.785, -1.57,  # LB
-            0.0, 0.785, -1.57,  # RB
-        ])
-        
-        self._decimation = 10 
+        self._action_scale = 0.5
         self._previous_action = np.zeros(12)
         self._policy_counter = 0
-        
-        self.articulation_view = None
-        self.joint_indices = []
 
-    def initialize(self, world: World):
-        """Initialize after world reset"""
-        # Create articulation view
-        self.articulation_view = ArticulationView(
-            prim_paths_expr=self.prim_path,
-            name=self.name + "_view"
-        )
-        world.scene.add(self.articulation_view)
-        
-        # CRITICAL FIX: Get the simulation joint names and map them to policy order
-        # This ensures we don't send LF commands to the RB leg
-        sim_joint_names = self.articulation_view.dof_names
-        self.joint_indices = [sim_joint_names.index(name) for name in self.policy_joint_names]
-        
-        print(f"Policy Joint Order: {self.policy_joint_names}")
-        print(f"Sim Joint Indices Mapping: {self.joint_indices}")
+    def _compute_observation(self, command):
+        """
+        Compute the observation vector for the policy
 
-        # Set initial joint positions
-        # We must reorder default_pos to match the SIMULATION order for initialization
-        sim_ordered_defaults = np.zeros(12)
-        for policy_i, sim_i in enumerate(self.joint_indices):
-            sim_ordered_defaults[sim_i] = self.default_pos[policy_i]
+        Argument:
+        command (np.ndarray) -- the robot command (v_x, v_y, w_z)
 
-        self.articulation_view.set_joint_positions(
-            sim_ordered_defaults,
-            joint_indices=list(range(12))
-        )
-        
-    def get_observations(self, command):
-        """Compute observations matching your training setup"""
-        # Get states from articulation view
-        root_vel = self.articulation_view.get_root_velocities()[0]
-        root_pos, root_quat = self.articulation_view.get_world_poses()[0]
-        
-        # Transform velocities to body frame
-        R_IB = quat_to_rot_matrix(root_quat)
-        R_BI = R_IB.T
-        
-        lin_vel_b = R_BI @ root_vel[:3]
-        ang_vel_b = R_BI @ root_vel[3:]
-        
-        # CRITICAL FIX 1: Gravity
-        # In IsaacLab mdp.projected_gravity returns 3 dims (x,y,z).
-        # Your previous code sliced it to [:2], causing a frame shift.
-        gravity_b = R_BI @ np.array([0.0, 0.0, -1.0]) 
-        
-        # CRITICAL FIX 2: Joint Order
-        # Get all joints from sim
-        raw_joint_pos = self.articulation_view.get_joint_positions()[0]
-        raw_joint_vel = self.articulation_view.get_joint_velocities()[0]
-        raw_joint_effort = self.articulation_view.get_measured_joint_efforts()[0] # If simulating effort
-        
-        # Reorder them to match POLICY order
-        policy_joint_pos = raw_joint_pos[self.joint_indices]
-        policy_joint_vel = raw_joint_vel[self.joint_indices]
-        policy_joint_effort = raw_joint_effort[self.joint_indices]
+        Returns:
+        np.ndarray -- The observation vector.
 
-        # Build observation vector 
-        # Training Config: 
-        # base_lin (3) + base_ang (3) + gravity (3) + cmd (3) + 
-        # pos (12) + vel (12) + effort (12) + actions (12) = 60 Dims
-        obs = np.concatenate([
-            lin_vel_b,                    # 3
-            ang_vel_b,                    # 3
-            gravity_b,                    # 3 (WAS WRONG IN PREVIOUS CODE)
-            command,                      # 3
-            policy_joint_pos - self.default_pos, # 12
-            policy_joint_vel,             # 12
-            policy_joint_effort,                 # 12
-            self._previous_action         # 12
-        ])
-        
-        # Ensure float32 for PyTorch
-        return obs.astype(np.float32)
-    
+        """
+        lin_vel_I = self.robot.get_linear_velocity()
+        ang_vel_I = self.robot.get_angular_velocity()
+        pos_IB, q_IB = self.robot.get_world_pose()
+
+        R_IB = quat_to_rot_matrix(q_IB)
+        R_BI = R_IB.transpose()
+        lin_vel_b = np.matmul(R_BI, lin_vel_I)
+        ang_vel_b = np.matmul(R_BI, ang_vel_I)
+        gravity_b = np.matmul(R_BI, np.array([0.0, 0.0, -1.0]))
+
+        obs = np.zeros(60)  # Changed from 48 to 60
+        # Base lin vel (3 dims)
+        obs[0:3] = lin_vel_b
+        # Base ang vel (3 dims)
+        obs[3:6] = ang_vel_b
+        # Projected gravity (3 dims)
+        obs[6:9] = gravity_b
+        # Velocity commands (3 dims)
+        obs[9:12] = command
+        # Joint positions relative to default (12 dims)
+        current_joint_pos = self.robot.get_joint_positions()
+        current_joint_vel = self.robot.get_joint_velocities()
+        obs[12:24] = current_joint_pos - self.default_pos
+        # Joint velocities (12 dims)
+        obs[24:36] = current_joint_vel
+        # Joint efforts/torques (12 dims)
+        current_joint_efforts = self.robot.get_joint_efforts()  # You may need to use get_applied_joint_efforts()
+        obs[36:48] = current_joint_efforts
+        # Previous actions (12 dims)
+        obs[48:60] = self._previous_action
+
+        return obs
+
     def forward(self, dt, command):
-        """Step the policy"""
-        if self.articulation_view is None:
-            return
-            
-        if self._policy_counter % self._decimation == 0:
-            obs = self.get_observations(command)
-            
-            with torch.no_grad():
-                obs_tensor = torch.from_numpy(obs).unsqueeze(0)
-                # If your model expects CUDA, move tensor: obs_tensor.cuda()
-                action = self.policy(obs_tensor).squeeze(0).numpy()
-            
-            self.action = action
-            self._previous_action = action.copy()
-        
-        # Apply actions
-        # The policy outputs actions in POLICY order (LF, RF...)
-        # We must map these back to SIMULATION order to apply them
-        
-        sim_ordered_targets = np.zeros(12)
-        
-        # Calculate targets in Policy Order first
-        policy_targets = self.default_pos + (self.action * self.action_scale)
-        
-        # Map to Sim Order
-        for policy_i, sim_i in enumerate(self.joint_indices):
-            sim_ordered_targets[sim_i] = policy_targets[policy_i]
+        """
+        Compute the desired torques and apply them to the articulation
 
-        self.articulation_view.set_joint_position_targets(
-            sim_ordered_targets,
-            joint_indices=list(range(12)) # Apply to all 12 sim joints
-        )
-        
+        Argument:
+        dt (float) -- Timestep update in the world.
+        command (np.ndarray) -- the robot command (v_x, v_y, w_z)
+
+        """
+        if self._policy_counter % self._decimation == 0:
+            obs = self._compute_observation(command)
+            self.action = self._compute_action(obs)
+            self._previous_action = self.action.copy()
+
+        action = ArticulationAction(joint_positions=self.default_pos + (self.action * self._action_scale))
+        self.robot.apply_action(action)
+
         self._policy_counter += 1

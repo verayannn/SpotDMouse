@@ -54,16 +54,30 @@ class SimMatchedMLPController:
         self.standing_servos = raw[self.esp32_servo_order].astype(float)
         print(f"Hardware standing servos: {self.standing_servos}")
         
-        # Convert hardware standing to joint angles
+        # # Convert hardware standing to joint angles
+        # self.hw_standing_angles = self._servos_to_angles(self.standing_servos)
+        # print(f"Hardware standing angles: {self.hw_standing_angles}")
+        
+        # #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
+        # # Potential fix for differnces in refernce maps.
+        # # The offset maps hardware's zero to sim's standing pose
+        # self.hw_to_sim_offset = self.sim_default_positions - self.hw_standing_angles
+        # print(f"Hardware to sim offset: {self.hw_to_sim_offset}")
+        # #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+        # Add this flag before calling _servos_to_angles
+        self.use_offset = False  # Temporary flag
+        
+        # Convert hardware standing to joint angles (without offset first)
         self.hw_standing_angles = self._servos_to_angles(self.standing_servos)
         print(f"Hardware standing angles: {self.hw_standing_angles}")
         
-        #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
-        # Potential fix for differnces in refernce maps.
-        # The offset maps hardware's zero to sim's standing pose
+        # Now calculate the offset
         self.hw_to_sim_offset = self.sim_default_positions - self.hw_standing_angles
         print(f"Hardware to sim offset: {self.hw_to_sim_offset}")
-        #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
+        
+        # Enable offset for future calls
+        self.use_offset = True
 
         # Add detailed debug here
         print("\n--- Hardware vs Simulation Comparison ---")
@@ -139,14 +153,27 @@ class SimMatchedMLPController:
 
     #Potential fixes for the offset between references
     #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    # def _servos_to_angles(self, servo_positions):
+    #     """Convert servo positions to joint angles in radians."""
+    #     servo_delta = servo_positions - self.servo_center
+    #     angles_raw = servo_delta / self.servo_scale
+    #     angles_hw = angles_raw * self.direction_multipliers
+    #     # Add offset to convert hardware frame to sim frame
+    #     angles_sim = angles_hw + self.hw_to_sim_offset
+    #     return angles_sim
+    
     def _servos_to_angles(self, servo_positions):
         """Convert servo positions to joint angles in radians."""
         servo_delta = servo_positions - self.servo_center
         angles_raw = servo_delta / self.servo_scale
         angles_hw = angles_raw * self.direction_multipliers
-        # Add offset to convert hardware frame to sim frame
-        angles_sim = angles_hw + self.hw_to_sim_offset
-        return angles_sim
+        
+        # Only add offset if it exists and we're past initialization
+        if hasattr(self, 'use_offset') and self.use_offset and hasattr(self, 'hw_to_sim_offset'):
+            angles_sim = angles_hw + self.hw_to_sim_offset
+            return angles_sim
+        else:
+            return angles_hw
 
     def _angles_to_servos(self, angles_sim):
         """Convert joint angles in radians to servo positions."""

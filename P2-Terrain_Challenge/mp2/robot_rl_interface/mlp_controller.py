@@ -7,7 +7,7 @@ class MatchedMLPController:
     """
     Controller tuned to match simulation dynamics more closely.
     """
-    def __init__(self, policy_path="`/home/ubuntu/mp2_mlp/newest_mlp_networks/policy_joyboy.pt`"): #We're going to change this.
+    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/latest_mlp_network/policy_only.pt"):
         self.esp32 = ESP32Interface()
         time.sleep(0.5)
         
@@ -324,7 +324,7 @@ class MatchedMLPController:
 if __name__ == "__main__":
     import threading
     
-    ctrl = MatchedMLPController("/home/ubuntu/mp2_mlp/policy_only.pt")
+    ctrl = MatchedMLPController("/home/ubuntu/mp2_mlp/latest_mlp_network/policy_only.pt")
     
     print("\n--- Sanity Check ---")
     pos = ctrl.read_joint_positions()

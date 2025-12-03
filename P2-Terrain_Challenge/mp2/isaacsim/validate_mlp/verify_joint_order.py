@@ -155,62 +155,62 @@ class JointOrderVerifier:
         
         return True
     
-    def create_joint_mapping_file(self, output_path="joint_mapping.txt"):
-        """Create a reference file for joint mapping."""
+    # def create_joint_mapping_file(self, output_path="joint_mapping.txt"):
+    #     """Create a reference file for joint mapping."""
         
-        with open(output_path, 'w') as f:
-            f.write("MINI PUPPER JOINT MAPPING\n")
-            f.write("=" * 40 + "\n\n")
-            f.write("Action Index -> Joint Name -> Description\n")
-            f.write("-" * 40 + "\n")
+    #     with open(output_path, 'w') as f:
+    #         f.write("MINI PUPPER JOINT MAPPING\n")
+    #         f.write("=" * 40 + "\n\n")
+    #         f.write("Action Index -> Joint Name -> Description\n")
+    #         f.write("-" * 40 + "\n")
             
-            for i, joint_name in enumerate(self.joint_names):
-                leg = ""
-                if i < 3:
-                    leg = "Left Front (LF)"
-                elif i < 6:
-                    leg = "Right Front (RF)"
-                elif i < 9:
-                    leg = "Left Back (LB)"
-                else:
-                    leg = "Right Back (RB)"
+    #         for i, joint_name in enumerate(self.joint_names):
+    #             leg = ""
+    #             if i < 3:
+    #                 leg = "Left Front (LF)"
+    #             elif i < 6:
+    #                 leg = "Right Front (RF)"
+    #             elif i < 9:
+    #                 leg = "Left Back (LB)"
+    #             else:
+    #                 leg = "Right Back (RB)"
                 
-                joint_type = ""
-                if "base_" in joint_name:
-                    joint_type = "Hip/Yaw"
-                elif "_lf" in joint_name or "_rf" in joint_name or "_lb" in joint_name or "_rb" in joint_name:
-                    if "1_" in joint_name:
-                        joint_type = "Thigh/Pitch"
-                    else:
-                        joint_type = "Shin/Pitch"
+    #             joint_type = ""
+    #             if "base_" in joint_name:
+    #                 joint_type = "Hip/Yaw"
+    #             elif "_lf" in joint_name or "_rf" in joint_name or "_lb" in joint_name or "_rb" in joint_name:
+    #                 if "1_" in joint_name:
+    #                     joint_type = "Thigh/Pitch"
+    #                 else:
+    #                     joint_type = "Shin/Pitch"
                 
-                f.write(f"{i:2d} -> {joint_name:12s} -> {leg:16s} {joint_type}\n")
+    #             f.write(f"{i:2d} -> {joint_name:12s} -> {leg:16s} {joint_type}\n")
             
-            f.write("\n" + "=" * 40 + "\n")
-            f.write("REAL ROBOT IMPLEMENTATION\n")
-            f.write("=" * 40 + "\n\n")
+    #         f.write("\n" + "=" * 40 + "\n")
+    #         f.write("REAL ROBOT IMPLEMENTATION\n")
+    #         f.write("=" * 40 + "\n\n")
             
-            f.write("# Python code for real robot:\n")
-            f.write("joint_mapping = {\n")
-            for i, joint_name in enumerate(self.joint_names):
-                f.write(f'    {i}: "{joint_name}",  # Action index {i}\n')
-            f.write("}\n\n")
+    #         f.write("# Python code for real robot:\n")
+    #         f.write("joint_mapping = {\n")
+    #         for i, joint_name in enumerate(self.joint_names):
+    #             f.write(f'    {i}: "{joint_name}",  # Action index {i}\n')
+    #         f.write("}\n\n")
             
-            f.write("# Default positions (radians):\n")
-            f.write("default_positions = [\n")
-            for i in range(4):  # 4 legs
-                f.write("    0.0, 0.785, -1.57,  # ")
-                if i == 0:
-                    f.write("LF leg\n")
-                elif i == 1:
-                    f.write("RF leg\n")
-                elif i == 2:
-                    f.write("LB leg\n")
-                else:
-                    f.write("RB leg\n")
-            f.write("]\n")
+    #         f.write("# Default positions (radians):\n")
+    #         f.write("default_positions = [\n")
+    #         for i in range(4):  # 4 legs
+    #             f.write("    0.0, 0.785, -1.57,  # ")
+    #             if i == 0:
+    #                 f.write("LF leg\n")
+    #             elif i == 1:
+    #                 f.write("RF leg\n")
+    #             elif i == 2:
+    #                 f.write("LB leg\n")
+    #             else:
+    #                 f.write("RB leg\n")
+    #         f.write("]\n")
         
-        print(f"\nJoint mapping saved to: {output_path}")
+    #     print(f"\nJoint mapping saved to: {output_path}")
 
 
 if __name__ == "__main__":
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     verifier.test_joint_order()
     
     # Create mapping file
-    verifier.create_joint_mapping_file(args.output)
+    # verifier.create_joint_mapping_file(args.output)
     
     print("\n" + "=" * 60)
     print("VERIFICATION COMPLETE")
@@ -236,3 +236,4 @@ if __name__ == "__main__":
     print("\nIMPORTANT: The action outputs from the JIT/ONNX policy")
     print("will control joints in the EXACT order shown above.")
     print("Make sure your real robot joint indices match this order!")
+

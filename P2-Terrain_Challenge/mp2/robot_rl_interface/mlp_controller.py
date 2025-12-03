@@ -46,7 +46,7 @@ class SimMatchedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # Action scale from training config
-        self.ACTION_SCALE = 0.5  # Matches scale=0.5 in SpotActionsCfg
+        self.ACTION_SCALE = 0.25  # Matches scale=0.5 in SpotActionsCfg
         
         # Record current robot pose as "hardware standing"
         print("Recording hardware standing pose...")
@@ -371,17 +371,17 @@ if __name__ == "__main__":
         while True:
             cmd = input("> ").strip().lower()
             if cmd == 'w':
-                controller.set_velocity_command(0.15, 0, 0)
+                controller.set_velocity_command(0.3, 0, 0)
             elif cmd == 's':
-                controller.set_velocity_command(-0.15, 0, 0)
+                controller.set_velocity_command(-0.3, 0, 0)
             elif cmd == 'a':
-                controller.set_velocity_command(0, 0.15, 0)
+                controller.set_velocity_command(0, 0.3, 0)
             elif cmd == 'd':
-                controller.set_velocity_command(0, -0.15, 0)
+                controller.set_velocity_command(0, -0.3, 0)
             elif cmd == 'q':
-                controller.set_velocity_command(0, 0, 0.15)
+                controller.set_velocity_command(0, 0, 0.3)
             elif cmd == 'e':
-                controller.set_velocity_command(0, 0, -0.15)
+                controller.set_velocity_command(0, 0, -0.3)
             elif cmd == ' ' or cmd == '':
                 controller.set_velocity_command(0, 0, 0)
             elif cmd == 'x':

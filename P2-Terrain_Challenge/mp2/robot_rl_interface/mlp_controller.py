@@ -46,7 +46,7 @@ class SimMatchedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # Action scale from training config
-        self.ACTION_SCALE = 0.1  # Matches scale=0.5 in SpotActionsCfg
+        self.ACTION_SCALE = 0.25  # Matches scale=0.5 in SpotActionsCfg
         
         # Record current robot pose as "hardware standing"
         print("Recording hardware standing pose...")

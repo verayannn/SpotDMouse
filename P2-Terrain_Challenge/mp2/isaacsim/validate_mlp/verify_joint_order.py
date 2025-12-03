@@ -236,3 +236,5 @@ if __name__ == "__main__":
     print("\nIMPORTANT: The action outputs from the JIT/ONNX policy")
     print("will control joints in the EXACT order shown above.")
     print("Make sure your real robot joint indices match this order!")
+
+# python verify_joint_order.py --policy /path/to/your/exported/policy.pt

@@ -19,7 +19,7 @@ class SimMatchedMLPController:
         # Servo order: Isaac index -> ESP32 servo index
         self.esp32_servo_order = [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]
         
-        # Direction multipliers to convert hardware motion to sim motion
+        # Direction multipliers to convert hardware motion to sim motion # We may need to verify this again in a separate script.
         self.direction_multipliers = np.array([
             -1.0, -1.0, -1.0,  # LF
             -1.0,  1.0,  1.0,  # RF
@@ -30,15 +30,15 @@ class SimMatchedMLPController:
         # CRITICAL: Define simulation's default joint positions (in radians)
         # These are the joint angles when the robot is standing in simulation
         # If your sim uses different defaults, update these!
-        self.sim_default_positions = np.array([
-            # LF leg (base_lf1, lf1_lf2, lf2_lf3)
-            0.0, -0.785, 1.57,  # hip=0°, thigh=-45°, calf=90°
+        self.sim_default_positions = np.array([ 
+            # LF leg (base_lf1, lf1_lf2, lf2_lf3) 
+            0.0, 0.785, -1.57,  # hip=0°, thigh=-45°, calf=90° # I think we may hvve found the issue.  #That may be th only fix we need.
             # RF leg
-            0.0, -0.785, 1.57,
+            0.0, 0.785, -1.57,
             # LB leg  
-            0.0, -0.785, 1.57,
+            0.0, 0.785, -1.57,
             # RB leg
-            0.0, -0.785, 1.57
+            0.0, 0.785, -1.57
         ])
         
         # Servo constants
@@ -57,7 +57,14 @@ class SimMatchedMLPController:
         # Convert hardware standing to joint angles
         self.hw_standing_angles = self._servos_to_angles(self.standing_servos)
         print(f"Hardware standing angles: {self.hw_standing_angles}")
-        
+
+        #Results
+        # Hardware standing servos: [512. 510. 514. 514. 515. 508. 516. 509. 514. 513. 518. 508.]
+        # Hardware standing angles: [-0.          0.01227185 -0.01227185 -0.01227185  0.01840777 -0.02454369
+        # 0.02454369  0.01840777 -0.01227185  0.00613592  0.03681554 -0.02454369]
+        #Question: If the servos are reporting back numbers around the 512 average... then if we were to add/subtract from these servo positions, we would move a given peice by a determined command
+        # What is the relatationship between the output of the servo, changing these relative postitons wrt to the output from the mlp? How are we doing that now?  Looks like _servos_to_angles
+    
         # State
         self.prev_actions = np.zeros(12)
         self.prev_joint_angles = self.hw_standing_angles.copy()
@@ -102,6 +109,8 @@ class SimMatchedMLPController:
         angles_raw = servo_delta / self.servo_scale
         angles = angles_raw * self.direction_multipliers
         return angles
+
+    #Request: I want to know what this output is. How it compares to the sim expected default stance
     
     def _angles_to_servos(self, angles):
         """Convert joint angles in radians to servo positions."""
@@ -255,6 +264,7 @@ class SimMatchedMLPController:
         
         # Send absolute positions to robot
         self.write_joint_positions_absolute(target_positions)
+        # Question: What is the MLP outputting to the simulated robots? Torques? Joint positons? Radians?
         
         # Update state
         self.prev_actions = clipped_actions.copy()
@@ -269,6 +279,26 @@ class SimMatchedMLPController:
             print(f"Target pos (abs): [{target_positions.min():.3f}, {target_positions.max():.3f}]")
             if self.startup_steps < self.startup_duration:
                 print(f"Startup: {self.startup_steps}/{self.startup_duration}")
+        
+        #Result
+#         --- Detailed Step 400 ---
+        # Target positions (absolute, sim frame):
+        #   LF: [+0.12, -0.86, +1.40]
+        #   RF: [-0.03, -0.68, +1.56]
+        #   LB: [+0.03, -0.85, +1.75]
+        #   RB: [+0.02, -0.97, +1.42]
+        # Sim defaults:
+        #   LF: [+0.00, -0.79, +1.57]
+
+        # --- Step 450 ---
+        # Velocity cmd: [0.3 0.  0. ]
+        # Joint pos rel: [-0.226, 0.251]
+        # Raw actions: [-0.508, 0.621]
+        # Target pos (abs): [-0.853, 1.687]
+        # Question: Why are the Target Pos so large? Based on the per-limb rotation tests, what is the rellationship between radians and set target postiions and how can we use that to inform how this
+        # robot executes commands? 
+        # Question: How does the IsaacSim Send commands (target postion? Radians?) How can we comunicate with the ESP32 interface the same way that the Isaacsimn does with whatever function controls the
+        #joints?
             
         if self.debug_counter % 200 == 0:
             print(f"\n--- Detailed Step {self.debug_counter} ---")

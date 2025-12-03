@@ -55,8 +55,8 @@ class SimMatchedMLPController:
         print(f"Hardware standing servos: {self.standing_servos}")
         
         # Convert hardware standing to joint angles
-        # self.hw_standing_angles = self._servos_to_angles(self.standing_servos)
-        # print(f"Hardware standing angles: {self.hw_standing_angles}")
+        self.hw_standing_angles = self._servos_to_angles(self.standing_servos)
+        print(f"Hardware standing angles: {self.hw_standing_angles}")
         
         #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
         # Potential fix for differnces in refernce maps.

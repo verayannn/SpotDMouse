@@ -7,7 +7,7 @@ class MatchedMLPController:
     """
     Controller tuned to match simulation dynamics more closely.
     """
-    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_only.pt"):
+    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/latest_mlp_network/policy_only.pt"):
         self.esp32 = ESP32Interface()
         time.sleep(0.5)
         

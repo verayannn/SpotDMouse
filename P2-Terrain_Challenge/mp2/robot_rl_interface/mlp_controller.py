@@ -107,6 +107,12 @@ class SimMatchedMLPController:
         self.startup_steps = 0
         self.startup_duration = 25  # 0.5 second ramp at 50Hz
         
+        # Add these to __init__ (around line 107):
+        # Gait phase modulation parameters
+        self.gait_frequency = 2.0  # Hz - matches your observed gait
+        self.gait_phase = 0.0
+        self.gait_amplitude = 0.5  # How much to modulate actions (0-1)
+
     def _calibrate_imu(self, samples=50):
         print("Keep robot still...")
         gyro_sum = np.zeros(3)
@@ -311,11 +317,6 @@ class SimMatchedMLPController:
     #         print(f"  LF: [{self.sim_default_positions[0]:+.2f}, {self.sim_default_positions[1]:+.2f}, {self.sim_default_positions[2]:+.2f}]")
         
     #     return clipped_actions
-    # Add these to __init__ (around line 107):
-    # Gait phase modulation parameters
-    self.gait_frequency = 2.0  # Hz - matches your observed gait
-    self.gait_phase = 0.0
-    self.gait_amplitude = 0.5  # How much to modulate actions (0-1)
 
     def control_step(self):
         """Single control loop iteration with gait phase modulation."""

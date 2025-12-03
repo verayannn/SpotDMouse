@@ -93,7 +93,7 @@ class SimMatchedMLPController:
         self._calibrate_imu()
         
         # Control parameters
-        self.CONTROL_FREQUENCY = 30 #50  # Match simulation
+        self.CONTROL_FREQUENCY = 50 #50  # Match simulation
         self.action_clip = True      # Match simulation clipping
         self.action_smoothing = 0.85 #0.6  # Moderate smoothing
         self.max_action_delta = 0.08 #0.25  # Allow reasonably fast changes
@@ -330,7 +330,8 @@ class SimMatchedMLPController:
         
         # Update gait phase
         dt = 1.0 / self.CONTROL_FREQUENCY
-        self.gait_phase += 2 * np.pi * self.gait_frequency * dt
+        # self.gait_phase += 2 * np.pi * self.gait_frequency * dt
+        self.gait_phase = (self.gait_phase + 2 * np.pi * self.gait_frequency * dt) % (2 * np.pi)
         
         # Create gait pattern - diagonal pairs move together
         # This creates a trotting gait pattern
@@ -500,17 +501,17 @@ if __name__ == "__main__":
         while True:
             cmd = input("> ").strip().lower()
             if cmd == 'w':
-                controller.set_velocity_command(0.3, 0, 0)
+                controller.set_velocity_command(0.1, 0, 0)
             elif cmd == 's':
-                controller.set_velocity_command(-0.3, 0, 0)
+                controller.set_velocity_command(-0.1, 0, 0)
             elif cmd == 'a':
-                controller.set_velocity_command(0, 0.3, 0)
+                controller.set_velocity_command(0, 0.1, 0)
             elif cmd == 'd':
-                controller.set_velocity_command(0, -0.3, 0)
+                controller.set_velocity_command(0, -0.1, 0)
             elif cmd == 'q':
-                controller.set_velocity_command(0, 0, 0.3)
+                controller.set_velocity_command(0, 0, 0.1)
             elif cmd == 'e':
-                controller.set_velocity_command(0, 0, -0.3)
+                controller.set_velocity_command(0, 0, -0.1)
             elif cmd == ' ' or cmd == '':
                 controller.set_velocity_command(0, 0, 0)
             elif cmd == 'x':
@@ -521,3 +522,206 @@ if __name__ == "__main__":
     controller.stop()
     thread.join()
     print("Done")
+
+#Result: Bias in motor output
+# Loaded policy from /home/ubuntu/mp2_mlp/policy_joyboy.pt
+# Recording hardware standing pose...
+# Hardware standing servos: [492. 489. 517. 532. 575. 513. 542. 507. 487. 490. 536. 505.]
+# Hardware standing angles: [ 0.12271846  0.14112623 -0.03067962 -0.12271846  0.38656316  0.00613592
+#   0.18407769  0.03067962  0.15339808 -0.13499031  0.14726216 -0.04295146]
+# Hardware to sim offset: [-0.12271846  0.64387377 -1.53932038  0.12271846  0.39843684 -1.57613592
+#  -0.18407769  0.75432038 -1.72339808  0.13499031  0.63773784 -1.52704854]
+
+# --- Hardware vs Simulation Comparison ---
+# Hardware angles: [ 0.12271846  0.14112623 -0.03067962 -0.12271846  0.38656316  0.00613592
+#   0.18407769  0.03067962  0.15339808 -0.13499031  0.14726216 -0.04295146]
+# Sim defaults:    [ 0.     0.785 -1.57   0.     0.785 -1.57   0.     0.785 -1.57   0.
+#   0.785 -1.57 ]
+# Differences:     [ 0.12271846 -0.64387377  1.53932038 -0.12271846 -0.39843684  1.57613592
+#   0.18407769 -0.75432038  1.72339808 -0.13499031 -0.63773784  1.52704854]
+
+# Per-leg breakdown:
+# LF: HW=[0.123, 0.141, -0.031] Sim=[0.000, 0.785, -1.570]
+# RF: HW=[-0.123, 0.387, 0.006] Sim=[0.000, 0.785, -1.570]
+# LB: HW=[0.184, 0.031, 0.153] Sim=[0.000, 0.785, -1.570]
+# RB: HW=[-0.135, 0.147, -0.043] Sim=[0.000, 0.785, -1.570]
+# Calibrating IMU...
+# Keep robot still...
+# Gyro offset: [  2.605  -10.9675  -0.9   ]
+
+# --- Test Observation ---
+# Observation shape: (60,)
+# Joint pos rel to sim default: [-0.006, 0.006]
+
+# --- Test Action Processing ---
+# Zero actions -> target positions: [ 0.     0.785 -1.57   0.     0.785 -1.57   0.     0.785 -1.57   0.
+#   0.785 -1.57 ]
+# Should equal sim defaults: [ 0.     0.785 -1.57   0.     0.785 -1.57   0.     0.785 -1.57   0.
+#   0.785 -1.57 ]
+# Match? True
+
+# 0.1 actions -> target positions: [ 0.05   0.835 -1.52   0.05   0.835 -1.52   0.05   0.835 -1.52   0.05
+#   0.835 -1.52 ]
+# Expected: [ 0.05   0.835 -1.52   0.05   0.835 -1.52   0.05   0.835 -1.52   0.05
+#   0.835 -1.52 ]
+# Match? True
+
+# Control loop at 50Hz
+# Action scale: 0.5
+# > Smoothing: 0.85
+# Commands: w/s/a/d/q/e = move, space = stop, x = exit
+# w
+# Active: cmd=[0.3 0.  0. ]
+# > 
+# --- Step 50 ---
+# Velocity cmd: [0.3 0.  0. ]
+# Joint pos rel: [-0.141, 0.313]
+# Raw actions: [-0.778, 1.006]
+# Target pos (abs): [-1.858, 0.979]
+# Gait phase: 0.00 rad, Mod LF: 0.50, RF: 0.50
+
+# --- Step 100 ---
+# Velocity cmd: [0.3 0.  0. ]
+# Joint pos rel: [-0.252, 0.337]
+# Raw actions: [-2.877, 3.121]
+# Target pos (abs): [-1.886, 0.996]
+# Gait phase: 6.28 rad, Mod LF: 0.50, RF: 0.50
+
+# --- Step 150 ---
+# Velocity cmd: [0.3 0.  0. ]
+# Joint pos rel: [-0.301, 0.344]
+# Raw actions: [-1.936, 1.140]
+# Target pos (abs): [-1.742, 0.976]
+# Gait phase: 6.28 rad, Mod LF: 0.50, RF: 0.50
+
+# --- Step 200 ---
+# Velocity cmd: [0.3 0.  0. ]
+# Joint pos rel: [-0.123, 0.196]
+# Raw actions: [-0.720, 0.837]
+# Target pos (abs): [-1.669, 0.937]
+# Gait phase: 6.28 rad, Mod LF: 0.50, RF: 0.50
+
+# --- Detailed Step 200 ---
+# Target positions (absolute, sim frame):
+#   LF: [-0.02, +0.85, -1.65] (phase: 0.50)
+#   RF: [+0.13, +0.94, -1.61] (phase: 0.50)
+#   LB: [-0.24, +0.62, -1.34] (phase: 0.50)
+#   RB: [+0.19, +0.90, -1.67] (phase: 0.50)
+# Sim defaults:
+#   LF: [+0.00, +0.79, -1.57]
+
+# --- Step 250 ---
+# Velocity cmd: [0.3 0.  0. ]
+# Joint pos rel: [-0.350, 0.344]
+# Raw actions: [-2.348, 1.334]
+# Target pos (abs): [-2.066, 1.007]
+# Gait phase: 6.28 rad, Mod LF: 0.50, RF: 0.50
+ 
+# Stopped
+# > s
+# Active: cmd=[-0.3  0.   0. ]
+# > 
+# --- Step 50 ---
+# Velocity cmd: [-0.3  0.   0. ]
+# Joint pos rel: [-0.184, 0.239]
+# Raw actions: [-1.104, 1.890]
+# Target pos (abs): [-1.663, 0.986]
+# Gait phase: 4.27 rad, Mod LF: 0.05, RF: 0.95
+
+# --- Step 100 ---
+# Velocity cmd: [-0.3  0.   0. ]
+# Joint pos rel: [-0.344, 0.387]
+# Raw actions: [-1.135, 1.023]
+# Target pos (abs): [-1.765, 0.843]
+# Gait phase: 4.27 rad, Mod LF: 0.05, RF: 0.95
+
+# --- Step 150 ---
+# Velocity cmd: [-0.3  0.   0. ]
+# Joint pos rel: [-0.380, 0.239]
+# Raw actions: [-0.971, 0.982]
+# Target pos (abs): [-1.848, 1.086]
+# Gait phase: 4.27 rad, Mod LF: 0.05, RF: 0.95
+
+# --- Step 200 ---
+# Velocity cmd: [-0.3  0.   0. ]
+# Joint pos rel: [-0.270, 0.325]
+# Raw actions: [-0.996, 1.690]
+# Target pos (abs): [-1.650, 0.885]
+# Gait phase: 4.27 rad, Mod LF: 0.05, RF: 0.95
+
+# --- Detailed Step 200 ---
+# Target positions (absolute, sim frame):
+#   LF: [+0.16, +0.78, -1.60] (phase: 0.05)
+#   RF: [-0.07, +0.75, -1.65] (phase: 0.95)
+#   LB: [+0.01, +0.77, -1.41] (phase: 0.95)
+#   RB: [-0.02, +0.89, -1.62] (phase: 0.05)
+# Sim defaults:
+#   LF: [+0.00, +0.79, -1.57]
+ 
+# Stopped
+# > d
+# Active: cmd=[ 0.  -0.3  0. ]
+# > 
+# --- Step 50 ---
+# Velocity cmd: [ 0.  -0.3  0. ]
+# Joint pos rel: [-0.209, 0.141]
+# Raw actions: [-0.975, 1.170]
+# Target pos (abs): [-1.692, 0.957]
+# Gait phase: 3.27 rad, Mod LF: 0.44, RF: 0.56
+
+# --- Step 100 ---
+# Velocity cmd: [ 0.  -0.3  0. ]
+# Joint pos rel: [-0.190, 0.368]
+# Raw actions: [-1.775, 2.932]
+# Target pos (abs): [-1.908, 0.991]
+# Gait phase: 3.27 rad, Mod LF: 0.44, RF: 0.56
+
+# --- Step 150 ---
+# Velocity cmd: [ 0.  -0.3  0. ]
+# Joint pos rel: [-0.221, 0.356]
+# Raw actions: [-1.467, 1.003]
+# Target pos (abs): [-1.699, 0.751]
+# Gait phase: 3.27 rad, Mod LF: 0.44, RF: 0.56
+ 
+# Stopped
+# > a
+# Active: cmd=[0.  0.3 0. ]
+# > 
+# --- Step 50 ---
+# Velocity cmd: [0.  0.3 0. ]
+# Joint pos rel: [-0.264, 0.344]
+# Raw actions: [-0.967, 0.371]
+# Target pos (abs): [-1.734, 0.938]
+# Gait phase: 3.27 rad, Mod LF: 0.44, RF: 0.56
+
+# --- Step 100 ---
+# Velocity cmd: [0.  0.3 0. ]
+# Joint pos rel: [-0.196, 0.270]
+# Raw actions: [-1.647, 1.590]
+# Target pos (abs): [-1.948, 0.982]
+# Gait phase: 3.27 rad, Mod LF: 0.44, RF: 0.56
+
+# --- Step 150 ---
+# Velocity cmd: [0.  0.3 0. ]
+# Joint pos rel: [-0.319, 0.295]
+# Raw actions: [-0.889, 0.317]
+# Target pos (abs): [-1.698, 0.864]
+# Gait phase: 3.27 rad, Mod LF: 0.44, RF: 0.56
+
+# --- Step 200 ---
+# Velocity cmd: [0.  0.3 0. ]
+# Joint pos rel: [-0.282, 0.522]
+# Raw actions: [-0.626, 1.356]
+# Target pos (abs): [-1.797, 1.021]
+# Gait phase: 3.27 rad, Mod LF: 0.44, RF: 0.56
+
+# --- Detailed Step 200 ---
+# Target positions (absolute, sim frame):
+#   LF: [+0.02, +0.91, -1.46] (phase: 0.44)
+#   RF: [+0.04, +1.02, -1.80] (phase: 0.56)
+#   LB: [-0.19, +0.92, -1.45] (phase: 0.56)
+#   RB: [-0.01, +0.79, -1.79] (phase: 0.44)
+# Sim defaults:
+#   LF: [+0.00, +0.79, -1.57]
+ 
+# Stopped

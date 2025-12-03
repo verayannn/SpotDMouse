@@ -57,6 +57,24 @@ class SimMatchedMLPController:
         # Convert hardware standing to joint angles
         self.hw_standing_angles = self._servos_to_angles(self.standing_servos)
         print(f"Hardware standing angles: {self.hw_standing_angles}")
+        
+        #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
+        # Potential fix for differnces in refernce maps.
+        # The offset maps hardware's zero to sim's standing pose
+        # self.hw_to_sim_offset = self.sim_default_positions - self.hw_standing_angles
+        # print(f"Hardware to sim offset: {self.hw_to_sim_offset}")
+        #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
+
+        # Add detailed debug here
+        print("\n--- Hardware vs Simulation Comparison ---")
+        print(f"Hardware angles: {self.hw_standing_angles}")
+        print(f"Sim defaults:    {self.sim_default_positions}")
+        print(f"Differences:     {self.hw_standing_angles - self.sim_default_positions}")
+        print("\nPer-leg breakdown:")
+        for i, leg in enumerate(['LF', 'RF', 'LB', 'RB']):
+            base_idx = i * 3
+            print(f"{leg}: HW=[{self.hw_standing_angles[base_idx]:.3f}, {self.hw_standing_angles[base_idx+1]:.3f}, {self.hw_standing_angles[base_idx+2]:.3f}] "
+                f"Sim=[{self.sim_default_positions[base_idx]:.3f}, {self.sim_default_positions[base_idx+1]:.3f}, {self.sim_default_positions[base_idx+2]:.3f}]")
 
         #Results
         # Hardware standing servos: [512. 510. 514. 514. 515. 508. 516. 509. 514. 513. 518. 508.]
@@ -118,6 +136,27 @@ class SimMatchedMLPController:
         servo_delta = angles_hw * self.servo_scale
         servos = self.servo_center + servo_delta
         return servos
+
+    #Potential fixes for the offset between references
+    #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    # def _servos_to_angles(self, servo_positions):
+    #     """Convert servo positions to joint angles in radians."""
+    #     servo_delta = servo_positions - self.servo_center
+    #     angles_raw = servo_delta / self.servo_scale
+    #     angles_hw = angles_raw * self.direction_multipliers
+    #     # Add offset to convert hardware frame to sim frame
+    #     angles_sim = angles_hw + self.hw_to_sim_offset
+    #     return angles_sim
+
+    # def _angles_to_servos(self, angles_sim):
+    #     """Convert joint angles in radians to servo positions."""
+    #     # Remove offset to convert sim frame to hardware frame
+    #     angles_hw = angles_sim - self.hw_to_sim_offset
+    #     angles_raw = angles_hw * self.direction_multipliers
+    #     servo_delta = angles_raw * self.servo_scale
+    #     servos = self.servo_center + servo_delta
+    #     return servos
+    #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     def read_joint_positions(self):
         """Read current joint angles in simulation frame."""

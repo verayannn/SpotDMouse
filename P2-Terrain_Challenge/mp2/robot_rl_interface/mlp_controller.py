@@ -28,7 +28,7 @@ class MatchedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # Match training: action_scale = 0.5
-        self.ACTION_SCALE = 0.5
+        self.ACTION_SCALE = 0.1
         
         print("Recording standing pose...")
         raw = np.array(self.esp32.servos_get_position())

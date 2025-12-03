@@ -248,8 +248,77 @@ class SimMatchedMLPController:
         
         return target_positions, actions
     
+    # def control_step(self):
+    #     """Single control loop iteration."""
+    #     # Get observation
+    #     obs, joint_pos_rel, joint_vel = self.get_observation()
+        
+    #     # Policy inference
+    #     with torch.no_grad():
+    #         obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
+    #         raw_actions = self.policy(obs_tensor).squeeze().numpy()
+        
+    #     # Process actions as in simulation
+    #     target_positions, clipped_actions = self.process_actions(raw_actions)
+        
+    #     # Startup ramp
+    #     if self.startup_steps < self.startup_duration:
+    #         ramp = self.startup_steps / self.startup_duration
+    #         target_positions = self.sim_default_positions + (target_positions - self.sim_default_positions) * ramp
+    #         clipped_actions = clipped_actions * ramp
+    #         self.startup_steps += 1
+        
+    #     # Optional smoothing on the target positions
+    #     if self.action_smoothing > 0 and self.debug_counter > 0:
+    #         # Smooth the change in target positions
+    #         if hasattr(self, 'prev_target_positions'):
+    #             alpha = self.action_smoothing
+    #             smoothed_targets = alpha * target_positions + (1 - alpha) * self.prev_target_positions
+                
+    #             # Rate limit the change
+    #             delta = smoothed_targets - self.prev_target_positions
+    #             delta = np.clip(delta, -self.max_action_delta, self.max_action_delta)
+    #             target_positions = self.prev_target_positions + delta
+        
+    #     self.prev_target_positions = target_positions.copy()
+        
+    #     # Send absolute positions to robot
+    #     self.write_joint_positions_absolute(target_positions)
+    #     # Question: What is the MLP outputting to the simulated robots? Torques? Joint positons? Radians?
+        
+    #     # Update state
+    #     self.prev_actions = clipped_actions.copy()
+        
+    #     # Debug output
+    #     self.debug_counter += 1
+    #     if self.debug_counter % 50 == 0:
+    #         print(f"\n--- Step {self.debug_counter} ---")
+    #         print(f"Velocity cmd: {self.velocity_command}")
+    #         print(f"Joint pos rel: [{joint_pos_rel.min():.3f}, {joint_pos_rel.max():.3f}]")
+    #         print(f"Raw actions: [{raw_actions.min():.3f}, {raw_actions.max():.3f}]")
+    #         print(f"Target pos (abs): [{target_positions.min():.3f}, {target_positions.max():.3f}]")
+    #         if self.startup_steps < self.startup_duration:
+    #             print(f"Startup: {self.startup_steps}/{self.startup_duration}")
+            
+    #     if self.debug_counter % 200 == 0:
+    #         print(f"\n--- Detailed Step {self.debug_counter} ---")
+    #         print("Target positions (absolute, sim frame):")
+    #         print(f"  LF: [{target_positions[0]:+.2f}, {target_positions[1]:+.2f}, {target_positions[2]:+.2f}]")
+    #         print(f"  RF: [{target_positions[3]:+.2f}, {target_positions[4]:+.2f}, {target_positions[5]:+.2f}]")
+    #         print(f"  LB: [{target_positions[6]:+.2f}, {target_positions[7]:+.2f}, {target_positions[8]:+.2f}]")
+    #         print(f"  RB: [{target_positions[9]:+.2f}, {target_positions[10]:+.2f}, {target_positions[11]:+.2f}]")
+    #         print("Sim defaults:")
+    #         print(f"  LF: [{self.sim_default_positions[0]:+.2f}, {self.sim_default_positions[1]:+.2f}, {self.sim_default_positions[2]:+.2f}]")
+        
+    #     return clipped_actions
+    # Add these to __init__ (around line 107):
+    # Gait phase modulation parameters
+    self.gait_frequency = 2.0  # Hz - matches your observed gait
+    self.gait_phase = 0.0
+    self.gait_amplitude = 0.5  # How much to modulate actions (0-1)
+
     def control_step(self):
-        """Single control loop iteration."""
+        """Single control loop iteration with gait phase modulation."""
         # Get observation
         obs, joint_pos_rel, joint_vel = self.get_observation()
         
@@ -258,8 +327,37 @@ class SimMatchedMLPController:
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
             raw_actions = self.policy(obs_tensor).squeeze().numpy()
         
-        # Process actions as in simulation
-        target_positions, clipped_actions = self.process_actions(raw_actions)
+        # Update gait phase
+        dt = 1.0 / self.CONTROL_FREQUENCY
+        self.gait_phase += 2 * np.pi * self.gait_frequency * dt
+        
+        # Create gait pattern - diagonal pairs move together
+        # This creates a trotting gait pattern
+        gait_modulation = np.zeros(12)
+        
+        # Phase 1: LF and RB swing, RF and LB stance
+        # Each leg has 3 joints: base, mid, end
+        lf_indices = [0, 1, 2]  # Left Front
+        rb_indices = [9, 10, 11]  # Right Back
+        rf_indices = [3, 4, 5]  # Right Front
+        lb_indices = [6, 7, 8]  # Left Back
+        
+        # Diagonal pair 1 (LF + RB)
+        phase1 = 0.5 + 0.5 * np.sin(self.gait_phase)
+        gait_modulation[lf_indices] = phase1
+        gait_modulation[rb_indices] = phase1
+        
+        # Diagonal pair 2 (RF + LB) - opposite phase
+        phase2 = 0.5 + 0.5 * np.sin(self.gait_phase + np.pi)
+        gait_modulation[rf_indices] = phase2
+        gait_modulation[lb_indices] = phase2
+        
+        # Apply gait modulation to actions
+        # Blend between raw actions and gait-modulated actions
+        modulated_actions = raw_actions * (self.gait_amplitude * gait_modulation + (1 - self.gait_amplitude))
+        
+        # Process modulated actions as in simulation
+        target_positions, clipped_actions = self.process_actions(modulated_actions)
         
         # Startup ramp
         if self.startup_steps < self.startup_duration:
@@ -284,7 +382,6 @@ class SimMatchedMLPController:
         
         # Send absolute positions to robot
         self.write_joint_positions_absolute(target_positions)
-        # Question: What is the MLP outputting to the simulated robots? Torques? Joint positons? Radians?
         
         # Update state
         self.prev_actions = clipped_actions.copy()
@@ -297,16 +394,17 @@ class SimMatchedMLPController:
             print(f"Joint pos rel: [{joint_pos_rel.min():.3f}, {joint_pos_rel.max():.3f}]")
             print(f"Raw actions: [{raw_actions.min():.3f}, {raw_actions.max():.3f}]")
             print(f"Target pos (abs): [{target_positions.min():.3f}, {target_positions.max():.3f}]")
+            print(f"Gait phase: {(self.gait_phase % (2*np.pi)):.2f} rad, Mod LF: {phase1:.2f}, RF: {phase2:.2f}")
             if self.startup_steps < self.startup_duration:
                 print(f"Startup: {self.startup_steps}/{self.startup_duration}")
             
         if self.debug_counter % 200 == 0:
             print(f"\n--- Detailed Step {self.debug_counter} ---")
             print("Target positions (absolute, sim frame):")
-            print(f"  LF: [{target_positions[0]:+.2f}, {target_positions[1]:+.2f}, {target_positions[2]:+.2f}]")
-            print(f"  RF: [{target_positions[3]:+.2f}, {target_positions[4]:+.2f}, {target_positions[5]:+.2f}]")
-            print(f"  LB: [{target_positions[6]:+.2f}, {target_positions[7]:+.2f}, {target_positions[8]:+.2f}]")
-            print(f"  RB: [{target_positions[9]:+.2f}, {target_positions[10]:+.2f}, {target_positions[11]:+.2f}]")
+            print(f"  LF: [{target_positions[0]:+.2f}, {target_positions[1]:+.2f}, {target_positions[2]:+.2f}] (phase: {phase1:.2f})")
+            print(f"  RF: [{target_positions[3]:+.2f}, {target_positions[4]:+.2f}, {target_positions[5]:+.2f}] (phase: {phase2:.2f})")
+            print(f"  LB: [{target_positions[6]:+.2f}, {target_positions[7]:+.2f}, {target_positions[8]:+.2f}] (phase: {phase2:.2f})")
+            print(f"  RB: [{target_positions[9]:+.2f}, {target_positions[10]:+.2f}, {target_positions[11]:+.2f}] (phase: {phase1:.2f})")
             print("Sim defaults:")
             print(f"  LF: [{self.sim_default_positions[0]:+.2f}, {self.sim_default_positions[1]:+.2f}, {self.sim_default_positions[2]:+.2f}]")
         

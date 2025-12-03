@@ -7,7 +7,7 @@ class MatchedMLPController:
     """
     Controller tuned to match simulation dynamics more closely.
     """
-    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_only.pt"):
+    def __init__(self, policy_path="`/home/ubuntu/mp2_mlp/newest_mlp_networks/policy_joyboy.pt`"): #We're going to change this.
         self.esp32 = ESP32Interface()
         time.sleep(0.5)
         
@@ -280,26 +280,7 @@ class MatchedMLPController:
             elapsed = time.time() - loop_start
             if elapsed < dt_target:
                 time.sleep(dt_target - elapsed)
-    
-    # def set_velocity_command(self, vx, vy, vyaw):
-    #     self.velocity_command = np.array([
-    #         np.clip(vx, -0.35, 0.40),
-    #         np.clip(vy, -0.35, 0.35),
-    #         np.clip(vyaw, -0.30, 0.30)
-    #     ])
-    #     if np.any(np.abs(self.velocity_command) > 0.01):
-    #         if not self.control_active:
-    #             self.prev_actions = np.zeros(12)
-    #             self.prev_joint_pos_rel = self.read_joint_positions()
-    #             self.prev_joint_vel = np.zeros(12)
-    #             self.prev_time = time.time()
-    #             self.startup_steps = 0
-    #         self.control_active = True
-    #         print(f"Active: {self.velocity_command}")
-    #     else:
-    #         self.control_active = False
-    #         self.startup_steps = 0
-    #         print("Stopped")
+                
     def set_velocity_command(self, vx, vy, vyaw):
         self.velocity_command = np.array([
             np.clip(vx, -0.35, 0.40),
@@ -352,7 +333,7 @@ if __name__ == "__main__":
     thread = threading.Thread(target=ctrl.control_loop)
     thread.start()
     
-    print("\nw/s/a/d/q/e = move | space = stop | x = exit")
+    print("\nw/s/a/d/q/e/z/t = move | space = stop | x = exit")
     
     try:
         while True:

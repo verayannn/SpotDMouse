@@ -324,7 +324,7 @@ class MatchedMLPController:
 if __name__ == "__main__":
     import threading
     
-    ctrl = MatchedMLPController("/home/ubuntu/mp2_mlp/latest_mlp_network/policy_only.pt")
+    ctrl = MatchedMLPController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
     print("\n--- Sanity Check ---")
     pos = ctrl.read_joint_positions()

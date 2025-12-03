@@ -8,7 +8,7 @@ class SimMatchedMLPController:
     Controller that exactly matches simulation's JointPositionAction processing.
     Key insight: Actions are added to simulation default positions, NOT current positions.
     """
-    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/latest_mlp_network/policy_only.pt"):
+    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
         self.esp32 = ESP32Interface()
         time.sleep(0.5)
         
@@ -340,7 +340,7 @@ if __name__ == "__main__":
     import threading
     
     # Update path as needed
-    controller = SimMatchedMLPController("/home/ubuntu/mp2_mlp/latest_mlp_network/policy_only.pt")
+    controller = SimMatchedMLPController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
     # Test observation
     print("\n--- Test Observation ---")

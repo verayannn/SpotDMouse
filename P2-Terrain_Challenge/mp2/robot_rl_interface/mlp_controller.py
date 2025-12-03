@@ -53,17 +53,6 @@ class SimMatchedMLPController:
         raw = np.array(self.esp32.servos_get_position())
         self.standing_servos = raw[self.esp32_servo_order].astype(float)
         print(f"Hardware standing servos: {self.standing_servos}")
-        
-        # # Convert hardware standing to joint angles
-        # self.hw_standing_angles = self._servos_to_angles(self.standing_servos)
-        # print(f"Hardware standing angles: {self.hw_standing_angles}")
-        
-        # #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
-        # # Potential fix for differnces in refernce maps.
-        # # The offset maps hardware's zero to sim's standing pose
-        # self.hw_to_sim_offset = self.sim_default_positions - self.hw_standing_angles
-        # print(f"Hardware to sim offset: {self.hw_to_sim_offset}")
-        # #+++++++++++++++++++++++++++++++++++++++++++++++++++++#
 
         # Add this flag before calling _servos_to_angles
         self.use_offset = False  # Temporary flag
@@ -90,13 +79,6 @@ class SimMatchedMLPController:
             print(f"{leg}: HW=[{self.hw_standing_angles[base_idx]:.3f}, {self.hw_standing_angles[base_idx+1]:.3f}, {self.hw_standing_angles[base_idx+2]:.3f}] "
                 f"Sim=[{self.sim_default_positions[base_idx]:.3f}, {self.sim_default_positions[base_idx+1]:.3f}, {self.sim_default_positions[base_idx+2]:.3f}]")
 
-        #Results
-        # Hardware standing servos: [512. 510. 514. 514. 515. 508. 516. 509. 514. 513. 518. 508.]
-        # Hardware standing angles: [-0.          0.01227185 -0.01227185 -0.01227185  0.01840777 -0.02454369
-        # 0.02454369  0.01840777 -0.01227185  0.00613592  0.03681554 -0.02454369]
-        #Question: If the servos are reporting back numbers around the 512 average... then if we were to add/subtract from these servo positions, we would move a given peice by a determined command
-        # What is the relatationship between the output of the servo, changing these relative postitons wrt to the output from the mlp? How are we doing that now?  Looks like _servos_to_angles
-    
         # State
         self.prev_actions = np.zeros(12)
         self.prev_joint_angles = self.hw_standing_angles.copy()
@@ -111,10 +93,10 @@ class SimMatchedMLPController:
         self._calibrate_imu()
         
         # Control parameters
-        self.CONTROL_FREQUENCY = 50  # Match simulation
+        self.CONTROL_FREQUENCY = 10 #50  # Match simulation
         self.action_clip = True      # Match simulation clipping
-        self.action_smoothing = 0.6  # Moderate smoothing
-        self.max_action_delta = 0.25  # Allow reasonably fast changes
+        self.action_smoothing = 0.85 #0.6  # Moderate smoothing
+        self.max_action_delta = 0.08 #0.25  # Allow reasonably fast changes
         
         # Observation clipping to match training ranges
         self.obs_joint_pos_clip = 0.8
@@ -134,33 +116,6 @@ class SimMatchedMLPController:
             time.sleep(0.02)
         self.gyro_offset = gyro_sum / samples
         print(f"Gyro offset: {self.gyro_offset}")
-    
-    # def _servos_to_angles(self, servo_positions):
-    #     """Convert servo positions to joint angles in radians."""
-    #     servo_delta = servo_positions - self.servo_center
-    #     angles_raw = servo_delta / self.servo_scale
-    #     angles = angles_raw * self.direction_multipliers
-    #     return angles
-
-    # #Request: I want to know what this output is. How it compares to the sim expected default stance
-    
-    # def _angles_to_servos(self, angles):
-    #     """Convert joint angles in radians to servo positions."""
-    #     angles_hw = angles * self.direction_multipliers
-    #     servo_delta = angles_hw * self.servo_scale
-    #     servos = self.servo_center + servo_delta
-    #     return servos
-
-    #Potential fixes for the offset between references
-    #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    # def _servos_to_angles(self, servo_positions):
-    #     """Convert servo positions to joint angles in radians."""
-    #     servo_delta = servo_positions - self.servo_center
-    #     angles_raw = servo_delta / self.servo_scale
-    #     angles_hw = angles_raw * self.direction_multipliers
-    #     # Add offset to convert hardware frame to sim frame
-    #     angles_sim = angles_hw + self.hw_to_sim_offset
-    #     return angles_sim
     
     def _servos_to_angles(self, servo_positions):
         """Convert servo positions to joint angles in radians."""
@@ -183,7 +138,6 @@ class SimMatchedMLPController:
         servo_delta = angles_raw * self.servo_scale
         servos = self.servo_center + servo_delta
         return servos
-    #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     def read_joint_positions(self):
         """Read current joint angles in simulation frame."""
@@ -345,26 +299,6 @@ class SimMatchedMLPController:
             print(f"Target pos (abs): [{target_positions.min():.3f}, {target_positions.max():.3f}]")
             if self.startup_steps < self.startup_duration:
                 print(f"Startup: {self.startup_steps}/{self.startup_duration}")
-        
-        #Result
-#         --- Detailed Step 400 ---
-        # Target positions (absolute, sim frame):
-        #   LF: [+0.12, -0.86, +1.40]
-        #   RF: [-0.03, -0.68, +1.56]
-        #   LB: [+0.03, -0.85, +1.75]
-        #   RB: [+0.02, -0.97, +1.42]
-        # Sim defaults:
-        #   LF: [+0.00, -0.79, +1.57]
-
-        # --- Step 450 ---
-        # Velocity cmd: [0.3 0.  0. ]
-        # Joint pos rel: [-0.226, 0.251]
-        # Raw actions: [-0.508, 0.621]
-        # Target pos (abs): [-0.853, 1.687]
-        # Question: Why are the Target Pos so large? Based on the per-limb rotation tests, what is the rellationship between radians and set target postiions and how can we use that to inform how this
-        # robot executes commands? 
-        # Question: How does the IsaacSim Send commands (target postion? Radians?) How can we comunicate with the ESP32 interface the same way that the Isaacsimn does with whatever function controls the
-        #joints?
             
         if self.debug_counter % 200 == 0:
             print(f"\n--- Detailed Step {self.debug_counter} ---")

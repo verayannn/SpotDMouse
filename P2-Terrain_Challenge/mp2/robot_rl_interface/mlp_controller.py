@@ -46,7 +46,7 @@ class SimMatchedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # Action scale from training config
-        self.ACTION_SCALE = 0.25  # Matches scale=0.5 in SpotActionsCfg
+        self.ACTION_SCALE = 0.5  # Matches scale=0.5 in SpotActionsCfg
         
         # Record current robot pose as "hardware standing"
         print("Recording hardware standing pose...")
@@ -93,7 +93,7 @@ class SimMatchedMLPController:
         self._calibrate_imu()
         
         # Control parameters
-        self.CONTROL_FREQUENCY = 10 #50  # Match simulation
+        self.CONTROL_FREQUENCY = 30 #50  # Match simulation
         self.action_clip = True      # Match simulation clipping
         self.action_smoothing = 0.85 #0.6  # Moderate smoothing
         self.max_action_delta = 0.08 #0.25  # Allow reasonably fast changes

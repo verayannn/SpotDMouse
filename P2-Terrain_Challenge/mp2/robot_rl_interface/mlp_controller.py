@@ -64,7 +64,7 @@ class SimMatchedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)  # servo units per radian
         
         # Action scale from training config (SpotActionsCfg.joint_pos.scale)
-        self.ACTION_SCALE = 0.5
+        self.ACTION_SCALE = 0.40
         
         # ====== CALIBRATION ======
         
@@ -115,7 +115,7 @@ class SimMatchedMLPController:
         
         # Action processing
         self.action_clip = True
-        self.action_smoothing = 0.5  # HOW JITTERY IS THE ROBOT?
+        self.action_smoothing = 0.35  # HOW JITTERY IS THE ROBOT?
         self.max_action_delta = 0.15  # Radians per step
         
         # Observation clipping (should match training noise ranges)

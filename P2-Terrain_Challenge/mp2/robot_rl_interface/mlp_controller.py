@@ -79,7 +79,7 @@ class SimMatchedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)  # servo units per radian
         
         # Action scale from training config (SpotActionsCfg.joint_pos.scale)
-        self.ACTION_SCALE = 0.50
+        self.ACTION_SCALE = 0.35
         
         # ====== CALIBRATION ======
         

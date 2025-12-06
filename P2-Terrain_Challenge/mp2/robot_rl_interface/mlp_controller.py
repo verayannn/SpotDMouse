@@ -58,13 +58,28 @@ class SimMatchedMLPController:
             0.0,  0.785, -1.57,  # LB
             0.0,  0.785, -1.57,  # RB
         ])
+
+        #Joint limits in radians (Taken from he C++ implementation from CS123)
+        # Joint limits in radians (adjust for your robot)
+        self.joint_lower_limits = np.array([
+            -0.5, 0.0, -2.5,   # LF: hip, thigh, calf
+            -0.5, 0.0, -2.5,   # RF
+            -0.5, 0.0, -2.5,   # LB
+            -0.5, 0.0, -2.5,   # RB
+        ])
+        self.joint_upper_limits = np.array([
+            0.5, 1.5, -0.5,    # LF
+            0.5, 1.5, -0.5,    # RF
+            0.5, 1.5, -0.5,    # LB
+            0.5, 1.5, -0.5,    # RB
+        ])
         
         # Servo constants
         self.servo_center = 512
         self.servo_scale = 1024 / (2 * np.pi)  # servo units per radian
         
         # Action scale from training config (SpotActionsCfg.joint_pos.scale)
-        self.ACTION_SCALE = 0.40
+        self.ACTION_SCALE = 0.50
         
         # ====== CALIBRATION ======
         
@@ -406,10 +421,9 @@ class SimMatchedMLPController:
         return target_positions, clipped
     
     # ====== CONTROL LOOP ======
-    
+        
     def control_step(self):
-        """Single control loop iteration."""
-        # Get observation
+        """Matches C++ neural_controller behavior exactly."""
         obs, joint_pos_rel, joint_vel, joint_effort = self.get_observation()
         
         # Policy inference
@@ -417,59 +431,39 @@ class SimMatchedMLPController:
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
             raw_actions = self.policy(obs_tensor).squeeze().numpy()
         
-        # Process actions (NO gait modulation - let the policy do its job!)
-        target_positions, clipped_actions = self.process_actions(raw_actions)
-        
-        # Startup ramp (gradually blend from default to policy output)
+        # Fade-in multiplier (matches C++)
         if self.startup_steps < self.startup_duration:
-            ramp = self.startup_steps / self.startup_duration
-            target_positions = (self.sim_default_positions + 
-                              (target_positions - self.sim_default_positions) * ramp)
-            clipped_actions = clipped_actions * ramp
+            fade_in = self.startup_steps / self.startup_duration
             self.startup_steps += 1
-        
-        #=================================================================
-        # # Optional smoothing
-        # if self.action_smoothing > 0 and hasattr(self, 'prev_target_positions'):
-        #     # Blend with previous targets
-        #     alpha = self.action_smoothing
-        #     smoothed = alpha * target_positions + (1 - alpha) * self.prev_target_positions
-            
-        #     # Rate limit the change
-        #     delta = smoothed - self.prev_target_positions
-        #     delta = np.clip(delta, -self.max_action_delta, self.max_action_delta)
-        #     target_positions = self.prev_target_positions + delta
-        
-        # self.prev_target_positions = target_positions.copy()
-        
-        # # Send to robot
-        # self.write_joint_positions(target_positions)
-        
-        # # Update state
-        # self.prev_actions = clipped_actions.copy()
-        #=================================================================
-
-        ##################################################
-        # Exponential smoothing - smooth pursuit of target
-        if hasattr(self, 'smooth_positions'):
-            alpha = 0.15  # Lower = smoother but more lag (try 0.1 to 0.3)
-            self.smooth_positions = alpha * target_positions + (1 - alpha) * self.smooth_positions
         else:
-            self.smooth_positions = target_positions.copy()
+            fade_in = 1.0
         
-        # Send smoothed positions
-        self.write_joint_positions(self.smooth_positions)
+        # Apply fade-in (NO clipping on actions - this is key!)
+        faded_actions = raw_actions * fade_in
         
-        self.prev_target_positions = target_positions.copy()
-        self.prev_actions = clipped_actions.copy()
-        ##################################################
+        # Store for next observation (raw × fade_in, not clipped)
+        self.prev_actions = faded_actions.copy()
         
-        # Debug output
+        # Compute target: default + (action × scale)
+        target_positions = self.sim_default_positions + faded_actions * self.ACTION_SCALE
+        
+        # Clamp to joint limits only (not action limits)
+        target_positions = np.clip(target_positions, 
+                                    self.joint_lower_limits, 
+                                    self.joint_upper_limits)
+        
+        # Send directly - no smoothing!
+        self.write_joint_positions(target_positions)
+        
+        # Debug
         self.debug_counter += 1
         if self.debug_counter % 50 == 0:
-            self._print_debug(obs, raw_actions, target_positions, joint_effort)
+            print(f"\n--- Step {self.debug_counter} ---")
+            print(f"Raw actions: [{raw_actions.min():+.2f}, {raw_actions.max():+.2f}]")
+            print(f"Faded actions: [{faded_actions.min():+.2f}, {faded_actions.max():+.2f}]")
+            print(f"Target pos: [{target_positions.min():+.2f}, {target_positions.max():+.2f}]")
         
-        return clipped_actions
+        return faded_actions
     
     def _print_debug(self, obs, raw_actions, target_positions, joint_effort):
         """Print debug information."""

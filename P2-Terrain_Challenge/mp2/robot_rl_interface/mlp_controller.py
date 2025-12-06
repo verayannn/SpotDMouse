@@ -223,7 +223,7 @@ class SimMatchedMLPController:
         # Use a conservative estimate; can tune later
         # self.load_scale = max(load_range * 2, 100.0)  # At least 100 to avoid division issues
         self.load_scale = max(load_range * 4, 400.0)
-        self.load_scale = 3000.0
+        self.load_scale = 5000.0
 
         print(f"  Load offset (resting): {np.round(self.load_offset, 1)}")
         print(f"  Load noise (std): {np.round(load_std, 1)}")
@@ -275,7 +275,7 @@ class SimMatchedMLPController:
         # Apply direction multipliers (torque direction matches joint direction)
         normalized = normalized * self.direction_multipliers
         
-        return np.clip(normalized, -1.7, 1.7) #np.clip(normalized, -1.0, 1.0)
+        return np.clip(normalized, -1.2, 1.2) #np.clip(normalized, -1.0, 1.0)
     
     def write_joint_positions(self, target_angles):
         """Write joint positions (simulation frame) to servos."""
@@ -396,7 +396,7 @@ class SimMatchedMLPController:
             clipped_actions: The clipped actions (for storing as prev_actions)
         """
         if self.action_clip:
-            clipped = np.clip(raw_actions, -1.7, 1.7)
+            clipped = np.clip(raw_actions, -1.2, 1.2)
         else:
             clipped = raw_actions.copy()
         

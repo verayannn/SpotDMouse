@@ -111,7 +111,7 @@ class SimMatchedMLPController:
         # ====== CONTROL PARAMETERS ======
         
         self.CONTROL_FREQUENCY = 50  # Hz (matches sim: 500Hz physics / 10 decimation)
-        self.startup_duration = 40 #25   # Steps to ramp up (0.5 sec at 50Hz)
+        self.startup_duration = 40 #25   # Steps to ramp up (0.5 sec at 50Hz) (0.8 sec @ 50Hz for 40)
         
         # Action processing
         self.action_clip = True
@@ -223,6 +223,7 @@ class SimMatchedMLPController:
         # Use a conservative estimate; can tune later
         # self.load_scale = max(load_range * 2, 100.0)  # At least 100 to avoid division issues
         self.load_scale = max(load_range * 4, 400.0)
+        self.load_scale = 2000.0
 
         print(f"  Load offset (resting): {np.round(self.load_offset, 1)}")
         print(f"  Load noise (std): {np.round(load_std, 1)}")

@@ -429,25 +429,40 @@ class SimMatchedMLPController:
             self.startup_steps += 1
         
         #=================================================================
-        # Optional smoothing
-        if self.action_smoothing > 0 and hasattr(self, 'prev_target_positions'):
-            # Blend with previous targets
-            alpha = self.action_smoothing
-            smoothed = alpha * target_positions + (1 - alpha) * self.prev_target_positions
+        # # Optional smoothing
+        # if self.action_smoothing > 0 and hasattr(self, 'prev_target_positions'):
+        #     # Blend with previous targets
+        #     alpha = self.action_smoothing
+        #     smoothed = alpha * target_positions + (1 - alpha) * self.prev_target_positions
             
-            # Rate limit the change
-            delta = smoothed - self.prev_target_positions
-            delta = np.clip(delta, -self.max_action_delta, self.max_action_delta)
-            target_positions = self.prev_target_positions + delta
+        #     # Rate limit the change
+        #     delta = smoothed - self.prev_target_positions
+        #     delta = np.clip(delta, -self.max_action_delta, self.max_action_delta)
+        #     target_positions = self.prev_target_positions + delta
+        
+        # self.prev_target_positions = target_positions.copy()
+        
+        # # Send to robot
+        # self.write_joint_positions(target_positions)
+        
+        # # Update state
+        # self.prev_actions = clipped_actions.copy()
+        #=================================================================
+
+        ##################################################
+        # Exponential smoothing - smooth pursuit of target
+        if hasattr(self, 'smooth_positions'):
+            alpha = 0.15  # Lower = smoother but more lag (try 0.1 to 0.3)
+            self.smooth_positions = alpha * target_positions + (1 - alpha) * self.smooth_positions
+        else:
+            self.smooth_positions = target_positions.copy()
+        
+        # Send smoothed positions
+        self.write_joint_positions(self.smooth_positions)
         
         self.prev_target_positions = target_positions.copy()
-        
-        # Send to robot
-        self.write_joint_positions(target_positions)
-        
-        # Update state
         self.prev_actions = clipped_actions.copy()
-        #=================================================================
+        ##################################################
         
         # Debug output
         self.debug_counter += 1

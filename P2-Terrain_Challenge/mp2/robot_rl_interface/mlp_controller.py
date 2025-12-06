@@ -111,11 +111,11 @@ class SimMatchedMLPController:
         # ====== CONTROL PARAMETERS ======
         
         self.CONTROL_FREQUENCY = 50  # Hz (matches sim: 500Hz physics / 10 decimation)
-        self.startup_duration = 25   # Steps to ramp up (0.5 sec at 50Hz)
+        self.startup_duration = 40 #25   # Steps to ramp up (0.5 sec at 50Hz)
         
         # Action processing
         self.action_clip = True
-        self.action_smoothing = 0.6  # HOW JITTERY IS THE ROBOT?
+        self.action_smoothing = 0.5  # HOW JITTERY IS THE ROBOT?
         self.max_action_delta = 0.15  # Radians per step
         
         # Observation clipping (should match training noise ranges)
@@ -128,7 +128,7 @@ class SimMatchedMLPController:
         }
         
         # Base linear velocity estimation
-        self.lin_vel_smoothing = 0.15  # How fast estimate follows command
+        self.lin_vel_smoothing = 0.4  # How fast estimate follows command
         
         print("\n" + "=" * 60)
         print("Initialization complete!")

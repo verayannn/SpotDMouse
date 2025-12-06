@@ -115,7 +115,7 @@ class SimMatchedMLPController:
         
         # Action processing
         self.action_clip = True
-        self.action_smoothing = 0.08  # HOW JITTERY IS THE ROBOT?
+        self.action_smoothing = 0.3  # HOW JITTERY IS THE ROBOT?
         self.max_action_delta = 0.15  # Radians per step
         
         # Observation clipping (should match training noise ranges)

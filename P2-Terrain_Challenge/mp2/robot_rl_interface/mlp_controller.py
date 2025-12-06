@@ -110,8 +110,8 @@ class SimMatchedMLPController:
         
         # ====== CONTROL PARAMETERS ======
         
-        self.CONTROL_FREQUENCY = 100  # Hz (matches sim: 500Hz physics / 10 decimation)
-        self.startup_duration = 40 #25   # Steps to ramp up (0.5 sec at 50Hz) (0.8 sec @ 50Hz for 40)
+        self.CONTROL_FREQUENCY = 50  # Hz (matches sim: 500Hz physics / 10 decimation)
+        self.startup_duration = 25 #25   # Steps to ramp up (0.5 sec at 50Hz) (0.8 sec @ 50Hz for 40)
         
         # Action processing
         self.action_clip = True

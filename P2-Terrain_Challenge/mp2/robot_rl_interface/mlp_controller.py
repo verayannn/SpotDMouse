@@ -275,7 +275,7 @@ class SimMatchedMLPController:
         # Apply direction multipliers (torque direction matches joint direction)
         normalized = normalized * self.direction_multipliers
         
-        return np.clip(normalized, -1.0, 1.0)
+        return np.clip(normalized, -1.7, 1.7) #np.clip(normalized, -1.0, 1.0)
     
     def write_joint_positions(self, target_angles):
         """Write joint positions (simulation frame) to servos."""
@@ -396,7 +396,7 @@ class SimMatchedMLPController:
             clipped_actions: The clipped actions (for storing as prev_actions)
         """
         if self.action_clip:
-            clipped = np.clip(raw_actions, -1.0, 1.0)
+            clipped = np.clip(raw_actions, -1.7, 1.7)
         else:
             clipped = raw_actions.copy()
         

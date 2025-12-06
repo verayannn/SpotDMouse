@@ -115,7 +115,7 @@ class SimMatchedMLPController:
         
         # Action processing
         self.action_clip = True
-        self.action_smoothing = 0.35  # HOW JITTERY IS THE ROBOT?
+        self.action_smoothing = 0.08  # HOW JITTERY IS THE ROBOT?
         self.max_action_delta = 0.15  # Radians per step
         
         # Observation clipping (should match training noise ranges)
@@ -428,6 +428,7 @@ class SimMatchedMLPController:
             clipped_actions = clipped_actions * ramp
             self.startup_steps += 1
         
+        #=================================================================
         # Optional smoothing
         if self.action_smoothing > 0 and hasattr(self, 'prev_target_positions'):
             # Blend with previous targets
@@ -446,6 +447,7 @@ class SimMatchedMLPController:
         
         # Update state
         self.prev_actions = clipped_actions.copy()
+        #=================================================================
         
         # Debug output
         self.debug_counter += 1

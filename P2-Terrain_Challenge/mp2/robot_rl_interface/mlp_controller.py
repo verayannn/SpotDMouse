@@ -221,8 +221,9 @@ class SimMatchedMLPController:
         
         # Estimate scale (we'll normalize to roughly [-1, 1])
         # Use a conservative estimate; can tune later
-        self.load_scale = max(load_range * 2, 100.0)  # At least 100 to avoid division issues
-        
+        # self.load_scale = max(load_range * 2, 100.0)  # At least 100 to avoid division issues
+        self.load_scale = max(load_range * 4, 400.0)
+
         print(f"  Load offset (resting): {np.round(self.load_offset, 1)}")
         print(f"  Load noise (std): {np.round(load_std, 1)}")
         print(f"  Load scale: {self.load_scale:.1f}")

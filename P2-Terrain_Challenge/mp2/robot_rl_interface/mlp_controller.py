@@ -281,7 +281,7 @@ class SimMatchedMLPController:
         # Apply direction multipliers (torque direction matches joint direction)
         normalized = normalized * self.direction_multipliers
         
-        return np.clip(normalized, -1.0, 1.0) #np.clip(normalized, -1.0, 1.0)
+        return np.clip(normalized, -10.0, 10.0) #np.clip(normalized, -1.0, 1.0)
     
     def write_joint_positions(self, target_angles):
         """Write joint positions (simulation frame) to servos."""

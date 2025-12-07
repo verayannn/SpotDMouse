@@ -296,72 +296,72 @@ class SimMatchedMLPController:
     
     # ====== OBSERVATION BUILDING ======
     
-def get_observation(self):
-    """Build 60-dim observation vector - NO CLIPPING (matches training)."""
-    current_time = time.time()
-    dt = current_time - self.prev_time
-    
-    # Read sensors
-    imu_data = self.esp32.imu_get_data()
-    current_angles = self.read_joint_positions()
-    joint_effort = self.read_joint_efforts()
-    
-    # ---- 1. Base Linear Velocity (3 dims) ----
-    # Simple: fraction of commanded velocity (robot doesn't instantly reach target)
-    base_lin_vel = self.velocity_command * 0.7  # Tune: 0.5-0.9
-    
-    # ---- 2. Base Angular Velocity (3 dims) ----
-    gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
-    base_ang_vel = (gyro_raw - self.gyro_offset) * self.gyro_scale
-    
-    # ---- 3. Projected Gravity (3 dims) ----
-    accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
-    accel = accel_raw * self.accel_scale
-    accel_norm = np.linalg.norm(accel)
-    if accel_norm > 0.1:
-        projected_gravity = accel / accel_norm
-    else:
-        projected_gravity = np.array([0.0, 0.0, -1.0])
-    
-    # ---- 4. Velocity Commands (3 dims) ----
-    velocity_commands = self.velocity_command.copy()
-    
-    # ---- 5. Joint Positions Relative to Default (12 dims) ----
-    joint_pos_rel = current_angles - self.sim_default_positions
-    
-    # ---- 6. Joint Velocities (12 dims) ----
-    if dt > 0.001:
-        joint_vel_raw = (current_angles - self.prev_joint_angles) / dt
-        # Low-pass filter for noise (not clipping)
-        alpha_vel = 0.4
-        joint_vel = alpha_vel * joint_vel_raw + (1 - alpha_vel) * self.prev_joint_vel
-    else:
-        joint_vel = self.prev_joint_vel.copy()
-    
-    # ---- 7. Joint Efforts (12 dims) ----
-    # Already normalized by load_scale, no additional clipping
-    
-    # ---- 8. Previous Actions (12 dims) ----
-    prev_actions = self.prev_actions.copy()
-    
-    # Update state
-    self.prev_joint_angles = current_angles.copy()
-    self.prev_joint_vel = joint_vel.copy()
-    self.prev_time = current_time
-    
-    # Concatenate - NO CLIPPING anywhere
-    obs = np.concatenate([
-        base_lin_vel,       # 0:3
-        base_ang_vel,       # 3:6
-        projected_gravity,  # 6:9
-        velocity_commands,  # 9:12
-        joint_pos_rel,      # 12:24
-        joint_vel,          # 24:36
-        joint_effort,       # 36:48
-        prev_actions,       # 48:60
-    ]).astype(np.float32)
-    
-    return obs, joint_pos_rel, joint_vel, joint_effort
+    def get_observation(self):
+        """Build 60-dim observation vector - NO CLIPPING (matches training)."""
+        current_time = time.time()
+        dt = current_time - self.prev_time
+        
+        # Read sensors
+        imu_data = self.esp32.imu_get_data()
+        current_angles = self.read_joint_positions()
+        joint_effort = self.read_joint_efforts()
+        
+        # ---- 1. Base Linear Velocity (3 dims) ----
+        # Simple: fraction of commanded velocity (robot doesn't instantly reach target)
+        base_lin_vel = self.velocity_command * 0.7  # Tune: 0.5-0.9
+        
+        # ---- 2. Base Angular Velocity (3 dims) ----
+        gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
+        base_ang_vel = (gyro_raw - self.gyro_offset) * self.gyro_scale
+        
+        # ---- 3. Projected Gravity (3 dims) ----
+        accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
+        accel = accel_raw * self.accel_scale
+        accel_norm = np.linalg.norm(accel)
+        if accel_norm > 0.1:
+            projected_gravity = accel / accel_norm
+        else:
+            projected_gravity = np.array([0.0, 0.0, -1.0])
+        
+        # ---- 4. Velocity Commands (3 dims) ----
+        velocity_commands = self.velocity_command.copy()
+        
+        # ---- 5. Joint Positions Relative to Default (12 dims) ----
+        joint_pos_rel = current_angles - self.sim_default_positions
+        
+        # ---- 6. Joint Velocities (12 dims) ----
+        if dt > 0.001:
+            joint_vel_raw = (current_angles - self.prev_joint_angles) / dt
+            # Low-pass filter for noise (not clipping)
+            alpha_vel = 0.4
+            joint_vel = alpha_vel * joint_vel_raw + (1 - alpha_vel) * self.prev_joint_vel
+        else:
+            joint_vel = self.prev_joint_vel.copy()
+        
+        # ---- 7. Joint Efforts (12 dims) ----
+        # Already normalized by load_scale, no additional clipping
+        
+        # ---- 8. Previous Actions (12 dims) ----
+        prev_actions = self.prev_actions.copy()
+        
+        # Update state
+        self.prev_joint_angles = current_angles.copy()
+        self.prev_joint_vel = joint_vel.copy()
+        self.prev_time = current_time
+        
+        # Concatenate - NO CLIPPING anywhere
+        obs = np.concatenate([
+            base_lin_vel,       # 0:3
+            base_ang_vel,       # 3:6
+            projected_gravity,  # 6:9
+            velocity_commands,  # 9:12
+            joint_pos_rel,      # 12:24
+            joint_vel,          # 24:36
+            joint_effort,       # 36:48
+            prev_actions,       # 48:60
+        ]).astype(np.float32)
+        
+        return obs, joint_pos_rel, joint_vel, joint_effort
 
     # ====== ACTION PROCESSING ======
     

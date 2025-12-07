@@ -125,7 +125,7 @@ class SimMatchedMLPController:
         
         # ====== CONTROL PARAMETERS ======
         
-        self.CONTROL_FREQUENCY = 100  # Hz (matches sim: 500Hz physics / 10 decimation)
+        self.CONTROL_FREQUENCY = 50  # Hz (matches sim: 500Hz physics / 10 decimation)
         self.startup_duration = 25 #25   # Steps to ramp up (0.5 sec at 50Hz) (0.8 sec @ 50Hz for 40)
         
         # Action processing
@@ -134,7 +134,7 @@ class SimMatchedMLPController:
         self.max_action_delta = 0.15  # Radians per step
         
         # Base linear velocity estimation
-        self.lin_vel_smoothing = 0.8  # How fast estimate follows command
+        self.lin_vel_smoothing = 0.2  # How fast estimate follows command
         
         print("\n" + "=" * 60)
         print("Initialization complete!")

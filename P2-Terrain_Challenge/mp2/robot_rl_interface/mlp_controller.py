@@ -115,7 +115,7 @@ class SimMatchedMLPController:
         
         # Velocity command and estimation
         self.velocity_command = np.zeros(3)
-        self.estimated_lin_vel = np.zeros(3)  # Smoothed estimate for base_lin_vel
+        # self.estimated_lin_vel = np.zeros(3)  # Smoothed estimate for base_lin_vel
         
         # Control state
         self.control_active = False

@@ -8,10 +8,10 @@ from MangDang.mini_pupper.Config import Configuration
 class BlindController:
     def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
         print("=" * 60)
-        print("Initializing Blind Controller (With Calf Correction)")
+        print("Initializing Blind Controller (Fixed Knee Locking)")
         print("   - Writing: HardwareInterface")
         print("   - Reading: BLIND (Open Loop)")
-        print("   - Fixes: Offsets Calf by +0.77 rads to match Sim")
+        print("   - Fixes: Removed Double-Dip Offset (Legs can now bend)")
         print("=" * 60)
         
         # 1. Hardware
@@ -46,11 +46,11 @@ class BlindController:
         self.action_smoothing = 0.5   
         self.target_smoothing = 0.3   
         
-        # --- THE CALF FIX ---
-        # Your sensor test showed a difference of ~0.77 rads 
-        # between Sim (-1.57) and Real Standing (-0.80).
-        # We apply this offset so the robot handles Sim commands while standing tall.
-        self.calf_offset = 0.77
+        # --- THE FIX ---
+        # OLD: 0.77 (Locked Knees)
+        # NEW: 0.60 (Slight Bend = Power)
+        # We REMOVED the extra 'height_bias' variable completely.
+        self.calf_offset = 0.60
         
         # IMU Config
         self.gyro_z_sign = -1.0 
@@ -58,15 +58,11 @@ class BlindController:
         self.accel_scale = 9.81
 
         # 5. INITIALIZATION
-        # We calculate the "Real Standing Pose" by applying the offset to the Sim Default.
-        # This ensures we start exactly where the robot is standing.
-        
         start_pose = self.sim_default_positions.copy()
-        # Add offset to Calves (Indices 2, 5, 8, 11)
         start_pose[2::3] += self.calf_offset
         
         print(f"Sim Default Calf: {self.sim_default_positions[2]:.2f}")
-        print(f"Corrected Start Calf: {start_pose[2]:.2f} (Should be ~ -0.80)")
+        print(f"Corrected Start Calf: {start_pose[2]:.2f}")
         
         self.prev_target_positions = start_pose.copy()
         self.prev_joint_angles = start_pose.copy()
@@ -111,11 +107,7 @@ class BlindController:
         imu_data = self.esp32.imu_get_data()
         
         # 2. JOINT POSITIONS = TARGET (BLIND MODE)
-        # IMPORTANT: The policy expects the joints to be relative to SIM DEFAULT (-1.57).
-        # But our physical legs are at REAL STANDING (-0.80).
-        # We must subtract the offset before showing it to the policy, 
-        # otherwise the policy thinks the legs are hyper-extended.
-        
+        # We must subtract the offset so the policy sees "Sim Normal" values
         real_current_angles = self.prev_target_positions.copy()
         sim_compatible_angles = real_current_angles.copy()
         sim_compatible_angles[2::3] -= self.calf_offset
@@ -134,8 +126,6 @@ class BlindController:
         else: projected_gravity = np.array([0.0, 0.0, -1.0])
         
         velocity_commands = self.velocity_command.copy()
-        
-        # Rel positions are calculated against SIM DEFAULTS
         joint_pos_rel = sim_compatible_angles - self.sim_default_positions
         
         joint_vel = np.zeros(12, dtype=np.float32)
@@ -177,12 +167,12 @@ class BlindController:
         policy_target_sim = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
         
         # 3. Apply CALF OFFSET (Convert Sim -> Real)
+        # ONLY apply the calf offset. No extra height bias.
         policy_target_real = policy_target_sim.copy()
         policy_target_real[2::3] += self.calf_offset
         
-        # Clip (be careful with limits, we shifted the range)
-        # We relax the lower limit for calves because we shifted them up
-        policy_target_real = np.clip(policy_target_real, -2.0, 2.0)
+        # Clip
+        policy_target_real = np.clip(policy_target_real, -2.5, 2.5)
         
         # 4. Target Smoothing (Slew Rate)
         beta = self.target_smoothing

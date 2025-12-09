@@ -205,98 +205,105 @@ class SimMatchedMLPController:
     # ====== OBSERVATION ======
     
     def get_observation(self):
-        current_time = time.time()
-        dt = current_time - self.prev_time
-        
-        imu_data = self.esp32.imu_get_data()
-        current_angles = self.read_joint_positions()
-        joint_effort = self.read_joint_efforts()
-        
-        # 1. Base Linear Velocity (Estimated from command)
-        base_lin_vel = self.velocity_command * 0.7
-        
-        # 2. Base Angular Velocity (With Corrected Units & Sign Flip)
-        gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
-        base_ang_vel = (gyro_raw - self.gyro_offset) * self.gyro_scale
-        base_ang_vel[2] *= self.gyro_z_sign # Apply Z-axis correction
-        
-        # 3. Projected Gravity
-        accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
-        accel = accel_raw * self.accel_scale
-        accel_norm = np.linalg.norm(accel)
-        if accel_norm > 0.1:
-            projected_gravity = accel / accel_norm
-        else:
-            projected_gravity = np.array([0.0, 0.0, -1.0])
-        
-        # 4. Commands
-        velocity_commands = self.velocity_command.copy()
-        
-        # 5. Joint Positions Rel
-        joint_pos_rel = current_angles - self.sim_default_positions
-        
-        # 6. Joint Velocity (With noise filtering)
-        if dt > 0.001:
-            joint_vel_raw = (current_angles - self.prev_joint_angles) / dt
-            alpha_vel = 0.2 # Aggressive filtering for noisy servos
-            joint_vel = alpha_vel * joint_vel_raw + (1 - alpha_vel) * self.prev_joint_vel
-        else:
-            joint_vel = self.prev_joint_vel.copy()
+            current_time = time.time()
+            dt = current_time - self.prev_time
             
-        # 8. Previous Actions
-        prev_actions = self.prev_actions.copy()
-        
-        # Update State
-        self.prev_joint_angles = current_angles.copy()
-        self.prev_joint_vel = joint_vel.copy()
-        self.prev_time = current_time
-        
-        obs = np.concatenate([
-            base_lin_vel, base_ang_vel, projected_gravity, velocity_commands,
-            joint_pos_rel, joint_vel, joint_effort, prev_actions
-        ]).astype(np.float32)
-        
-        return obs, joint_pos_rel, joint_vel, joint_effort
+            imu_data = self.esp32.imu_get_data()
+            current_angles = self.read_joint_positions()
+            joint_effort = self.read_joint_efforts()
+            
+            # 1. Base Linear Velocity 
+            base_lin_vel = self.velocity_command * 0.7
+            
+            # 2. Base Angular Velocity (With Corrected Units & Sign Flip)
+            gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
+            base_ang_vel = (gyro_raw - self.gyro_offset) * self.gyro_scale
+            base_ang_vel[2] *= self.gyro_z_sign 
+            
+            # 3. Projected Gravity
+            accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
+            accel = accel_raw * self.accel_scale
+            accel_norm = np.linalg.norm(accel)
+            if accel_norm > 0.1:
+                projected_gravity = accel / accel_norm
+            else:
+                projected_gravity = np.array([0.0, 0.0, -1.0])
+            
+            # 4. Commands
+            velocity_commands = self.velocity_command.copy()
+            
+            # 5. Joint Positions Rel
+            joint_pos_rel = current_angles - self.sim_default_positions
+            
+            # 6. Joint Velocity (WITH SAFETY CLIPPING)
+            if dt > 0.001:
+                joint_vel_raw = (current_angles - self.prev_joint_angles) / dt
+                alpha_vel = 0.2
+                joint_vel_est = alpha_vel * joint_vel_raw + (1 - alpha_vel) * self.prev_joint_vel
+            else:
+                joint_vel_est = self.prev_joint_vel.copy()
+            
+            # <--- FIX 1: Clip Velocity Input
+            # If a servo twitches, this prevents the policy from seeing "100 rad/s" and panicking.
+            joint_vel = np.clip(joint_vel_est, -3.5, 3.5)
+                
+            # 8. Previous Actions
+            prev_actions = self.prev_actions.copy()
+            
+            # Update State
+            self.prev_joint_angles = current_angles.copy()
+            self.prev_joint_vel = joint_vel.copy() # Store the clipped version
+            self.prev_time = current_time
+            
+            obs = np.concatenate([
+                base_lin_vel, base_ang_vel, projected_gravity, velocity_commands,
+                joint_pos_rel, joint_vel, joint_effort, prev_actions
+            ]).astype(np.float32)
+            
+            return obs, joint_pos_rel, joint_vel, joint_effort
 
     # ====== CONTROL STEP (WITH SMOOTHING) ======
     
     def control_step(self):
-        obs, joint_pos_rel, joint_vel, joint_effort = self.get_observation()
-        
-        # Policy Inference
-        with torch.no_grad():
-            obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
-            raw_actions = self.policy(obs_tensor).squeeze().numpy()
-        
-        # Startup Fade-in
-        if self.startup_steps < self.startup_duration:
-            fade_in = self.startup_steps / self.startup_duration
-            self.startup_steps += 1
-        else:
-            fade_in = 1.0
-        
-        faded_actions = raw_actions * fade_in
-        
-        # --- SMOOTHING (SOFTWARE DAMPING) ---
-        # This fixes the "Jerky" motion
-        alpha = self.action_smoothing
-        smoothed_actions = (alpha * faded_actions) + ((1.0 - alpha) * self.prev_actions)
-        
-        self.prev_actions = smoothed_actions.copy()
-        
-        # Compute Target
-        target_positions = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
-        target_positions = np.clip(target_positions, self.joint_lower_limits, self.joint_upper_limits)
-        
-        self.write_joint_positions(target_positions)
-        
-        # Debug
-        self.debug_counter += 1
-        if self.debug_counter % 25 == 0:
-            print(f"Act: [{smoothed_actions.min():+.2f}, {smoothed_actions.max():+.2f}] | "
-                  f"Pos: [{target_positions.min():+.2f}, {target_positions.max():+.2f}]")
-        
-        return smoothed_actions
+            obs, joint_pos_rel, joint_vel, joint_effort = self.get_observation()
+            
+            # Policy Inference
+            with torch.no_grad():
+                obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
+                raw_actions = self.policy(obs_tensor).squeeze().numpy()
+            
+            # <--- FIX 2: Clip Raw Actions
+            # This is the most critical fix. It prevents the "-4.61" explosions.
+            clipped_actions = np.clip(raw_actions, -1.0, 1.0)
+            
+            # Startup Fade-in
+            if self.startup_steps < self.startup_duration:
+                fade_in = self.startup_steps / self.startup_duration
+                self.startup_steps += 1
+            else:
+                fade_in = 1.0
+            
+            faded_actions = clipped_actions * fade_in
+            
+            # Smoothing (Software Damping)
+            alpha = self.action_smoothing
+            smoothed_actions = (alpha * faded_actions) + ((1.0 - alpha) * self.prev_actions)
+            
+            self.prev_actions = smoothed_actions.copy()
+            
+            # Compute Target
+            target_positions = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
+            target_positions = np.clip(target_positions, self.joint_lower_limits, self.joint_upper_limits)
+            
+            self.write_joint_positions(target_positions)
+            
+            # Debug
+            self.debug_counter += 1
+            if self.debug_counter % 25 == 0:
+                print(f"Act: [{smoothed_actions.min():+.2f}, {smoothed_actions.max():+.2f}] | "
+                    f"Pos: [{target_positions.min():+.2f}, {target_positions.max():+.2f}]")
+            
+            return smoothed_actions
 
     # ====== MAIN LOOPS ======
 

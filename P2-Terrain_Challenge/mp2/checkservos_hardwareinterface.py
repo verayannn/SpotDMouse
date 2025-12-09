@@ -5,21 +5,21 @@ from MangDang.mini_pupper.Config import Configuration
 
 def test_hardware_matrix():
     print("=" * 60)
-    print("HARDWARE INTERFACE MATRIX TEST (TALL STANCE)")
+    print("HARDWARE INTERFACE MATRIX TEST (SUPER TALL)")
     print("=" * 60)
-    print("Testing mapping with a TALLER neutral pose to prevent crouching.")
+    print("Commanding a HIGH standing pose to prevent the 'crouch'.")
     
     config = Configuration()
     hardware = HardwareInterface()
     
-    # --- FIX: COMMAND A TALLER STANCE ---
-    # Sim Default was: Thigh=0.785, Calf=-1.57 (90 degree bend)
-    # New "Tall" Pose: Thigh=0.785, Calf=-1.20 (Straighter leg)
+    # --- FIX: COMMAND "SUPER TALL" ANGLES ---
+    # Thigh: 0.5 rad (approx 28 degrees) - Much straighter
+    # Calf: -1.0 rad (approx 57 degrees) - Much straighter
     neutral_matrix = np.zeros((3, 4)) 
-    neutral_matrix[1, :] = 0.785   # Thighs (Unchanged)
-    neutral_matrix[2, :] = -1.20   # Calves (More positive = Straighter)
+    neutral_matrix[1, :] = 0.5    # Thighs
+    neutral_matrix[2, :] = -1.0   # Calves
     
-    print("\n[1/5] Moving to TALL Standing Pose...")
+    print("\n[1/5] Moving to SUPER TALL Standing Pose...")
     hardware.set_actuator_postions(neutral_matrix)
     time.sleep(2)
     
@@ -28,10 +28,10 @@ def test_hardware_matrix():
     test_mat = neutral_matrix.copy()
     
     for _ in range(3):
-        test_mat[1, 1] = 0.785 + 0.3 # Wiggle Thigh
+        test_mat[1, 1] = 0.5 + 0.3
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.15)
-        test_mat[1, 1] = 0.785 - 0.3
+        test_mat[1, 1] = 0.5 - 0.3
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.15)
         
@@ -44,10 +44,10 @@ def test_hardware_matrix():
     test_mat = neutral_matrix.copy()
     
     for _ in range(3):
-        test_mat[1, 0] = 0.785 + 0.3
+        test_mat[1, 0] = 0.5 + 0.3
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.15)
-        test_mat[1, 0] = 0.785 - 0.3
+        test_mat[1, 0] = 0.5 - 0.3
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.15)
 
@@ -60,10 +60,10 @@ def test_hardware_matrix():
     test_mat = neutral_matrix.copy()
     
     for _ in range(3):
-        test_mat[1, 3] = 0.785 + 0.3
+        test_mat[1, 3] = 0.5 + 0.3
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.15)
-        test_mat[1, 3] = 0.785 - 0.3
+        test_mat[1, 3] = 0.5 - 0.3
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.15)
         
@@ -76,10 +76,10 @@ def test_hardware_matrix():
     test_mat = neutral_matrix.copy()
     
     for _ in range(3):
-        test_mat[1, 2] = 0.785 + 0.3
+        test_mat[1, 2] = 0.5 + 0.3
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.15)
-        test_mat[1, 2] = 0.785 - 0.3
+        test_mat[1, 2] = 0.5 - 0.3
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.15)
 

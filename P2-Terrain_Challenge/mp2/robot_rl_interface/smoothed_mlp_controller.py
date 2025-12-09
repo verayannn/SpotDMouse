@@ -54,7 +54,7 @@ class SimMatchedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # Action scale from training config
-        self.ACTION_SCALE = 0.5
+        self.ACTION_SCALE = 0.50
         
         # ====== CALIBRATION ======
         
@@ -113,7 +113,7 @@ class SimMatchedMLPController:
         # <--- FIX 2: SMOOTHING FACTOR
         # 0.5 means "New action is 50% new command + 50% old command"
         # This acts as the "software damper" (KD)
-        self.action_smoothing = 0.5 
+        self.action_smoothing = 0.70 
         
         print("\n" + "=" * 60)
         print("Initialization complete!")

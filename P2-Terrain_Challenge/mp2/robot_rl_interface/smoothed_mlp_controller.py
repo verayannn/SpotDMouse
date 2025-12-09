@@ -48,7 +48,7 @@ class SimMatchedMLPController:
         
         # 3. IMU Axis Configuration
         # Change to -1.0 if "Turning Left" gives negative Gyro Z in the test
-        self.gyro_z_sign = 1.0 
+        self.gyro_z_sign = - 1.0 
         
         # 4. Simulation Defaults (Standing Pose)
         self.sim_default_positions = np.array([
@@ -69,7 +69,7 @@ class SimMatchedMLPController:
         # ACTION SCALE: 
         # 0.30 is standard. Since we fixed the IMU units (which were 57x too big),
         # 0.30 should now feel "correct" and not weak.
-        self.ACTION_SCALE = 0.30
+        self.ACTION_SCALE = 0.40
         
         # SMOOTHING (Software Damping):
         # 0.5 = Balance between smooth and responsive.

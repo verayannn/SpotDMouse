@@ -242,10 +242,12 @@ class SimMatchedMLPController:
                 joint_vel_est = alpha_vel * joint_vel_raw + (1 - alpha_vel) * self.prev_joint_vel
             else:
                 joint_vel_est = self.prev_joint_vel.copy()
+
             
             # <--- FIX 1: Clip Velocity Input
             # If a servo twitches, this prevents the policy from seeing "100 rad/s" and panicking.
             joint_vel = np.clip(joint_vel_est, -3.5, 3.5)
+            joint_vel = np.zeros(12, dtype=np.float32)
                 
             # 8. Previous Actions
             prev_actions = self.prev_actions.copy()

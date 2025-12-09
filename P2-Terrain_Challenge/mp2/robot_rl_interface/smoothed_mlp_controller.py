@@ -5,22 +5,19 @@ import threading
 from MangDang.mini_pupper.HardwareInterface import HardwareInterface
 from MangDang.mini_pupper.Config import Configuration
 
-class RetargetingController:
+class SimFrameController:
     def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
         print("=" * 60)
-        print("Initializing Retargeting Controller (The Translation Layer)")
-        print("   - Strategy: Bidirectional Mapping (Sim World <-> Real World)")
-        print("   - Reading: REAL SENSORS (Translated to Sim Frame)")
-        print("   - Writing: REAL COMMANDS (Translated from Sim Frame)")
+        print("Initializing Sim-Frame Blind Controller")
+        print("   - Brain: Lives in Matrix (Think's it is squatting)")
+        print("   - Body:  Lives in Reality (Offset applied at output)")
+        print("   - Sensors: IGNORED (Prevents freezing)")
         print("=" * 60)
         
         # 1. Hardware
         self.config = Configuration()
         self.hardware = HardwareInterface()
         self.esp32 = self.hardware.pwm_params.esp32
-        self.servo_params = self.hardware.servo_params
-        self.pwm_params = self.hardware.pwm_params
-        
         time.sleep(0.5)
         
         # 2. Policy
@@ -33,7 +30,7 @@ class RetargetingController:
             self.shutdown = True
             return
         
-        # 3. Simulation Defaults
+        # 3. Simulation Defaults (The "Squat" Pose)
         self.sim_default_positions = np.array([
             0.0,  0.785, -1.57,  # LF
             0.0,  0.785, -1.57,  # RF
@@ -41,17 +38,20 @@ class RetargetingController:
             0.0,  0.785, -1.57,  # RB
         ])
         
+        # Limits (Sim Frame)
         self.joint_lower_limits = np.array([-0.5, 0.0, -2.5] * 4)
         self.joint_upper_limits = np.array([0.5, 1.5, -0.5] * 4)
         
         # 4. Tuning
-        self.ACTION_SCALE = 0.50
+        # We increase scale slightly to break static friction (stiction)
+        self.ACTION_SCALE = 0.60
         self.action_smoothing = 0.5   
-        self.target_smoothing = 0.2   # Lower = Snappier servos
+        self.target_smoothing = 0.2   
         
-        # --- THE TRANSLATION OFFSET ---
-        # This is the "Magic Number" that converts Squat <-> Stand
-        self.calf_offset = 0.60
+        # --- THE MAGIC OFFSET ---
+        # We apply this ONLY when writing to hardware.
+        # The brain never knows this exists.
+        self.calf_hardware_offset = 0.60
         
         # IMU Config
         self.gyro_z_sign = -1.0 
@@ -59,15 +59,11 @@ class RetargetingController:
         self.accel_scale = 9.81
 
         # 5. INITIALIZATION
-        # Read the real robot, then convert it to Sim Frame for the history
-        print("[STARTUP] Syncing State...")
-        real_angles = self._hardware_read_raw_angles()
-        sim_frame_angles = self._real_to_sim(real_angles)
-        
-        self.prev_joint_angles = sim_frame_angles.copy()
-        self.prev_target_positions = real_angles.copy() # Target is in Real Frame
+        # Start in Sim Frame (Squat)
+        self.prev_target_positions = self.sim_default_positions.copy()
+        self.prev_joint_angles = self.sim_default_positions.copy()
         self.prev_actions = np.zeros(12)
-        self.prev_joint_vel = np.zeros(12)
+        self.prev_joint_vel = np.zeros(12) # Blind velocity
         self.prev_time = time.time()
         
         self.velocity_command = np.zeros(3)
@@ -93,54 +89,6 @@ class RetargetingController:
         else:
             self.gyro_offset = np.zeros(3)
 
-    # --- TRANSLATION LAYER METHODS ---
-
-    def _real_to_sim(self, real_angles):
-        """Converts REAL Robot angles to SIMULATION angles"""
-        sim_angles = real_angles.copy()
-        # Robot is Standing (-0.8), Sim expects Squat (-1.57)
-        # So we SUBTRACT the offset (-0.8 - 0.77 = -1.57)
-        sim_angles[2::3] -= self.calf_offset
-        return sim_angles
-
-    def _sim_to_real(self, sim_angles):
-        """Converts SIMULATION targets to REAL Robot targets"""
-        real_angles = sim_angles.copy()
-        # Sim commands Squat (-1.57), Robot needs Stand (-0.8)
-        # So we ADD the offset (-1.57 + 0.77 = -0.8)
-        real_angles[2::3] += self.calf_offset
-        return real_angles
-
-    def _hardware_read_raw_angles(self):
-        """Reads ESP32 ticks and converts to Radians (No offsets applied yet)"""
-        raw_positions = self.esp32.servos_get_position()
-        angles = np.zeros(12)
-        legs_map = [(0, 1), (1, 0), (2, 3), (3, 2)]
-        
-        for isaac_leg_idx, hw_col_idx in legs_map:
-            for axis in range(3):
-                servo_id = self.pwm_params.servo_ids[axis, hw_col_idx]
-                raw_val = raw_positions[servo_id - 1]
-                
-                neutral_pos = self.servo_params.neutral_position
-                micros_per_rad = self.servo_params.micros_per_rad
-                neutral_angle = self.servo_params.neutral_angles[axis, hw_col_idx]
-                multiplier = self.servo_params.servo_multipliers[axis, hw_col_idx]
-                
-                if raw_val == 0 or raw_val > 1024: 
-                    # Fallback to previous target if sensor fails
-                    if hasattr(self, 'prev_target_positions'):
-                        angle = self.prev_target_positions[isaac_leg_idx*3 + axis]
-                    else:
-                        angle = self._sim_to_real(self.sim_default_positions)[isaac_leg_idx*3 + axis]
-                else:
-                    deviation = (neutral_pos - raw_val) / micros_per_rad
-                    angle_dev = deviation / multiplier
-                    angle = angle_dev + neutral_angle
-                
-                angles[isaac_leg_idx*3 + axis] = angle
-        return angles
-
     def _isaac_to_hardware_matrix(self, flat_angles_radians):
         matrix = np.zeros((3, 4))
         matrix[:, 1] = flat_angles_radians[0:3] # LF
@@ -151,15 +99,14 @@ class RetargetingController:
 
     def get_observation(self):
         current_time = time.time()
-        dt = current_time - self.prev_time
         
-        # 1. READ REAL SENSORS
+        # 1. READ SENSORS (IMU ONLY)
         imu_data = self.esp32.imu_get_data()
-        real_angles = self._hardware_read_raw_angles()
         
-        # 2. CONVERT TO SIM FRAME
-        # The policy thinks it is controlling the squatted simulation robot
-        sim_compatible_angles = self._real_to_sim(real_angles)
+        # 2. JOINT POSITIONS = PREVIOUS TARGET (PURE BLIND)
+        # We feed back exactly what the brain commanded last time.
+        # The brain thinks it is controlling a perfect simulation.
+        current_angles = self.prev_target_positions.copy()
         
         # 3. Build Obs
         base_lin_vel = self.velocity_command * 0.7
@@ -175,22 +122,14 @@ class RetargetingController:
         else: projected_gravity = np.array([0.0, 0.0, -1.0])
         
         velocity_commands = self.velocity_command.copy()
-        joint_pos_rel = sim_compatible_angles - self.sim_default_positions
+        joint_pos_rel = current_angles - self.sim_default_positions
         
-        # 4. REAL VELOCITY (Calculated in Sim Frame)
-        # Since we are using real sensors now, we can calculate real velocity
-        if dt > 0.001:
-            raw_vel = (sim_compatible_angles - self.prev_joint_angles) / dt
-            alpha_vel = 0.1 # Heavy filter
-            joint_vel = alpha_vel * raw_vel + (1 - alpha_vel) * self.prev_joint_vel
-        else:
-            joint_vel = self.prev_joint_vel.copy()
-            
+        # Zero Velocity (Perfect Sim assumption)
+        joint_vel = np.zeros(12, dtype=np.float32)
         joint_effort = np.zeros(12, dtype=np.float32)
         prev_actions = self.prev_actions.copy()
         
-        self.prev_joint_angles = sim_compatible_angles.copy()
-        self.prev_joint_vel = joint_vel.copy()
+        self.prev_joint_angles = current_angles.copy()
         self.prev_time = current_time
         
         obs = np.concatenate([
@@ -221,20 +160,24 @@ class RetargetingController:
         smoothed_actions = (alpha * faded_actions) + ((1.0 - alpha) * self.prev_actions)
         self.prev_actions = smoothed_actions.copy()
         
-        # 2. Compute Target (SIM FRAME)
-        policy_target_sim = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
+        # 2. Compute Target (SIM FRAME - SQUAT)
+        sim_target = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
+        sim_target = np.clip(sim_target, self.joint_lower_limits, self.joint_upper_limits)
         
-        # 3. TRANSLATE TO REAL FRAME (Add Offset)
-        policy_target_real = self._sim_to_real(policy_target_sim)
-        policy_target_real = np.clip(policy_target_real, -2.5, 2.5)
-        
-        # 4. Target Smoothing (Slew Rate)
+        # 3. Target Smoothing (Slew Rate)
         beta = self.target_smoothing
-        final_target = (beta * policy_target_real) + ((1.0 - beta) * self.prev_target_positions)
-        self.prev_target_positions = final_target.copy()
+        final_sim_target = (beta * sim_target) + ((1.0 - beta) * self.prev_target_positions)
         
-        # 5. Write
-        target_matrix = self._isaac_to_hardware_matrix(final_target)
+        # STORE SIM TARGET (This is what we feed back to the brain)
+        self.prev_target_positions = final_sim_target.copy()
+        
+        # 4. HARDWARE OFFSET (The Secret Sauce)
+        # We take the Sim (Squat) target and add the offset just before sending.
+        hardware_target = final_sim_target.copy()
+        hardware_target[2::3] += self.calf_hardware_offset
+        
+        # 5. Write to Hardware
+        target_matrix = self._isaac_to_hardware_matrix(hardware_target)
         self.hardware.set_actuator_postions(target_matrix)
         
         self.debug_counter += 1
@@ -243,7 +186,7 @@ class RetargetingController:
 
     def control_loop(self):
         dt_target = 1.0 / self.CONTROL_FREQUENCY
-        print(f"\nRunning Retargeting Controller at {self.CONTROL_FREQUENCY}Hz")
+        print(f"\nRunning Sim-Frame Blind Controller at {self.CONTROL_FREQUENCY}Hz")
         
         while not self.shutdown:
             loop_start = time.time()
@@ -274,7 +217,7 @@ class RetargetingController:
         self.shutdown = True
 
 if __name__ == "__main__":
-    controller = RetargetingController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
+    controller = SimFrameController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
     thread = threading.Thread(target=controller.control_loop)
     thread.start()

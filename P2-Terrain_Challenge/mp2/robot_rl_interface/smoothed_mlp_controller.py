@@ -5,19 +5,22 @@ import threading
 from MangDang.mini_pupper.HardwareInterface import HardwareInterface
 from MangDang.mini_pupper.Config import Configuration
 
-class BlindController:
+class RetargetingController:
     def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
         print("=" * 60)
-        print("Initializing Blind Controller (Fixed Knee Locking)")
-        print("   - Writing: HardwareInterface")
-        print("   - Reading: BLIND (Open Loop)")
-        print("   - Fixes: Removed Double-Dip Offset (Legs can now bend)")
+        print("Initializing Retargeting Controller (The Translation Layer)")
+        print("   - Strategy: Bidirectional Mapping (Sim World <-> Real World)")
+        print("   - Reading: REAL SENSORS (Translated to Sim Frame)")
+        print("   - Writing: REAL COMMANDS (Translated from Sim Frame)")
         print("=" * 60)
         
         # 1. Hardware
         self.config = Configuration()
         self.hardware = HardwareInterface()
         self.esp32 = self.hardware.pwm_params.esp32
+        self.servo_params = self.hardware.servo_params
+        self.pwm_params = self.hardware.pwm_params
+        
         time.sleep(0.5)
         
         # 2. Policy
@@ -44,12 +47,10 @@ class BlindController:
         # 4. Tuning
         self.ACTION_SCALE = 0.50
         self.action_smoothing = 0.5   
-        self.target_smoothing = 0.3   
+        self.target_smoothing = 0.2   # Lower = Snappier servos
         
-        # --- THE FIX ---
-        # OLD: 0.77 (Locked Knees)
-        # NEW: 0.60 (Slight Bend = Power)
-        # We REMOVED the extra 'height_bias' variable completely.
+        # --- THE TRANSLATION OFFSET ---
+        # This is the "Magic Number" that converts Squat <-> Stand
         self.calf_offset = 0.60
         
         # IMU Config
@@ -58,15 +59,15 @@ class BlindController:
         self.accel_scale = 9.81
 
         # 5. INITIALIZATION
-        start_pose = self.sim_default_positions.copy()
-        start_pose[2::3] += self.calf_offset
+        # Read the real robot, then convert it to Sim Frame for the history
+        print("[STARTUP] Syncing State...")
+        real_angles = self._hardware_read_raw_angles()
+        sim_frame_angles = self._real_to_sim(real_angles)
         
-        print(f"Sim Default Calf: {self.sim_default_positions[2]:.2f}")
-        print(f"Corrected Start Calf: {start_pose[2]:.2f}")
-        
-        self.prev_target_positions = start_pose.copy()
-        self.prev_joint_angles = start_pose.copy()
+        self.prev_joint_angles = sim_frame_angles.copy()
+        self.prev_target_positions = real_angles.copy() # Target is in Real Frame
         self.prev_actions = np.zeros(12)
+        self.prev_joint_vel = np.zeros(12)
         self.prev_time = time.time()
         
         self.velocity_command = np.zeros(3)
@@ -92,6 +93,54 @@ class BlindController:
         else:
             self.gyro_offset = np.zeros(3)
 
+    # --- TRANSLATION LAYER METHODS ---
+
+    def _real_to_sim(self, real_angles):
+        """Converts REAL Robot angles to SIMULATION angles"""
+        sim_angles = real_angles.copy()
+        # Robot is Standing (-0.8), Sim expects Squat (-1.57)
+        # So we SUBTRACT the offset (-0.8 - 0.77 = -1.57)
+        sim_angles[2::3] -= self.calf_offset
+        return sim_angles
+
+    def _sim_to_real(self, sim_angles):
+        """Converts SIMULATION targets to REAL Robot targets"""
+        real_angles = sim_angles.copy()
+        # Sim commands Squat (-1.57), Robot needs Stand (-0.8)
+        # So we ADD the offset (-1.57 + 0.77 = -0.8)
+        real_angles[2::3] += self.calf_offset
+        return real_angles
+
+    def _hardware_read_raw_angles(self):
+        """Reads ESP32 ticks and converts to Radians (No offsets applied yet)"""
+        raw_positions = self.esp32.servos_get_position()
+        angles = np.zeros(12)
+        legs_map = [(0, 1), (1, 0), (2, 3), (3, 2)]
+        
+        for isaac_leg_idx, hw_col_idx in legs_map:
+            for axis in range(3):
+                servo_id = self.pwm_params.servo_ids[axis, hw_col_idx]
+                raw_val = raw_positions[servo_id - 1]
+                
+                neutral_pos = self.servo_params.neutral_position
+                micros_per_rad = self.servo_params.micros_per_rad
+                neutral_angle = self.servo_params.neutral_angles[axis, hw_col_idx]
+                multiplier = self.servo_params.servo_multipliers[axis, hw_col_idx]
+                
+                if raw_val == 0 or raw_val > 1024: 
+                    # Fallback to previous target if sensor fails
+                    if hasattr(self, 'prev_target_positions'):
+                        angle = self.prev_target_positions[isaac_leg_idx*3 + axis]
+                    else:
+                        angle = self._sim_to_real(self.sim_default_positions)[isaac_leg_idx*3 + axis]
+                else:
+                    deviation = (neutral_pos - raw_val) / micros_per_rad
+                    angle_dev = deviation / multiplier
+                    angle = angle_dev + neutral_angle
+                
+                angles[isaac_leg_idx*3 + axis] = angle
+        return angles
+
     def _isaac_to_hardware_matrix(self, flat_angles_radians):
         matrix = np.zeros((3, 4))
         matrix[:, 1] = flat_angles_radians[0:3] # LF
@@ -102,15 +151,15 @@ class BlindController:
 
     def get_observation(self):
         current_time = time.time()
+        dt = current_time - self.prev_time
         
-        # 1. READ SENSORS (IMU ONLY)
+        # 1. READ REAL SENSORS
         imu_data = self.esp32.imu_get_data()
+        real_angles = self._hardware_read_raw_angles()
         
-        # 2. JOINT POSITIONS = TARGET (BLIND MODE)
-        # We must subtract the offset so the policy sees "Sim Normal" values
-        real_current_angles = self.prev_target_positions.copy()
-        sim_compatible_angles = real_current_angles.copy()
-        sim_compatible_angles[2::3] -= self.calf_offset
+        # 2. CONVERT TO SIM FRAME
+        # The policy thinks it is controlling the squatted simulation robot
+        sim_compatible_angles = self._real_to_sim(real_angles)
         
         # 3. Build Obs
         base_lin_vel = self.velocity_command * 0.7
@@ -128,11 +177,20 @@ class BlindController:
         velocity_commands = self.velocity_command.copy()
         joint_pos_rel = sim_compatible_angles - self.sim_default_positions
         
-        joint_vel = np.zeros(12, dtype=np.float32)
+        # 4. REAL VELOCITY (Calculated in Sim Frame)
+        # Since we are using real sensors now, we can calculate real velocity
+        if dt > 0.001:
+            raw_vel = (sim_compatible_angles - self.prev_joint_angles) / dt
+            alpha_vel = 0.1 # Heavy filter
+            joint_vel = alpha_vel * raw_vel + (1 - alpha_vel) * self.prev_joint_vel
+        else:
+            joint_vel = self.prev_joint_vel.copy()
+            
         joint_effort = np.zeros(12, dtype=np.float32)
         prev_actions = self.prev_actions.copy()
         
         self.prev_joint_angles = sim_compatible_angles.copy()
+        self.prev_joint_vel = joint_vel.copy()
         self.prev_time = current_time
         
         obs = np.concatenate([
@@ -166,19 +224,13 @@ class BlindController:
         # 2. Compute Target (SIM FRAME)
         policy_target_sim = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
         
-        # 3. Apply CALF OFFSET (Convert Sim -> Real)
-        # ONLY apply the calf offset. No extra height bias.
-        policy_target_real = policy_target_sim.copy()
-        policy_target_real[2::3] += self.calf_offset
-        
-        # Clip
+        # 3. TRANSLATE TO REAL FRAME (Add Offset)
+        policy_target_real = self._sim_to_real(policy_target_sim)
         policy_target_real = np.clip(policy_target_real, -2.5, 2.5)
         
         # 4. Target Smoothing (Slew Rate)
         beta = self.target_smoothing
         final_target = (beta * policy_target_real) + ((1.0 - beta) * self.prev_target_positions)
-        
-        # STORE TARGET FOR NEXT OBS
         self.prev_target_positions = final_target.copy()
         
         # 5. Write
@@ -187,12 +239,11 @@ class BlindController:
         
         self.debug_counter += 1
         if self.debug_counter % 25 == 0:
-            print(f"Act: [{smoothed_actions.min():+.2f}, {smoothed_actions.max():+.2f}] | "
-                  f"Calf Tgt: {final_target[2]:.2f}")
+            print(f"Act: [{smoothed_actions.min():+.2f}, {smoothed_actions.max():+.2f}]")
 
     def control_loop(self):
         dt_target = 1.0 / self.CONTROL_FREQUENCY
-        print(f"\nRunning Blind Controller at {self.CONTROL_FREQUENCY}Hz")
+        print(f"\nRunning Retargeting Controller at {self.CONTROL_FREQUENCY}Hz")
         
         while not self.shutdown:
             loop_start = time.time()
@@ -223,7 +274,7 @@ class BlindController:
         self.shutdown = True
 
 if __name__ == "__main__":
-    controller = BlindController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
+    controller = RetargetingController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
     thread = threading.Thread(target=controller.control_loop)
     thread.start()

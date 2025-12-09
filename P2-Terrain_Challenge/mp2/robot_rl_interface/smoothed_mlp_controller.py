@@ -69,12 +69,12 @@ class SimMatchedMLPController:
         # ACTION SCALE: 
         # 0.30 is standard. Since we fixed the IMU units (which were 57x too big),
         # 0.30 should now feel "correct" and not weak.
-        self.ACTION_SCALE = 0.40
+        self.ACTION_SCALE = 0.50
         
         # SMOOTHING (Software Damping):
         # 0.5 = Balance between smooth and responsive.
         # If still jittery, LOWER this to 0.3 (trust old value more).
-        self.action_smoothing = 0.5 
+        self.action_smoothing = 0.8 
         
         # FREQUENCY:
         # 50Hz matches standard decimation (500Hz sim / 10 repeats)

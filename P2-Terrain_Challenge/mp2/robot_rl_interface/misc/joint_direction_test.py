@@ -4,7 +4,7 @@ import time
 from MangDang.mini_pupper.ESP32Interface import ESP32Interface
 
 class VerifiedMLPController:
-    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_only.pt"):
+    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
         self.esp32 = ESP32Interface()
         time.sleep(0.5)
         
@@ -157,7 +157,7 @@ class VerifiedMLPController:
 
 
 if __name__ == "__main__":
-    ctrl = VerifiedMLPController("/home/ubuntu/mp2_mlp/policy_only.pt")
+    ctrl = VerifiedMLPController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
     print("\n" + "="*60)
     print("JOINT DIRECTION VERIFICATION")

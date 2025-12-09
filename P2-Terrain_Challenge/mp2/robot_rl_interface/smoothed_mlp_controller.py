@@ -5,22 +5,22 @@ import threading
 from MangDang.mini_pupper.HardwareInterface import HardwareInterface
 from MangDang.mini_pupper.Config import Configuration
 
-class HybridController:
+class BlindController:
     def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
         print("=" * 60)
-        print("Initializing Hybrid Controller (Sync + Real Obs)")
+        print("Initializing Blind Controller (With Calf Correction)")
+        print("   - Writing: HardwareInterface")
+        print("   - Reading: BLIND (Open Loop)")
+        print("   - Fixes: Offsets Calf by +0.77 rads to match Sim")
         print("=" * 60)
         
-        # 1. Hardware Stack
+        # 1. Hardware
         self.config = Configuration()
         self.hardware = HardwareInterface()
         self.esp32 = self.hardware.pwm_params.esp32
-        self.servo_params = self.hardware.servo_params
-        self.pwm_params = self.hardware.pwm_params
-        
         time.sleep(0.5)
         
-        # 2. Load Policy
+        # 2. Policy
         try:
             self.policy = torch.jit.load(policy_path)
             self.policy.eval()
@@ -43,32 +43,42 @@ class HybridController:
         
         # 4. Tuning
         self.ACTION_SCALE = 0.50
-        self.height_bias = 0.20       # Gravity Comp (Anti-Sag)
         self.action_smoothing = 0.5   
         self.target_smoothing = 0.3   
+        
+        # --- THE CALF FIX ---
+        # Your sensor test showed a difference of ~0.77 rads 
+        # between Sim (-1.57) and Real Standing (-0.80).
+        # We apply this offset so the robot handles Sim commands while standing tall.
+        self.calf_offset = 0.77
         
         # IMU Config
         self.gyro_z_sign = -1.0 
         self.gyro_scale = np.pi / 180.0
         self.accel_scale = 9.81
 
-        # 5. INITIALIZATION SYNC (Fixes the Crouch)
-        print("[STARTUP] Reading actual leg positions to prevent crouching...")
-        current_real_angles = self._hardware_read_to_isaac()
+        # 5. INITIALIZATION
+        # We calculate the "Real Standing Pose" by applying the offset to the Sim Default.
+        # This ensures we start exactly where the robot is standing.
         
-        # Initialize history with REAL data, not theoretical defaults
-        self.prev_joint_angles = current_real_angles.copy()
-        self.prev_target_positions = current_real_angles.copy()
+        start_pose = self.sim_default_positions.copy()
+        # Add offset to Calves (Indices 2, 5, 8, 11)
+        start_pose[2::3] += self.calf_offset
+        
+        print(f"Sim Default Calf: {self.sim_default_positions[2]:.2f}")
+        print(f"Corrected Start Calf: {start_pose[2]:.2f} (Should be ~ -0.80)")
+        
+        self.prev_target_positions = start_pose.copy()
+        self.prev_joint_angles = start_pose.copy()
         self.prev_actions = np.zeros(12)
         self.prev_time = time.time()
-        self.prev_joint_vel = np.zeros(12)
         
         self.velocity_command = np.zeros(3)
         self.control_active = False
         self.shutdown = False
         self.debug_counter = 0
         self.startup_steps = 0
-        self.startup_duration = 50 # Slower fade-in (1 second)
+        self.startup_duration = 50 
         self.CONTROL_FREQUENCY = 50
 
         print("[CALIBRATION] Calibrating IMU...")
@@ -85,7 +95,6 @@ class HybridController:
             self.gyro_offset = np.mean(gyro_samples, axis=0)
         else:
             self.gyro_offset = np.zeros(3)
-        print(f"Gyro Offset: {np.round(self.gyro_offset, 3)}")
 
     def _isaac_to_hardware_matrix(self, flat_angles_radians):
         matrix = np.zeros((3, 4))
@@ -95,44 +104,23 @@ class HybridController:
         matrix[:, 2] = flat_angles_radians[9:12] # RB
         return matrix
 
-    def _hardware_read_to_isaac(self):
-        raw_positions = self.esp32.servos_get_position()
-        current_angles_isaac = np.zeros(12)
-        legs_map = [(0, 1), (1, 0), (2, 3), (3, 2)]
-        
-        for isaac_leg_idx, hw_col_idx in legs_map:
-            for axis in range(3):
-                servo_id = self.pwm_params.servo_ids[axis, hw_col_idx]
-                raw_val = raw_positions[servo_id - 1]
-                
-                neutral_pos = self.servo_params.neutral_position
-                micros_per_rad = self.servo_params.micros_per_rad
-                neutral_angle = self.servo_params.neutral_angles[axis, hw_col_idx]
-                multiplier = self.servo_params.servo_multipliers[axis, hw_col_idx]
-                
-                if raw_val == 0 or raw_val > 1024: 
-                    # If sensor fails, assume we are at the previous target (Safety)
-                    if hasattr(self, 'prev_target_positions'):
-                        angle = self.prev_target_positions[isaac_leg_idx*3 + axis]
-                    else:
-                        angle = self.sim_default_positions[isaac_leg_idx*3 + axis]
-                else:
-                    deviation = (neutral_pos - raw_val) / micros_per_rad
-                    angle_dev = deviation / multiplier
-                    angle = angle_dev + neutral_angle
-                
-                current_angles_isaac[isaac_leg_idx*3 + axis] = angle
-        return current_angles_isaac
-
     def get_observation(self):
         current_time = time.time()
-        dt = current_time - self.prev_time
         
-        # 1. READ SENSORS
+        # 1. READ SENSORS (IMU ONLY)
         imu_data = self.esp32.imu_get_data()
-        current_angles = self._hardware_read_to_isaac()
         
-        # 2. Build Obs
+        # 2. JOINT POSITIONS = TARGET (BLIND MODE)
+        # IMPORTANT: The policy expects the joints to be relative to SIM DEFAULT (-1.57).
+        # But our physical legs are at REAL STANDING (-0.80).
+        # We must subtract the offset before showing it to the policy, 
+        # otherwise the policy thinks the legs are hyper-extended.
+        
+        real_current_angles = self.prev_target_positions.copy()
+        sim_compatible_angles = real_current_angles.copy()
+        sim_compatible_angles[2::3] -= self.calf_offset
+        
+        # 3. Build Obs
         base_lin_vel = self.velocity_command * 0.7
         
         gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
@@ -146,22 +134,15 @@ class HybridController:
         else: projected_gravity = np.array([0.0, 0.0, -1.0])
         
         velocity_commands = self.velocity_command.copy()
-        joint_pos_rel = current_angles - self.sim_default_positions
         
-        # 3. REAL VELOCITY (With heavy filter to prevent "Stuck" issue)
-        if dt > 0.001:
-            raw_vel = (current_angles - self.prev_joint_angles) / dt
-            # Very heavy filter (0.1) to smooth out the servo jitter
-            alpha_vel = 0.1
-            joint_vel = alpha_vel * raw_vel + (1 - alpha_vel) * self.prev_joint_vel
-        else:
-            joint_vel = self.prev_joint_vel.copy()
-            
+        # Rel positions are calculated against SIM DEFAULTS
+        joint_pos_rel = sim_compatible_angles - self.sim_default_positions
+        
+        joint_vel = np.zeros(12, dtype=np.float32)
         joint_effort = np.zeros(12, dtype=np.float32)
         prev_actions = self.prev_actions.copy()
         
-        self.prev_joint_angles = current_angles.copy()
-        self.prev_joint_vel = joint_vel.copy()
+        self.prev_joint_angles = sim_compatible_angles.copy()
         self.prev_time = current_time
         
         obs = np.concatenate([
@@ -169,19 +150,17 @@ class HybridController:
             joint_pos_rel, joint_vel, joint_effort, prev_actions
         ]).astype(np.float32)
         
-        return obs, current_angles
+        return obs
 
     def control_step(self):
-        obs, current_real_angles = self.get_observation()
+        obs = self.get_observation()
         
-        # Policy
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
             raw_actions = self.policy(obs_tensor).squeeze().numpy()
             
         clipped_actions = np.clip(raw_actions, -1.0, 1.0)
         
-        # Fade In (Startup Smoothness)
         if self.startup_steps < self.startup_duration:
             fade_in = self.startup_steps / self.startup_duration
             self.startup_steps += 1
@@ -194,35 +173,36 @@ class HybridController:
         smoothed_actions = (alpha * faded_actions) + ((1.0 - alpha) * self.prev_actions)
         self.prev_actions = smoothed_actions.copy()
         
-        # 2. Compute Target (with Height Bias)
-        policy_target = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
-        policy_target[1::3] += self.height_bias * 0.5  # Thighs
-        policy_target[2::3] += self.height_bias        # Calves
+        # 2. Compute Target (SIM FRAME)
+        policy_target_sim = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
         
-        policy_target = np.clip(policy_target, self.joint_lower_limits, self.joint_upper_limits)
+        # 3. Apply CALF OFFSET (Convert Sim -> Real)
+        policy_target_real = policy_target_sim.copy()
+        policy_target_real[2::3] += self.calf_offset
         
-        # 3. Target Smoothing (Slew Rate)
-        # CRITICAL: This is what fixes the "Crouch" at startup.
-        # We blend from where the robot IS (prev_target_positions) to where the policy WANTS (policy_target)
+        # Clip (be careful with limits, we shifted the range)
+        # We relax the lower limit for calves because we shifted them up
+        policy_target_real = np.clip(policy_target_real, -2.0, 2.0)
+        
+        # 4. Target Smoothing (Slew Rate)
         beta = self.target_smoothing
-        final_target = (beta * policy_target) + ((1.0 - beta) * self.prev_target_positions)
+        final_target = (beta * policy_target_real) + ((1.0 - beta) * self.prev_target_positions)
+        
+        # STORE TARGET FOR NEXT OBS
         self.prev_target_positions = final_target.copy()
         
-        # 4. Write
+        # 5. Write
         target_matrix = self._isaac_to_hardware_matrix(final_target)
         self.hardware.set_actuator_postions(target_matrix)
         
-        # Debug "Stuck" Issue
         self.debug_counter += 1
         if self.debug_counter % 25 == 0:
-            # Check if policy is commanding motion but robot isn't moving
-            diff = np.linalg.norm(final_target - current_real_angles)
             print(f"Act: [{smoothed_actions.min():+.2f}, {smoothed_actions.max():+.2f}] | "
-                  f"PosErr: {diff:.3f}")
+                  f"Calf Tgt: {final_target[2]:.2f}")
 
     def control_loop(self):
         dt_target = 1.0 / self.CONTROL_FREQUENCY
-        print(f"\nRunning Hybrid Controller at {self.CONTROL_FREQUENCY}Hz")
+        print(f"\nRunning Blind Controller at {self.CONTROL_FREQUENCY}Hz")
         
         while not self.shutdown:
             loop_start = time.time()
@@ -253,7 +233,7 @@ class HybridController:
         self.shutdown = True
 
 if __name__ == "__main__":
-    controller = HybridController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
+    controller = BlindController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
     thread = threading.Thread(target=controller.control_loop)
     thread.start()

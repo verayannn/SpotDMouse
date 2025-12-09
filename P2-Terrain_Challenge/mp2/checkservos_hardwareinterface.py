@@ -5,32 +5,30 @@ from MangDang.mini_pupper.Config import Configuration
 
 def test_hardware_matrix():
     print("=" * 60)
-    print("HARDWARE INTERFACE MATRIX TEST")
+    print("HARDWARE INTERFACE MATRIX TEST (CORRECTED HEIGHT)")
     print("=" * 60)
     print("We are testing if the Hybrid Controller's Matrix logic matches your robot.")
-    print("WARNING: The robot will move! Put it on a stand.")
+    print("The robot should maintain its standing height.")
     
     # Initialize the same way the Hybrid Controller does
     config = Configuration()
     hardware = HardwareInterface()
     
     # MAPPING LOGIC TO TEST
-    # We assume MangDang Config uses: 
     # Col 0 = Right Front (RF)
     # Col 1 = Left Front  (LF)
     # Col 2 = Right Back  (RB)
     # Col 3 = Left Back   (LB)
     
-    # We will wiggle each column and ask you to confirm which leg moved.
-    
-    # Default neutral position (approximate standing) in Radians
-    # This matrix represents neutral for all 12 servos
+    # --- FIX: Match Simulation Default Pose Exactly ---
+    # Previously I used 0.7/-1.4 which caused the "dip".
+    # Now using 0.785 (45 deg) and -1.57 (90 deg) to match Isaac Sim.
     neutral_matrix = np.zeros((3, 4)) 
-    neutral_matrix[1, :] = 0.7   # Thighs down
-    neutral_matrix[2, :] = -1.4  # Calves back
+    neutral_matrix[1, :] = 0.785   # Thighs (45 degrees)
+    neutral_matrix[2, :] = -1.57   # Calves (90 degrees)
     
+    print("\nSending Neutral Command (Should match standing pose)...")
     hardware.set_actuator_postions(neutral_matrix)
-    print("\nMoved to neutral. Starting individual leg test in 2 seconds...")
     time.sleep(2)
     
     # --- TEST 1: COLUMN 1 (Should be LF) ---
@@ -39,10 +37,11 @@ def test_hardware_matrix():
     
     # Wiggle Thigh (Row 1, Col 1)
     for _ in range(3):
-        test_mat[1, 1] = 0.7 + 0.3 # Flex
+        # Wiggle by +/- 0.2 rads so it's visible
+        test_mat[1, 1] = 0.785 + 0.2
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.2)
-        test_mat[1, 1] = 0.7 - 0.3 # Extend
+        test_mat[1, 1] = 0.785 - 0.2
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.2)
         
@@ -55,10 +54,10 @@ def test_hardware_matrix():
     test_mat = neutral_matrix.copy()
     
     for _ in range(3):
-        test_mat[1, 0] = 0.7 + 0.3
+        test_mat[1, 0] = 0.785 + 0.2
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.2)
-        test_mat[1, 0] = 0.7 - 0.3
+        test_mat[1, 0] = 0.785 - 0.2
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.2)
 
@@ -71,10 +70,10 @@ def test_hardware_matrix():
     test_mat = neutral_matrix.copy()
     
     for _ in range(3):
-        test_mat[1, 3] = 0.7 + 0.3
+        test_mat[1, 3] = 0.785 + 0.2
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.2)
-        test_mat[1, 3] = 0.7 - 0.3
+        test_mat[1, 3] = 0.785 - 0.2
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.2)
         
@@ -87,10 +86,10 @@ def test_hardware_matrix():
     test_mat = neutral_matrix.copy()
     
     for _ in range(3):
-        test_mat[1, 2] = 0.7 + 0.3
+        test_mat[1, 2] = 0.785 + 0.2
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.2)
-        test_mat[1, 2] = 0.7 - 0.3
+        test_mat[1, 2] = 0.785 - 0.2
         hardware.set_actuator_postions(test_mat)
         time.sleep(0.2)
 

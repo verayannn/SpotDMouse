@@ -5,7 +5,7 @@ from collections import deque
 from MangDang.mini_pupper.ESP32Interface import ESP32Interface
 
 class FinalMLPController:
-    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_only.pt"):
+    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
         self.esp32 = ESP32Interface()
         time.sleep(0.5)
         
@@ -276,7 +276,7 @@ class FinalMLPController:
 if __name__ == "__main__":
     import threading
     
-    controller = FinalMLPController("/home/ubuntu/mp2_mlp/policy_only.pt")
+    controller = FinalMLPController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
     control_thread = threading.Thread(target=controller.control_loop)
     control_thread.start()

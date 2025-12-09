@@ -54,7 +54,7 @@ class SimMatchedMLPController:
         self.servo_scale = 1024 / (2 * np.pi)
         
         # Action scale from training config
-        self.ACTION_SCALE = 0.30
+        self.ACTION_SCALE = 0.5
         
         # ====== CALIBRATION ======
         

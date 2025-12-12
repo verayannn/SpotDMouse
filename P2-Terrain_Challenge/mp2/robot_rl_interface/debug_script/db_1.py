@@ -450,10 +450,72 @@ class PolicyDataRecorder:
 
 # ==================== MAIN ====================
 
+# if __name__ == "__main__":
+#     print("\n" + "="*60)
+#     print("EFFORT DIRECTION & DATA RECORDING TOOL")
+#     print("="*60)
+#     print("""
+# Options:
+#   1. Test effort directions (determine correct signs)
+#   2. Monitor effort values live
+#   3. Record data while running policy
+#   x. Exit
+# """)
+    
+#     while True:
+#         cmd = input("> ").strip()
+        
+#         if cmd == '1':
+#             tester = EffortDirectionTester()
+#             tester.run_full_direction_test()
+        
+#         elif cmd == '2':
+#             tester = EffortDirectionTester()
+#             tester.monitor_live(duration=120)
+        
+#         elif cmd == '3':
+#             recorder = PolicyDataRecorder()
+#             policy = input("Policy path [/home/ubuntu/mp2_mlp/policy_joyboy.pt]: ").strip()
+#             if not policy:
+#                 policy = "/home/ubuntu/mp2_mlp/policy_joyboy.pt"
+            
+#             vx = input("Forward velocity [0.2]: ").strip()
+#             vx = float(vx) if vx else 0.2
+            
+#             recorder.record_with_policy(
+#                 policy, 
+#                 np.array([vx, 0.0, 0.0]),
+#                 duration=10.0
+#             )
+        
+#         elif cmd.lower() == 'x':
+#             break
+        
+#         else:
+#             print("Unknown command")
+    
+#     print("Done!")
+
 if __name__ == "__main__":
     print("\n" + "="*60)
     print("EFFORT DIRECTION & DATA RECORDING TOOL")
     print("="*60)
+    
+    # Initialize hardware ONCE
+    print("Initializing hardware...")
+    config = Configuration()
+    hardware = HardwareInterface()
+    time.sleep(0.5)
+    
+    # Test connection
+    esp32 = hardware.pwm_params.esp32
+    test = esp32.servos_get_position()
+    if test is None:
+        print("ERROR: Cannot connect to ESP32!")
+        print("Try: sudo systemctl restart mini_pupper_base")
+        exit(1)
+    print("Hardware connected!\n")
+    
     print("""
 Options:
   1. Test effort directions (determine correct signs)
@@ -467,14 +529,27 @@ Options:
         
         if cmd == '1':
             tester = EffortDirectionTester()
+            tester.hardware = hardware  # Reuse existing connection
+            tester.esp32 = esp32
+            tester.pwm_params = hardware.pwm_params
+            tester.servo_params = hardware.servo_params
             tester.run_full_direction_test()
         
         elif cmd == '2':
             tester = EffortDirectionTester()
+            tester.hardware = hardware
+            tester.esp32 = esp32
+            tester.pwm_params = hardware.pwm_params
+            tester.servo_params = hardware.servo_params
             tester.monitor_live(duration=120)
         
         elif cmd == '3':
             recorder = PolicyDataRecorder()
+            recorder.hardware = hardware  # Reuse existing connection
+            recorder.esp32 = esp32
+            recorder.pwm_params = hardware.pwm_params
+            recorder.servo_params = hardware.servo_params
+            
             policy = input("Policy path [/home/ubuntu/mp2_mlp/policy_joyboy.pt]: ").strip()
             if not policy:
                 policy = "/home/ubuntu/mp2_mlp/policy_joyboy.pt"

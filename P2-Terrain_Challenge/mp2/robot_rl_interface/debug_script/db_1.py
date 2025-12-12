@@ -245,13 +245,20 @@ class PolicyDataRecorder:
         self.load_offset = np.zeros(12)
         
         # Effort direction (UPDATE THIS after running direction test)
-        self.effort_direction = np.array([
-            1.0, 1.0, 1.0,  # LF
-            1.0, 1.0, 1.0,  # RF
-            1.0, 1.0, 1.0,  # LB
-            1.0, 1.0, 1.0,  # RB
-        ])
+        # self.effort_direction = np.array([
+        #     1.0, 1.0, 1.0,  # LF
+        #     1.0, 1.0, 1.0,  # RF
+        #     1.0, 1.0, 1.0,  # LB
+        #     1.0, 1.0, 1.0,  # RB
+        # ])
         
+        self.effort_direction = np.array([
+            +1.0, +1.0, +1.0,   # LF: hip, thigh, calf
+            -1.0, -1.0, -1.0,   # RF: hip, thigh, calf
+            +1.0, +1.0, +1.0,   # LB: hip, thigh, calf
+            -1.0, -1.0, -1.0,   # RB: hip, thigh, calf
+        ])
+
         # Scaling
         self.gyro_scale = np.pi / 180.0
         self.accel_scale = 9.81

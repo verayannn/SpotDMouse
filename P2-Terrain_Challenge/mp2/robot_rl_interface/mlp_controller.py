@@ -1,472 +1,415 @@
+"""
+Improved Mini Pupper 2 RL Controller
+=====================================
+Addresses all sim-to-real gaps identified from data analysis in simulation adn realoty:
+
+1. FRAME HANDLING: Sim uses -1.57 rad calf default, real uses -0.785 rad
+   - Brain lives in sim frame (thinks robot is in "squat")
+   - Hardware offset applied only at output
+   - Position feedback uses actual servo readings, transformed to sim frame
+
+2. DYNAMIC BASE_LIN_VEL: Estimated from IMU acceleration integration
+   - Not constant, varies like in simulation
+
+3. SMOOTHED JOINT VELOCITIES: Low-pass filter to reduce noise
+   - Real servo feedback is noisy, sim is clean
+
+4. CORRECTED EFFORT SIGNS: Based on data analysis
+   - Flip signs for joints that showed opposite polarity
+
+5. PROPER SCALING: Action scale tuned for real servos
+"""
+
 import numpy as np
 import torch
 import time
-from MangDang.mini_pupper.ESP32Interface import ESP32Interface
+import threading
+from collections import deque
+from MangDang.mini_pupper.HardwareInterface import HardwareInterface
+from MangDang.mini_pupper.Config import Configuration
 
 
-class SimMatchedMLPController:
+class ImprovedRLController:
     """
-    Controller that exactly matches simulation's observation space and action processing.
-    
-    Observation vector (60 dims):
-        [0:3]   base_lin_vel      - Estimated from smoothed velocity command
-        [3:6]   base_ang_vel      - From IMU gyroscope
-        [6:9]   projected_gravity - From IMU accelerometer (normalized)
-        [9:12]  velocity_commands - User input
-        [12:24] joint_pos_rel     - Current joint pos minus default
-        [24:36] joint_vel         - Joint velocities (computed from positions)
-        [36:48] joint_effort      - From servo load feedback
-        [48:60] prev_actions      - Previous policy output
-    
-    Action processing (matches Isaac Sim's JointPositionAction):
-        target_position = default_joint_pos + (clipped_action * action_scale)
+    Controller that properly bridges simulation and real robot frames.
     """
     
     def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
-        print("=" * 60)
-        print("Initializing SimMatchedMLPController")
-        print("=" * 60)
+        print("=" * 70)
+        print("IMPROVED RL CONTROLLER - Sim2Real Gap Fixes")
+        print("=" * 70)
         
-        # Connect to ESP32
-        self.esp32 = ESP32Interface()
-        time.sleep(0.5)
+        # ==================== HARDWARE ====================
+        self.config = Configuration()
+        self.hardware = HardwareInterface()
+        self.pwm_params = self.hardware.pwm_params
+        self.servo_params = self.hardware.servo_params
+        self.esp32 = self.pwm_params.esp32
+        time.sleep(0.3)
         
-        # Load policy
-        self.policy = torch.jit.load(policy_path)
-        self.policy.eval()
-        print(f"[OK] Loaded policy from {policy_path}")
+        # ==================== POLICY ====================
+        try:
+            self.policy = torch.jit.load(policy_path)
+            self.policy.eval()
+            print(f"[OK] Policy loaded: {policy_path}")
+        except Exception as e:
+            print(f"[ERROR] Failed to load policy: {e}")
+            raise
         
-        # ====== HARDWARE CONFIGURATION ======
-        
-        # Servo order: Isaac Sim index -> ESP32 servo index
-        # Isaac order: LF(0,1,2), RF(3,4,5), LB(6,7,8), RB(9,10,11)
-        self.esp32_servo_order = [3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]
-        
-        # Direction multipliers: convert hardware motion direction to sim direction
-        self.direction_multipliers = np.array([
-            -1.0, -1.0, -1.0,  # LF
-            -1.0,  1.0,  1.0,  # RF
-             1.0, -1.0, -1.0,  # LB
-             1.0,  1.0,  1.0,  # RB
-        ])
-        
-        # Simulation's default joint positions (standing pose in radians)
-        # Order: LF(hip, thigh, calf), RF, LB, RB
+        # ==================== FRAME CONFIGURATION ====================
+        # Simulation default pose (what the policy was trained with)
+        # Thigh at 45°, Calf at -90° relative to thigh
         self.sim_default_positions = np.array([
-            0.0,  0.785, -1.57,  # LF: hip=0°, thigh=45°, calf=-90°
-            0.0,  0.785, -1.57,  # RF
-            0.0,  0.785, -1.57,  # LB
-            0.0,  0.785, -1.57,  # RB
-        ])
-
-        #Joint limits in radians (Taken from he C++ implementation from CS123)
-        # Joint limits in radians (adjust for your robot)
-        self.joint_lower_limits = np.array([
-            -0.5, 0.0, -2.5,   # LF: hip, thigh, calf
-            -0.5, 0.0, -2.5,   # RF
-            -0.5, 0.0, -2.5,   # LB
-            -0.5, 0.0, -2.5,   # RB
-        ])
-        self.joint_upper_limits = np.array([
-            0.5, 1.5, -0.5,    # LF
-            0.5, 1.5, -0.5,    # RF
-            0.5, 1.5, -0.5,    # LB
-            0.5, 1.5, -0.5,    # RB
+            0.0,  0.785, -1.57,   # LF: hip, thigh, calf
+            0.0,  0.785, -1.57,   # RF
+            0.0,  0.785, -1.57,   # LB
+            0.0,  0.785, -1.57,   # RB
         ])
         
-        # Servo constants
-        self.servo_center = 512
-        self.servo_scale = 1024 / (2 * np.pi)  # servo units per radian
+        # The offset between sim frame and real frame for calf joints
+        # Real robot: calf neutral = -0.785 rad (45° from vertical)
+        # Sim robot:  calf neutral = -1.57 rad (90° from thigh)
+        # Same physical pose, different reference frames
+        # When reading real positions: real_calf - 0.785 = sim_calf
+        # When writing to real hardware: sim_calf + 0.785 = real_calf
+        self.CALF_FRAME_OFFSET = 0.785
         
-        # Action scale from training config (SpotActionsCfg.joint_pos.scale)
-        self.ACTION_SCALE = 0.5 #0.215
+        # Joint limits (in sim frame)
+        self.joint_lower_limits = np.array([-0.5, 0.0, -2.5] * 4)
+        self.joint_upper_limits = np.array([0.5, 1.5, -0.5] * 4)
         
-        # ====== CALIBRATION ======
+        # Hardware mapping: Isaac [LF, RF, LB, RB] -> Hardware columns
+        self.hw_to_isaac_leg = {0: 1, 1: 0, 2: 3, 3: 2}  # HW col -> Isaac leg
+        self.isaac_to_hw_col = {1: 0, 0: 1, 3: 2, 2: 3}  # Isaac leg -> HW col
         
-        # Record hardware standing pose
-        print("\n[CALIBRATION] Recording hardware standing pose...")
-        raw = np.array(self.esp32.servos_get_position())
-        self.standing_servos = raw[self.esp32_servo_order].astype(float)
+        # ==================== ACTION TUNING ====================
+        self.ACTION_SCALE = 0.35           # Conservative for real servos
+        self.action_smoothing_alpha = 0.4  # 0=no smoothing, 1=instant
         
-        # Convert to angles (without offset initially)
-        self.use_offset = False
-        self.hw_standing_angles = self._servos_to_angles(self.standing_servos)
+        # ==================== VELOCITY SMOOTHING ====================
+        self.vel_filter_alpha = 0.3        # Low-pass filter for joint velocities
+        self.vel_history_size = 3          # Median filter window
+        self.vel_histories = [deque(maxlen=self.vel_history_size) for _ in range(12)]
         
-        # Calculate offset between hardware and simulation frames
-        self.hw_to_sim_offset = self.sim_default_positions - self.hw_standing_angles
-        self.use_offset = True
+        # ==================== DYNAMIC BASE_LIN_VEL ====================
+        # Estimate linear velocity from IMU acceleration integration
+        self.estimated_lin_vel = np.zeros(3)
+        self.lin_vel_decay = 0.95          # Decay factor (drift correction)
+        self.lin_vel_accel_gain = 0.02     # Integration gain
         
-        self._print_calibration_info()
+        # ==================== IMU CONFIGURATION ====================
+        self.gyro_scale = np.pi / 180.0    # deg/s to rad/s
+        self.accel_scale = 9.81            # g to m/s²
+        self.gyro_offset = np.zeros(3)
+        self.accel_offset = np.zeros(3)
         
-        # Calibrate IMU
-        print("\n[CALIBRATION] Calibrating IMU (keep robot still)...")
-        self._calibrate_imu()
+        # ==================== EFFORT DIRECTION ====================
+        # Based on data analysis: flip signs for joints where real != sim
+        # From analysis: lf1_lf2, lf2_lf3, base_rf1, base_lb1, lb2_lb3, rb2_rb3 need flip
+        self.effort_direction = np.array([
+            +1.0, -1.0, -1.0,   # LF: hip OK, thigh FLIP, calf FLIP
+            -1.0, +1.0, +1.0,   # RF: hip FLIP, thigh OK, calf OK
+            -1.0, +1.0, -1.0,   # LB: hip FLIP, thigh OK, calf FLIP
+            +1.0, +1.0, -1.0,   # RB: hip OK, thigh OK, calf FLIP
+        ])
+        self.effort_scale = 5000.0
+        self.effort_offset = np.zeros(12)
         
-        # Calibrate servo load scaling
-        print("\n[CALIBRATION] Calibrating servo load range...")
-        self._calibrate_load()
-        
-        # ====== STATE VARIABLES ======
-        
+        # ==================== STATE ====================
         self.prev_actions = np.zeros(12)
-        self.prev_joint_angles = self.sim_default_positions.copy()
+        self.prev_joint_angles_sim = self.sim_default_positions.copy()
         self.prev_joint_vel = np.zeros(12)
         self.prev_time = time.time()
         
-        # Velocity command and estimation
         self.velocity_command = np.zeros(3)
-        # self.estimated_lin_vel = np.zeros(3)  # Smoothed estimate for base_lin_vel
-        
-        # Control state
         self.control_active = False
         self.shutdown = False
-        self.debug_counter = 0
         self.startup_steps = 0
+        self.startup_duration = 50
+        self.debug_counter = 0
         
-        # ====== CONTROL PARAMETERS ======
+        self.CONTROL_FREQUENCY = 50
         
-        self.CONTROL_FREQUENCY = 50  # Hz (matches sim: 500Hz physics / 10 decimation)
-        self.startup_duration = 25 #25   # Steps to ramp up (0.5 sec at 50Hz) (0.8 sec @ 50Hz for 40)
-        
-        # Action processing
-        self.action_clip = True
-        self.action_smoothing = 0.6  # HOW JITTERY IS THE ROBOT?
-        self.max_action_delta = 0.15  # Radians per step
-        
-        # Base linear velocity estimation
-        self.lin_vel_smoothing = 0.2  # How fast estimate follows command
-        
-        print("\n" + "=" * 60)
-        print("Initialization complete!")
-        print("=" * 60)
+        # ==================== CALIBRATION ====================
+        print("[CALIBRATING] IMU and effort sensors...")
+        self._calibrate_sensors()
+        print("[READY] Controller initialized")
+        print("=" * 70)
     
-    # ====== CALIBRATION METHODS ======
-    
-    def _print_calibration_info(self):
-        """Print detailed calibration information."""
-        print(f"\nHardware standing servos: {self.standing_servos.astype(int)}")
-        print(f"Hardware standing angles (rad): {np.round(self.hw_standing_angles, 3)}")
-        print(f"Simulation default angles (rad): {np.round(self.sim_default_positions, 3)}")
-        print(f"HW to Sim offset (rad): {np.round(self.hw_to_sim_offset, 3)}")
-        
-        print("\nPer-leg breakdown (HW -> Sim):")
-        legs = ['LF', 'RF', 'LB', 'RB']
-        joints = ['hip', 'thigh', 'calf']
-        for i, leg in enumerate(legs):
-            idx = i * 3
-            hw = self.hw_standing_angles[idx:idx+3]
-            sim = self.sim_default_positions[idx:idx+3]
-            print(f"  {leg}: HW={np.round(hw, 2)} -> Sim={np.round(sim, 2)}")
-    
-    def _calibrate_imu(self, samples=50):
-        """Calibrate IMU gyroscope offset and detect units."""
+    def _calibrate_sensors(self, samples=50):
+        """Calibrate IMU and effort sensor offsets."""
         gyro_samples = []
         accel_samples = []
+        effort_samples = []
         
         for _ in range(samples):
-            data = self.esp32.imu_get_data()
-            if data:
-                gyro_samples.append([data['gx'], data['gy'], data['gz']])
-                accel_samples.append([data['ax'], data['ay'], data['az']])
+            imu = self.esp32.imu_get_data()
+            if imu:
+                gyro_samples.append([imu['gx'], imu['gy'], imu['gz']])
+                accel_samples.append([imu['ax'], imu['ay'], imu['az']])
+            
+            effort = self.esp32.servos_get_load()
+            if effort:
+                effort_samples.append(effort)
+            
             time.sleep(0.02)
         
-        gyro_samples = np.array(gyro_samples)
-        accel_samples = np.array(accel_samples)
+        if gyro_samples:
+            self.gyro_offset = np.mean(gyro_samples, axis=0)
+        if accel_samples:
+            # Gravity should be [0, 0, -1g] when level
+            self.accel_offset = np.mean(accel_samples, axis=0)
+            self.accel_offset[2] -= 1.0  # Remove gravity
+        if effort_samples:
+            self.effort_offset = np.mean(effort_samples, axis=0)
         
-        # Gyro offset (should be near zero when still)
-        self.gyro_offset = np.mean(gyro_samples, axis=0)
-        gyro_std = np.std(gyro_samples, axis=0)
-        
-        # Detect if gyro is in deg/s or rad/s
-        # If values are > 10 when still, probably deg/s
-        if np.max(np.abs(self.gyro_offset)) > 5:
-            self.gyro_scale = np.pi / 180.0  # Convert deg/s to rad/s
-            print(f"  Gyro appears to be in deg/s, will convert to rad/s")
-        else:
-            self.gyro_scale = 1.0  # Already in rad/s
-            print(f"  Gyro appears to be in rad/s")
-        
-        print(f"  Gyro offset: {np.round(self.gyro_offset, 3)}")
-        print(f"  Gyro noise (std): {np.round(gyro_std, 3)}")
-        
-        # Check accelerometer (should show ~9.81 or ~1g on one axis)
-        accel_mean = np.mean(accel_samples, axis=0)
-        accel_magnitude = np.linalg.norm(accel_mean)
-        print(f"  Accel mean: {np.round(accel_mean, 3)}, magnitude: {accel_magnitude:.2f}")
-        
-        # Detect accel units (m/s² vs g's)
-        if accel_magnitude > 5:
-            self.accel_scale = 1.0  # Already in m/s²
-            print(f"  Accel appears to be in m/s²")
-        else:
-            self.accel_scale = 9.81  # Convert g's to m/s²
-            print(f"  Accel appears to be in g's, will convert to m/s²")
+        print(f"   Gyro offset: {self.gyro_offset}")
+        print(f"   Accel offset: {self.accel_offset}")
     
-    def _calibrate_load(self, samples=30):
-        """Calibrate servo load scaling by reading values at rest."""
-        load_samples = []
+    def _read_joint_positions_sim_frame(self):
+        """
+        Read actual servo positions and convert to simulation frame.
+        """
+        raw = self.esp32.servos_get_position()
+        if raw is None:
+            return self.prev_joint_angles_sim.copy()
         
-        for _ in range(samples):
-            load = self.esp32.servos_get_load()
-            if load is not None:
-                load_samples.append(load)
-            time.sleep(0.02)
+        # Convert raw PWM to angles in hardware frame
+        angles_hw = np.zeros((3, 4))
+        for leg in range(4):
+            for axis in range(3):
+                servo_id = self.pwm_params.servo_ids[axis, leg]
+                pos = raw[servo_id - 1]
+                dev = (self.servo_params.neutral_position - pos) / self.servo_params.micros_per_rad
+                angle = dev / self.servo_params.servo_multipliers[axis, leg] + \
+                        self.servo_params.neutral_angles[axis, leg]
+                angles_hw[axis, leg] = angle
         
-        if not load_samples:
-            print("  WARNING: Could not read servo load, using default scale")
-            self.load_scale = 1000.0
-            self.load_offset = np.zeros(12)
-            return
+        # Reorder to Isaac format [LF, RF, LB, RB]
+        angles_isaac = np.zeros(12)
+        for hw_col, isaac_leg in self.hw_to_isaac_leg.items():
+            for axis in range(3):
+                angles_isaac[isaac_leg * 3 + axis] = angles_hw[axis, hw_col]
         
-        load_samples = np.array(load_samples)
+        # Transform calf angles from real frame to sim frame
+        # Real: -0.785 neutral -> Sim: -1.57 neutral
+        # So: sim_calf = real_calf - OFFSET
+        angles_isaac[2::3] -= self.CALF_FRAME_OFFSET
         
-        # Calculate offset (resting load) and range
-        self.load_offset = np.mean(load_samples, axis=0)
-        load_std = np.std(load_samples, axis=0)
-        load_range = np.max(np.abs(load_samples - self.load_offset))
-        
-        # Estimate scale (we'll normalize to roughly [-1, 1])
-        # Use a conservative estimate; can tune later
-        # self.load_scale = max(load_range * 2, 100.0)  # At least 100 to avoid division issues
-        self.load_scale = max(load_range * 4, 400.0)
-        self.load_scale = 5000.0
-
-        print(f"  Load offset (resting): {np.round(self.load_offset, 1)}")
-        print(f"  Load noise (std): {np.round(load_std, 1)}")
-        print(f"  Load scale: {self.load_scale:.1f}")
-        print(f"  TIP: Apply force to legs and check if joint_effort values look reasonable")
+        return angles_isaac
     
-    # ====== SERVO CONVERSION METHODS ======
-    
-    def _servos_to_angles(self, servo_positions):
-        """Convert servo positions to joint angles in simulation frame (radians)."""
-        servo_delta = servo_positions - self.servo_center
-        angles_raw = servo_delta / self.servo_scale
-        angles_hw = angles_raw * self.direction_multipliers
-        
-        if self.use_offset and hasattr(self, 'hw_to_sim_offset'):
-            return angles_hw + self.hw_to_sim_offset
-        return angles_hw
-    
-    def _angles_to_servos(self, angles_sim):
-        """Convert joint angles (simulation frame, radians) to servo positions."""
-        angles_hw = angles_sim - self.hw_to_sim_offset
-        angles_raw = angles_hw * self.direction_multipliers
-        servo_delta = angles_raw * self.servo_scale
-        return self.servo_center + servo_delta
-    
-    # ====== SENSOR READING METHODS ======
-    
-    def read_joint_positions(self):
-        """Read current joint angles in simulation frame."""
-        raw = np.array(self.esp32.servos_get_position())
-        isaac_ordered = raw[self.esp32_servo_order].astype(float)
-        return self._servos_to_angles(isaac_ordered)
-    
-    def read_joint_efforts(self):
-        """Read servo load/torque feedback, normalized to ~[-1, 1]."""
-        raw_load = self.esp32.servos_get_load()
-        if raw_load is None:
+    def _read_joint_efforts(self):
+        """Read joint efforts and apply direction corrections."""
+        raw = self.esp32.servos_get_load()
+        if raw is None:
             return np.zeros(12)
         
-        raw_load = np.array(raw_load, dtype=float)
+        raw = np.array(raw, dtype=float)
         
-        # Reorder to Isaac ordering
-        isaac_ordered = raw_load[self.esp32_servo_order]
+        # Reorder to Isaac format
+        effort_isaac = np.zeros(12)
+        for hw_col, isaac_leg in self.hw_to_isaac_leg.items():
+            for axis in range(3):
+                servo_id = self.pwm_params.servo_ids[axis, hw_col]
+                effort_isaac[isaac_leg * 3 + axis] = raw[servo_id - 1]
         
         # Remove offset and normalize
-        centered = isaac_ordered - self.load_offset[self.esp32_servo_order]
-        normalized = centered / self.load_scale
+        centered = effort_isaac - self._reorder_effort_offset()
+        normalized = (centered / self.effort_scale) * self.effort_direction
         
-        # Apply direction multipliers (torque direction matches joint direction)
-        normalized = normalized * self.direction_multipliers
-        
-        return np.clip(normalized, -10.0, 10.0) #np.clip(normalized, -1.0, 1.0)
+        return normalized
     
-    def write_joint_positions(self, target_angles):
-        """Write joint positions (simulation frame) to servos."""
-        target_servos = self._angles_to_servos(target_angles)
-        target_servos = np.clip(target_servos, 180, 844)  # Servo limits
-        
-        # Reorder for ESP32
-        esp32_out = np.zeros(12)
-        esp32_out[self.esp32_servo_order] = target_servos
-        
-        self.esp32.servos_set_position([int(p) for p in esp32_out])
+    def _reorder_effort_offset(self):
+        """Reorder effort offset to Isaac format."""
+        offset_isaac = np.zeros(12)
+        for hw_col, isaac_leg in self.hw_to_isaac_leg.items():
+            for axis in range(3):
+                servo_id = self.pwm_params.servo_ids[axis, hw_col]
+                offset_isaac[isaac_leg * 3 + axis] = self.effort_offset[servo_id - 1]
+        return offset_isaac
     
-    # ====== OBSERVATION BUILDING ======
+    def _compute_smoothed_velocity(self, current_angles, dt):
+        """
+        Compute joint velocities with smoothing to reduce noise.
+        Uses combination of low-pass filter and median filter.
+        """
+        if dt < 0.001:
+            return self.prev_joint_vel.copy()
+        
+        # Raw velocity
+        raw_vel = (current_angles - self.prev_joint_angles_sim) / dt
+        
+        # Clip extreme values (servo glitches)
+        raw_vel = np.clip(raw_vel, -15.0, 15.0)
+        
+        # Add to history and compute median
+        smoothed_vel = np.zeros(12)
+        for i in range(12):
+            self.vel_histories[i].append(raw_vel[i])
+            if len(self.vel_histories[i]) > 0:
+                smoothed_vel[i] = np.median(list(self.vel_histories[i]))
+        
+        # Low-pass filter
+        filtered_vel = (self.vel_filter_alpha * smoothed_vel + 
+                       (1 - self.vel_filter_alpha) * self.prev_joint_vel)
+        
+        return filtered_vel
+    
+    def _estimate_base_lin_vel(self, accel_body, dt):
+        """
+        Estimate base linear velocity from IMU acceleration.
+        This provides dynamic velocity estimate similar to simulation.
+        """
+        # Remove gravity component (assuming robot is roughly level)
+        # In body frame, gravity is approximately [0, 0, -9.81]
+        accel_corrected = accel_body.copy()
+        accel_corrected[2] += 9.81  # Remove gravity
+        
+        # Integrate acceleration to get velocity
+        self.estimated_lin_vel += accel_corrected * self.lin_vel_accel_gain * dt
+        
+        # Apply decay to prevent drift
+        self.estimated_lin_vel *= self.lin_vel_decay
+        
+        # Blend with command-based estimate for stability
+        cmd_estimate = self.velocity_command * 0.7
+        blended = 0.7 * self.estimated_lin_vel + 0.3 * cmd_estimate
+        
+        # Clip to reasonable range
+        blended = np.clip(blended, -0.5, 0.5)
+        
+        return blended
+    
+    def _isaac_to_hardware_matrix(self, flat_angles_sim_frame):
+        """
+        Convert Isaac-order angles (sim frame) to hardware matrix.
+        Applies calf frame offset for hardware.
+        """
+        # Apply calf offset: sim -> real frame
+        angles_real_frame = flat_angles_sim_frame.copy()
+        angles_real_frame[2::3] += self.CALF_FRAME_OFFSET
+        
+        # Reorder to hardware format
+        matrix = np.zeros((3, 4))
+        matrix[:, 1] = angles_real_frame[0:3]   # LF -> hw col 1
+        matrix[:, 0] = angles_real_frame[3:6]   # RF -> hw col 0
+        matrix[:, 3] = angles_real_frame[6:9]   # LB -> hw col 3
+        matrix[:, 2] = angles_real_frame[9:12]  # RB -> hw col 2
+        
+        return matrix
     
     def get_observation(self):
-        """Build 60-dim observation vector - NO CLIPPING (matches training)."""
+        """
+        Build 60-dim observation matching training format.
+        All values computed to match simulation distributions.
+        """
         current_time = time.time()
         dt = current_time - self.prev_time
         
         # Read sensors
-        imu_data = self.esp32.imu_get_data()
-        current_angles = self.read_joint_positions()
-        joint_effort = self.read_joint_efforts()
+        imu = self.esp32.imu_get_data()
+        current_angles_sim = self._read_joint_positions_sim_frame()
+        joint_effort = self._read_joint_efforts()
         
-        # ---- 1. Base Linear Velocity (3 dims) ----
-        # Simple: fraction of commanded velocity (robot doesn't instantly reach target)
-        base_lin_vel = self.velocity_command * 0.7  # Tune: 0.5-0.9
+        # ===== BASE LINEAR VELOCITY (DYNAMIC) =====
+        accel_raw = np.array([imu['ax'], imu['ay'], imu['az']])
+        accel = (accel_raw - self.accel_offset) * self.accel_scale
+        base_lin_vel = self._estimate_base_lin_vel(accel, dt)
         
-        # ---- 2. Base Angular Velocity (3 dims) ----
-        gyro_raw = np.array([imu_data['gx'], imu_data['gy'], imu_data['gz']])
+        # ===== BASE ANGULAR VELOCITY =====
+        gyro_raw = np.array([imu['gx'], imu['gy'], imu['gz']])
         base_ang_vel = (gyro_raw - self.gyro_offset) * self.gyro_scale
         
-        # ---- 3. Projected Gravity (3 dims) ----
-        accel_raw = np.array([imu_data['ax'], imu_data['ay'], imu_data['az']])
-        accel = accel_raw * self.accel_scale
-        accel_norm = np.linalg.norm(accel)
+        # ===== PROJECTED GRAVITY =====
+        accel_for_gravity = accel_raw * self.accel_scale
+        accel_norm = np.linalg.norm(accel_for_gravity)
         if accel_norm > 0.1:
-            projected_gravity = accel / accel_norm
+            projected_gravity = accel_for_gravity / accel_norm
         else:
             projected_gravity = np.array([0.0, 0.0, -1.0])
         
-        # ---- 4. Velocity Commands (3 dims) ----
+        # ===== VELOCITY COMMANDS =====
         velocity_commands = self.velocity_command.copy()
         
-        # ---- 5. Joint Positions Relative to Default (12 dims) ----
-        joint_pos_rel = current_angles - self.sim_default_positions
+        # ===== JOINT POSITIONS (relative to default, sim frame) =====
+        joint_pos_rel = current_angles_sim - self.sim_default_positions
         
-        # ---- 6. Joint Velocities (12 dims) ----
-        if dt > 0.001:
-            joint_vel_raw = (current_angles - self.prev_joint_angles) / dt
-            # Low-pass filter for noise (not clipping)
-            alpha_vel = 0.4
-            joint_vel = alpha_vel * joint_vel_raw + (1 - alpha_vel) * self.prev_joint_vel
-        else:
-            joint_vel = self.prev_joint_vel.copy()
+        # ===== JOINT VELOCITIES (smoothed) =====
+        joint_vel = self._compute_smoothed_velocity(current_angles_sim, dt)
         
-        # ---- 7. Joint Efforts (12 dims) ----
-        # Already normalized by load_scale, no additional clipping
-        
-        # ---- 8. Previous Actions (12 dims) ----
-        prev_actions = self.prev_actions.copy()
-        
-        # Update state
-        self.prev_joint_angles = current_angles.copy()
+        # ===== UPDATE STATE =====
+        self.prev_joint_angles_sim = current_angles_sim.copy()
         self.prev_joint_vel = joint_vel.copy()
         self.prev_time = current_time
         
-        # Concatenate - NO CLIPPING anywhere
+        # ===== PREVIOUS ACTIONS =====
+        prev_actions = self.prev_actions.copy()
+        
+        # ===== BUILD OBSERVATION (60 dims) =====
         obs = np.concatenate([
-            base_lin_vel,       # 0:3
-            base_ang_vel,       # 3:6
-            projected_gravity,  # 6:9
-            velocity_commands,  # 9:12
-            joint_pos_rel,      # 12:24
-            joint_vel,          # 24:36
-            joint_effort,       # 36:48
-            prev_actions,       # 48:60
+            base_lin_vel,         # 0:3
+            base_ang_vel,         # 3:6
+            projected_gravity,    # 6:9
+            velocity_commands,    # 9:12
+            joint_pos_rel,        # 12:24
+            joint_vel,            # 24:36
+            joint_effort,         # 36:48
+            prev_actions,         # 48:60
         ]).astype(np.float32)
         
-        return obs, joint_pos_rel, joint_vel, joint_effort
-
-    # ====== ACTION PROCESSING ======
+        return obs
     
-    def process_actions(self, raw_actions):
-        """
-        Process policy output exactly as simulation's JointPositionAction.
-        
-        Steps:
-            1. Clip to [-1, 1]
-            2. Scale by ACTION_SCALE (0.5)
-            3. Add to default positions
-        
-        Returns:
-            target_positions: Absolute joint positions in radians
-            clipped_actions: The clipped actions (for storing as prev_actions)
-        """
-        if self.action_clip:
-            clipped = np.clip(raw_actions, -1.0, 1.0)
-        else:
-            clipped = raw_actions.copy()
-        
-        scaled = clipped * self.ACTION_SCALE
-        target_positions = self.sim_default_positions + scaled
-        
-        return target_positions, clipped
-    
-    # ====== CONTROL LOOP ======
-        
     def control_step(self):
-        """Matches C++ neural_controller behavior exactly."""
-        obs, joint_pos_rel, joint_vel, joint_effort = self.get_observation()
+        """Execute one control step."""
+        obs = self.get_observation()
         
-        # Policy inference
+        # Run policy
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
             raw_actions = self.policy(obs_tensor).squeeze().numpy()
         
-        # Fade-in multiplier (matches C++)
+        # Clip actions to valid range
+        clipped_actions = np.clip(raw_actions, -1.0, 1.0)
+        
+        # Startup fade-in
         if self.startup_steps < self.startup_duration:
-            fade_in = self.startup_steps / self.startup_duration
+            fade = self.startup_steps / self.startup_duration
             self.startup_steps += 1
         else:
-            fade_in = 1.0
+            fade = 1.0
         
-        # Apply fade-in (NO clipping on actions - this is key!)
-        faded_actions = raw_actions * fade_in
+        faded_actions = clipped_actions * fade
         
-        # Store for next observation (raw × fade_in, not clipped)
-        self.prev_actions = faded_actions.copy()
+        # Action smoothing
+        smoothed_actions = (self.action_smoothing_alpha * faded_actions + 
+                          (1 - self.action_smoothing_alpha) * self.prev_actions)
+        self.prev_actions = smoothed_actions.copy()
         
-        # Compute target: default + (action × scale)
-        target_positions = self.sim_default_positions + faded_actions * self.ACTION_SCALE
+        # Compute target positions (sim frame)
+        target_sim = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
+        target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
         
-        # Clamp to joint limits only (not action limits)
-        target_positions = np.clip(target_positions, 
-                                    self.joint_lower_limits, 
-                                    self.joint_upper_limits)
+        # Send to hardware (converts to real frame internally)
+        target_matrix = self._isaac_to_hardware_matrix(target_sim)
+        self.hardware.set_actuator_postions(target_matrix)
         
-        # Send directly - no smoothing!
-        self.write_joint_positions(target_positions)
-        
-        # Debug
+        # Debug output
         self.debug_counter += 1
         if self.debug_counter % 50 == 0:
-            print(f"\n--- Step {self.debug_counter} ---")
-            print(f"Raw actions: [{raw_actions.min():+.2f}, {raw_actions.max():+.2f}]")
-            print(f"Faded actions: [{faded_actions.min():+.2f}, {faded_actions.max():+.2f}]")
-            print(f"Target pos: [{target_positions.min():+.2f}, {target_positions.max():+.2f}]")
-        
-        return faded_actions
-    
-    def _print_debug(self, obs, raw_actions, target_positions, joint_effort):
-        """Print debug information."""
-        print(f"\n--- Step {self.debug_counter} ---")
-        print(f"Cmd: [{self.velocity_command[0]:+.2f}, {self.velocity_command[1]:+.2f}, {self.velocity_command[2]:+.2f}]")
-        print(f"Est vel: [{self.estimated_lin_vel[0]:+.2f}, {self.estimated_lin_vel[1]:+.2f}, {self.estimated_lin_vel[2]:+.2f}]")
-        print(f"Gravity: [{obs[6]:+.2f}, {obs[7]:+.2f}, {obs[8]:+.2f}]")
-        print(f"Joint pos rel: [{obs[12:24].min():+.3f}, {obs[12:24].max():+.3f}]")
-        print(f"Joint vel: [{obs[24:36].min():+.2f}, {obs[24:36].max():+.2f}]")
-        print(f"Joint effort: [{joint_effort.min():+.2f}, {joint_effort.max():+.2f}]")
-        print(f"Raw actions: [{raw_actions.min():+.2f}, {raw_actions.max():+.2f}]")
-        print(f"Target pos: [{target_positions.min():+.2f}, {target_positions.max():+.2f}]")
-        
-        if self.startup_steps < self.startup_duration:
-            print(f"Startup: {self.startup_steps}/{self.startup_duration}")
+            obs_ranges = {
+                'lin_vel': obs[0:3],
+                'ang_vel': obs[3:6],
+                'gravity': obs[6:9],
+                'pos_rel': obs[12:24],
+            }
+            print(f"Step {self.debug_counter}: "
+                  f"lin_vel=[{obs[0]:.2f},{obs[1]:.2f},{obs[2]:.2f}] "
+                  f"act=[{smoothed_actions.min():+.2f},{smoothed_actions.max():+.2f}]")
     
     def control_loop(self):
         """Main control loop."""
         dt_target = 1.0 / self.CONTROL_FREQUENCY
-        
-        print(f"\n{'='*60}")
-        print(f"Control loop running at {self.CONTROL_FREQUENCY}Hz")
-        print(f"Action scale: {self.ACTION_SCALE}")
-        print(f"Smoothing: {self.action_smoothing}")
-        print(f"{'='*60}")
-        print("\nCommands:")
-        print("  w/s     - Forward/Backward")
-        print("  a/d     - Strafe Left/Right")
-        print("  q/e     - Turn Left/Right")
-        print("  space   - Stop")
-        print("  x       - Exit")
-        print("  1/2/3   - Speed: Slow/Medium/Fast")
-        print()
-        
-        self.speed_multiplier = 1.0
+        print(f"\n[RUNNING] Control loop at {self.CONTROL_FREQUENCY}Hz")
         
         while not self.shutdown:
             loop_start = time.time()
@@ -475,189 +418,103 @@ class SimMatchedMLPController:
                 try:
                     self.control_step()
                 except Exception as e:
-                    print(f"Error in control step: {e}")
+                    print(f"[ERROR] Control step failed: {e}")
                     import traceback
                     traceback.print_exc()
                     self.control_active = False
             
-            # Maintain control frequency
             elapsed = time.time() - loop_start
             if elapsed < dt_target:
                 time.sleep(dt_target - elapsed)
     
     def set_velocity_command(self, vx, vy, vyaw):
-        """Set velocity command with proper clipping."""
-        self.velocity_command = np.array([
-            np.clip(vx, -0.35, 0.40),
-            np.clip(vy, -0.35, 0.35),
-            np.clip(vyaw, -0.30, 0.30)
-        ])
+        """Set velocity command."""
+        self.velocity_command = np.array([vx, vy, vyaw])
         
         if np.any(np.abs(self.velocity_command) > 0.01):
             if not self.control_active:
-                # Reset state on activation
-                self._reset_control_state()
+                self.startup_steps = 0  # Reset fade-in
+                self.estimated_lin_vel = np.zeros(3)  # Reset velocity estimate
             self.control_active = True
-            print(f"Active: cmd=[{self.velocity_command[0]:+.2f}, "
-                  f"{self.velocity_command[1]:+.2f}, {self.velocity_command[2]:+.2f}]")
+            print(f"[CMD] vx={vx:.2f}, vy={vy:.2f}, vyaw={vyaw:.2f}")
         else:
             self.control_active = False
-            self.startup_steps = 0
-            self.estimated_lin_vel = np.zeros(3)
-            print("Stopped")
-    
-    def _reset_control_state(self):
-        """Reset control state when starting movement."""
-        current_angles = self.read_joint_positions()
-        self.prev_joint_angles = current_angles.copy()
-        self.prev_target_positions = current_angles.copy()
-        self.prev_actions = np.zeros(12)
-        self.prev_joint_vel = np.zeros(12)
-        self.prev_time = time.time()
-        self.startup_steps = 0
-        self.debug_counter = 0
-        self.estimated_lin_vel = np.zeros(3)
+            print("[CMD] STOPPED")
     
     def stop(self):
-        """Stop the controller."""
+        """Shutdown controller."""
         self.control_active = False
         self.shutdown = True
+        print("[SHUTDOWN] Controller stopped")
 
 
-# ====== TEST FUNCTIONS ======
-
-def test_sensors(controller):
-    """Test sensor readings."""
-    print("\n" + "="*60)
-    print("SENSOR TEST")
-    print("="*60)
-    
-    print("\nReading sensors 5 times...")
-    for i in range(5):
-        obs, pos_rel, vel, effort = controller.get_observation()
-        print(f"\nReading {i+1}:")
-        print(f"  base_lin_vel:  {obs[0:3]}")
-        print(f"  base_ang_vel:  {obs[3:6]}")
-        print(f"  proj_gravity:  {obs[6:9]}")
-        print(f"  velocity_cmd:  {obs[9:12]}")
-        print(f"  joint_pos_rel: min={pos_rel.min():.3f}, max={pos_rel.max():.3f}")
-        print(f"  joint_vel:     min={vel.min():.3f}, max={vel.max():.3f}")
-        print(f"  joint_effort:  min={effort.min():.3f}, max={effort.max():.3f}")
-        time.sleep(0.2)
-
-
-def test_actions(controller):
-    """Test action processing."""
-    print("\n" + "="*60)
-    print("ACTION PROCESSING TEST")
-    print("="*60)
-    
-    # Test zero actions
-    test_actions = np.zeros(12)
-    target, clipped = controller.process_actions(test_actions)
-    print(f"\nZero actions:")
-    print(f"  Target positions: {np.round(target, 3)}")
-    print(f"  Sim defaults:     {np.round(controller.sim_default_positions, 3)}")
-    print(f"  Match: {np.allclose(target, controller.sim_default_positions)}")
-    
-    # Test +0.5 actions (should give max positive offset)
-    test_actions = np.ones(12) * 0.5
-    target, clipped = controller.process_actions(test_actions)
-    expected = controller.sim_default_positions + 0.5 * controller.ACTION_SCALE
-    print(f"\n+0.5 actions:")
-    print(f"  Target positions: {np.round(target, 3)}")
-    print(f"  Expected:         {np.round(expected, 3)}")
-    print(f"  Match: {np.allclose(target, expected)}")
-
-
-def test_load_response(controller):
-    """Interactive test to verify load sensing works."""
-    print("\n" + "="*60)
-    print("LOAD SENSOR TEST")
-    print("="*60)
-    print("\nPush on each leg and watch the joint_effort values change.")
-    print("Press Ctrl+C to stop.\n")
-    
-    try:
-        while True:
-            effort = controller.read_joint_efforts()
-            # Format nicely
-            legs = ['LF', 'RF', 'LB', 'RB']
-            output = "Effort: "
-            for i, leg in enumerate(legs):
-                idx = i * 3
-                e = effort[idx:idx+3]
-                output += f"{leg}=[{e[0]:+.2f},{e[1]:+.2f},{e[2]:+.2f}] "
-            print(f"\r{output}", end='', flush=True)
-            time.sleep(0.1)
-    except KeyboardInterrupt:
-        print("\n")
-
-
-# ====== MAIN ======
-
+# ==================== MAIN ====================
 if __name__ == "__main__":
-    import threading
+    print("\n" + "="*70)
+    print("MINI PUPPER 2 - IMPROVED RL CONTROLLER")
+    print("="*70)
+    print("""
+Controls:
+  w/s  - Forward/Backward
+  a/d  - Strafe Left/Right  
+  q/e  - Turn Left/Right
+  SPACE or ENTER - Stop
+  +/-  - Increase/Decrease speed
+  x    - Exit
+""")
     
-    # Initialize controller
-    controller = SimMatchedMLPController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
+    controller = ImprovedRLController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
-    # Run tests
-    test_sensors(controller)
-    test_actions(controller)
+    # Start control thread
+    control_thread = threading.Thread(target=controller.control_loop, daemon=True)
+    control_thread.start()
     
-    # Ask if user wants to test load
-    print("\nTest load sensors interactively? (y/n): ", end='')
-    if input().strip().lower() == 'y':
-        test_load_response(controller)
-    
-    # Start control loop in background thread
-    print("\nStarting control loop...")
-    thread = threading.Thread(target=controller.control_loop)
-    thread.start()
-    
-    # Speed settings
-    speeds = {
-        '1': 0.1,   # Slow
-        '2': 0.2,   # Medium  
-        '3': 0.3,   # Fast
-    }
-    current_speed = 0.2
+    speed = 0.15  # Start conservative
     
     try:
         while True:
             cmd = input("> ").strip().lower()
             
             if cmd == 'w':
-                controller.set_velocity_command(current_speed, 0, 0)
+                controller.set_velocity_command(speed, 0, 0)
             elif cmd == 's':
-                controller.set_velocity_command(-current_speed, 0, 0)
+                controller.set_velocity_command(-speed, 0, 0)
             elif cmd == 'a':
-                controller.set_velocity_command(0, current_speed, 0)
+                controller.set_velocity_command(0, speed, 0)
             elif cmd == 'd':
-                controller.set_velocity_command(0, -current_speed, 0)
+                controller.set_velocity_command(0, -speed, 0)
             elif cmd == 'q':
-                controller.set_velocity_command(0, 0, current_speed)
+                controller.set_velocity_command(0, 0, speed * 2)
             elif cmd == 'e':
-                controller.set_velocity_command(0, 0, -current_speed)
+                controller.set_velocity_command(0, 0, -speed * 2)
             elif cmd in ['', ' ']:
                 controller.set_velocity_command(0, 0, 0)
-            elif cmd in speeds:
-                current_speed = speeds[cmd]
-                print(f"Speed set to {current_speed}")
+            elif cmd == '+':
+                speed = min(speed + 0.05, 0.5)
+                print(f"[SPEED] {speed:.2f} m/s")
+            elif cmd == '-':
+                speed = max(speed - 0.05, 0.05)
+                print(f"[SPEED] {speed:.2f} m/s")
             elif cmd == 'x':
                 break
-            elif cmd == 't':
-                # Quick test of current observation
-                obs, _, _, effort = controller.get_observation()
-                print(f"Obs shape: {obs.shape}")
-                print(f"Effort: {np.round(effort, 2)}")
+            elif cmd == 'debug':
+                # Print current state
+                obs = controller.get_observation()
+                print(f"Observation shape: {obs.shape}")
+                print(f"  base_lin_vel: {obs[0:3]}")
+                print(f"  base_ang_vel: {obs[3:6]}")
+                print(f"  gravity: {obs[6:9]}")
+                print(f"  commands: {obs[9:12]}")
+                print(f"  joint_pos_rel: {obs[12:24]}")
+                print(f"  joint_vel: {obs[24:36]}")
+                print(f"  joint_effort: {obs[36:48]}")
+                print(f"  prev_actions: {obs[48:60]}")
             else:
-                print("Unknown command. Use w/s/a/d/q/e, space, 1/2/3, or x to exit")
-                
+                print("Unknown command. Use w/s/a/d/q/e, space=stop, x=exit")
+    
     except KeyboardInterrupt:
         pass
     
     controller.stop()
-    thread.join()
-    print("Done!")
+    control_thread.join(timeout=1.0)
+    print("[DONE]")

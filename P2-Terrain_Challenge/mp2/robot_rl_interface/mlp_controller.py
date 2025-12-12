@@ -1,50 +1,8 @@
 """
-Mini Pupper 2 RL Controller - Dual Mapping Correction
-======================================================
-Two SEPARATE correction matrices:
-
-1. JOINT DIRECTION MAPPING - For position/action transformations
-   Based on: "Positive angle causes what motion?"
-   
-2. EFFORT DIRECTION MAPPING - For torque/load sign corrections
-   Based on: "When resisting downward push, is load positive or negative?"
-
-These are INDEPENDENT - a joint can have same direction but opposite effort sign!
-
-JOINT DIRECTION (from your mapping):
-------------------------------------
-| Joint      | Sim +      | Real +     | FLIP? |
-|------------|------------|------------|-------|
-| LF Hip     | INWARD     | OUTWARD    | YES   |
-| LF Thigh   | BACKWARD   | FORWARD    | YES   |
-| LF Calf    | EXTENDS    | FLEXES     | YES   |
-| RF Hip     | OUTWARD    | INWARD     | YES   |
-| RF Thigh   | BACKWARD   | BACKWARD   | NO    |
-| RF Calf    | EXTENDS    | EXTENDS    | NO    |
-| LB Hip     | INWARD     | INWARD     | NO    |
-| LB Thigh   | BACKWARD   | FORWARD    | YES   |
-| LB Calf    | EXTENDS    | FLEXES     | YES   |
-| RB Hip     | OUTWARD    | OUTWARD    | NO    |
-| RB Thigh   | BACKWARD   | BACKWARD   | NO    |
-| RB Calf    | EXTENDS    | EXTENDS    | NO    |
-
-EFFORT DIRECTION (from data analysis):
---------------------------------------
-| Joint      | Real Sign | Sim Sign   | FLIP? |
-|------------|-----------|------------|-------|
-| LF Hip     | +0.003    | -0.007     | NO*   |
-| LF Thigh   | +0.004    | -0.024     | YES   |
-| LF Calf    | +0.001    | -0.021     | YES   |
-| RF Hip     | +0.002    | -0.019     | YES   |
-| RF Thigh   | +0.004    | +0.047     | NO    |
-| RF Calf    | -0.007    | -0.011     | NO    |
-| LB Hip     | -0.001    | +0.031     | YES   |
-| LB Thigh   | -0.005    | +0.009     | NO*   |
-| LB Calf    | -0.004    | +0.054     | YES   |
-| RB Hip     | +0.009    | +0.026     | NO    |
-| RB Thigh   | -0.005    | -0.047     | NO    |
-| RB Calf    | -0.006    | +0.028     | YES   |
-(*small values, may be noise)
+NEW APPROACH:
+  1. Compute deviation from REAL default
+  2. Flip the deviation if needed
+  3. Add back to SIM default
 """
 
 import numpy as np
@@ -56,16 +14,17 @@ from MangDang.mini_pupper.HardwareInterface import HardwareInterface
 from MangDang.mini_pupper.Config import Configuration
 
 
-class DualMappingController:
+class FixedMappingController:
     """
-    Controller with separate joint direction and effort direction mappings.
+    Controller with corrected frame transformations.
+    
+    Key insight: Joint direction flip applies to DEVIATIONS from neutral,
+    not to absolute positions!
     """
     
     def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
         print("=" * 70)
-        print("DUAL MAPPING RL CONTROLLER")
-        print("  - Joint direction mapping (position/action)")
-        print("  - Effort direction mapping (torque/load)")
+        print("FIXED MAPPING RL CONTROLLER")
         print("=" * 70)
         
         # ==================== HARDWARE ====================
@@ -85,66 +44,16 @@ class DualMappingController:
             print(f"[ERROR] {e}")
             raise
         
-        # ==============================================================
-        # JOINT DIRECTION MAPPING
-        # ==============================================================
-        # Maps: sim_value * joint_direction = real_value
-        #       real_value * joint_direction = sim_value (same operation)
-        # +1 = same direction, -1 = opposite direction
-        self.joint_direction = np.array([
-            # LF: all three flipped
-            -1.0,  # hip:   sim INWARD+ / real OUTWARD+  → FLIP
-            -1.0,  # thigh: sim BACK+   / real FORWARD+  → FLIP
-            -1.0,  # calf:  sim EXTEND+ / real FLEX+     → FLIP
-            
-            # RF: only hip flipped
-            -1.0,  # hip:   sim OUT+    / real IN+       → FLIP
-            +1.0,  # thigh: sim BACK+   / real BACK+     → SAME
-            +1.0,  # calf:  sim EXTEND+ / real EXTEND+   → SAME
-            
-            # LB: thigh and calf flipped
-            +1.0,  # hip:   sim IN+     / real IN+       → SAME
-            -1.0,  # thigh: sim BACK+   / real FORWARD+  → FLIP
-            -1.0,  # calf:  sim EXTEND+ / real FLEX+     → FLIP
-            
-            # RB: none flipped
-            +1.0,  # hip:   sim OUT+    / real OUT+      → SAME
-            +1.0,  # thigh: sim BACK+   / real BACK+     → SAME
-            +1.0,  # calf:  sim EXTEND+ / real EXTEND+   → SAME
+        # ==================== DEFAULT POSITIONS ====================
+        # Real robot default positions (from servo calibration)
+        self.real_default_positions = np.array([
+            0.0,  0.785, -0.785,   # LF: hip=0, thigh=45°, calf=-45°
+            0.0,  0.785, -0.785,   # RF
+            0.0,  0.785, -0.785,   # LB
+            0.0,  0.785, -0.785,   # RB
         ])
         
-        # ==============================================================
-        # EFFORT DIRECTION MAPPING
-        # ==============================================================
-        # Separate from joint direction!
-        # Maps: real_effort * effort_direction = sim_effort
-        # Based on data analysis of mean effort signs
-        self.effort_direction = np.array([
-            # LF
-            +1.0,  # hip:   real+ / sim- but small, keep +1
-            -1.0,  # thigh: real+ / sim- → FLIP
-            -1.0,  # calf:  real+ / sim- → FLIP
-            
-            # RF
-            -1.0,  # hip:   real+ / sim- → FLIP
-            +1.0,  # thigh: real+ / sim+ → SAME
-            +1.0,  # calf:  real- / sim- → SAME
-            
-            # LB
-            -1.0,  # hip:   real- / sim+ → FLIP
-            +1.0,  # thigh: real- / sim+ but small, keep +1
-            -1.0,  # calf:  real- / sim+ → FLIP
-            
-            # RB
-            +1.0,  # hip:   real+ / sim+ → SAME
-            +1.0,  # thigh: real- / sim- → SAME
-            -1.0,  # calf:  real- / sim+ → FLIP
-        ])
-        
-        # Print mappings
-        self._print_mappings()
-        
-        # ==================== FRAME CONFIGURATION ====================
+        # Simulation default positions
         self.sim_default_positions = np.array([
             0.0,  0.785, -1.57,   # LF
             0.0,  0.785, -1.57,   # RF
@@ -152,10 +61,46 @@ class DualMappingController:
             0.0,  0.785, -1.57,   # RB
         ])
         
-        # Calf frame offset
-        self.CALF_FRAME_OFFSET = 0.785
+        # ==============================================================
+        # JOINT DIRECTION MAPPING
+        # ==============================================================
+        # This flips the DEVIATION from neutral, not the absolute position
+        # +1 = same direction, -1 = opposite direction
+        self.joint_direction = np.array([
+            # LF
+            -1.0,  # hip:   sim INWARD+ / real OUTWARD+  → FLIP
+            -1.0,  # thigh: sim BACK+   / real FORWARD+  → FLIP
+            -1.0,  # calf:  sim EXTEND+ / real FLEX+     → FLIP
+            
+            # RF
+            -1.0,  # hip:   sim OUT+    / real IN+       → FLIP
+            +1.0,  # thigh: sim BACK+   / real BACK+     → SAME
+            +1.0,  # calf:  sim EXTEND+ / real EXTEND+   → SAME
+            
+            # LB
+            +1.0,  # hip:   sim IN+     / real IN+       → SAME
+            -1.0,  # thigh: sim BACK+   / real FORWARD+  → FLIP
+            -1.0,  # calf:  sim EXTEND+ / real FLEX+     → FLIP
+            
+            # RB
+            +1.0,  # hip:   sim OUT+    / real OUT+      → SAME
+            +1.0,  # thigh: sim BACK+   / real BACK+     → SAME
+            +1.0,  # calf:  sim EXTEND+ / real EXTEND+   → SAME
+        ])
         
-        # Joint limits (sim frame)
+        # ==============================================================
+        # EFFORT DIRECTION MAPPING (separate from joint direction)
+        # ==============================================================
+        self.effort_direction = np.array([
+            +1.0, -1.0, -1.0,   # LF
+            -1.0, +1.0, +1.0,   # RF
+            -1.0, +1.0, -1.0,   # LB
+            +1.0, +1.0, -1.0,   # RB
+        ])
+        
+        self._print_mappings()
+        
+        # ==================== JOINT LIMITS (sim frame) ====================
         self.joint_lower_limits = np.array([-0.5, 0.0, -2.5] * 4)
         self.joint_upper_limits = np.array([0.5, 1.5, -0.5] * 4)
         
@@ -205,19 +150,21 @@ class DualMappingController:
         print("=" * 70)
     
     def _print_mappings(self):
-        """Print the joint and effort direction mappings."""
+        """Print mappings."""
         names = ['LF_hip', 'LF_thigh', 'LF_calf',
                  'RF_hip', 'RF_thigh', 'RF_calf',
                  'LB_hip', 'LB_thigh', 'LB_calf',
                  'RB_hip', 'RB_thigh', 'RB_calf']
         
         print("\n[MAPPINGS]")
-        print(f"{'Joint':<12} {'JointDir':>10} {'EffortDir':>10}")
-        print("-" * 34)
+        print(f"{'Joint':<12} {'RealDef':>8} {'SimDef':>8} {'JntDir':>8} {'EffDir':>8}")
+        print("-" * 48)
         for i, name in enumerate(names):
-            jd = "FLIP" if self.joint_direction[i] < 0 else "SAME"
-            ed = "FLIP" if self.effort_direction[i] < 0 else "SAME"
-            print(f"{name:<12} {jd:>10} {ed:>10}")
+            rd = self.real_default_positions[i]
+            sd = self.sim_default_positions[i]
+            jd = "FLIP" if self.joint_direction[i] < 0 else "same"
+            ed = "FLIP" if self.effort_direction[i] < 0 else "same"
+            print(f"{name:<12} {rd:>+8.3f} {sd:>+8.3f} {jd:>8} {ed:>8}")
     
     def _calibrate_sensors(self, samples=50):
         """Calibrate IMU and effort offsets."""
@@ -244,11 +191,11 @@ class DualMappingController:
             self.effort_offset = np.mean(effort_samples, axis=0)
     
     # ==============================================================
-    # POSITION TRANSFORMATIONS
+    # POSITION TRANSFORMATIONS - FIXED
     # ==============================================================
     
     def _read_joint_positions_raw(self):
-        """Read raw positions from hardware in Isaac order (real frame)."""
+        """Read raw positions from hardware in Isaac order."""
         raw = self.esp32.servos_get_position()
         if raw is None:
             return None
@@ -275,19 +222,21 @@ class DualMappingController:
         """
         Transform real robot positions to simulation frame.
         
-        Steps:
-        1. Apply calf frame offset (real -0.785 neutral → sim -1.57 neutral)
-        2. Apply joint direction flip
+        Method: Transform DEVIATIONS, not absolute positions
+        1. Compute deviation from real default
+        2. Flip deviation if joint direction is -1
+        3. Add to sim default
+        
+        sim_pos = sim_default + joint_direction * (real_pos - real_default)
         """
-        angles_sim = angles_real.copy()
+        # Deviation from real default
+        deviation_real = angles_real - self.real_default_positions
         
-        # Step 1: Calf frame offset
-        # Real neutral is -0.785, sim neutral is -1.57
-        # To go from real to sim: subtract offset
-        angles_sim[2::3] -= self.CALF_FRAME_OFFSET
+        # Flip deviation where needed
+        deviation_sim = deviation_real * self.joint_direction
         
-        # Step 2: Apply joint direction
-        angles_sim = angles_sim * self.joint_direction
+        # Add to sim default
+        angles_sim = self.sim_default_positions + deviation_sim
         
         return angles_sim
     
@@ -295,18 +244,21 @@ class DualMappingController:
         """
         Transform simulation frame positions to real robot frame.
         
-        Steps:
-        1. Apply joint direction flip
-        2. Apply calf frame offset
+        Method: Inverse of _real_to_sim_positions
+        1. Compute deviation from sim default
+        2. Flip deviation if joint direction is -1 (same operation, since ±1)
+        3. Add to real default
+        
+        real_pos = real_default + joint_direction * (sim_pos - sim_default)
         """
-        angles_real = angles_sim.copy()
+        # Deviation from sim default
+        deviation_sim = angles_sim - self.sim_default_positions
         
-        # Step 1: Apply joint direction (inverse = same operation for ±1)
-        angles_real = angles_real * self.joint_direction
+        # Flip deviation where needed (inverse of ±1 is same value)
+        deviation_real = deviation_sim * self.joint_direction
         
-        # Step 2: Calf frame offset
-        # To go from sim to real: add offset
-        angles_real[2::3] += self.CALF_FRAME_OFFSET
+        # Add to real default
+        angles_real = self.real_default_positions + deviation_real
         
         return angles_real
     
@@ -323,10 +275,7 @@ class DualMappingController:
     # ==============================================================
     
     def _read_joint_efforts(self):
-        """
-        Read joint efforts with EFFORT direction correction.
-        (Separate from joint direction!)
-        """
+        """Read efforts with effort direction correction."""
         raw = self.esp32.servos_get_load()
         if raw is None:
             return np.zeros(12)
@@ -342,11 +291,10 @@ class DualMappingController:
                 effort_isaac[isaac_leg * 3 + axis] = raw[servo_id - 1]
                 offset_isaac[isaac_leg * 3 + axis] = self.effort_offset[servo_id - 1]
         
-        # Remove offset and normalize
         centered = effort_isaac - offset_isaac
         normalized = centered / self.effort_scale
         
-        # Apply EFFORT direction mapping (NOT joint direction)
+        # Apply EFFORT direction (separate from joint direction)
         normalized = normalized * self.effort_direction
         
         return normalized
@@ -393,10 +341,8 @@ class DualMappingController:
     
     def _isaac_to_hardware_matrix(self, flat_angles_sim):
         """Convert sim frame angles to hardware matrix."""
-        # Transform to real frame
         angles_real = self._sim_to_real_positions(flat_angles_sim)
         
-        # Reorder to hardware format
         matrix = np.zeros((3, 4))
         matrix[:, 1] = angles_real[0:3]   # LF
         matrix[:, 0] = angles_real[3:6]   # RF
@@ -414,12 +360,11 @@ class DualMappingController:
         current_time = time.time()
         dt = current_time - self.prev_time
         
-        # Read sensors
         imu = self.esp32.imu_get_data()
         current_angles_sim = self._read_joint_positions_sim_frame()
-        joint_effort = self._read_joint_efforts()  # Uses effort_direction
+        joint_effort = self._read_joint_efforts()
         
-        # Base linear velocity (dynamic)
+        # Base linear velocity
         accel_raw = np.array([imu['ax'], imu['ay'], imu['az']])
         accel = (accel_raw - self.accel_offset) * self.accel_scale
         base_lin_vel = self._estimate_base_lin_vel(accel, dt)
@@ -436,13 +381,12 @@ class DualMappingController:
         else:
             projected_gravity = np.array([0.0, 0.0, -1.0])
         
-        # Velocity commands
         velocity_commands = self.velocity_command.copy()
         
-        # Joint positions relative to default (sim frame)
+        # Joint positions relative to sim default
         joint_pos_rel = current_angles_sim - self.sim_default_positions
         
-        # Joint velocities (smoothed, in sim frame)
+        # Joint velocities
         joint_vel = self._compute_smoothed_velocity(current_angles_sim, dt)
         
         # Update state
@@ -450,10 +394,8 @@ class DualMappingController:
         self.prev_joint_vel = joint_vel.copy()
         self.prev_time = current_time
         
-        # Previous actions
         prev_actions = self.prev_actions.copy()
         
-        # Build observation
         obs = np.concatenate([
             base_lin_vel,         # 0:3
             base_ang_vel,         # 3:6
@@ -471,15 +413,12 @@ class DualMappingController:
         """Execute one control step."""
         obs = self.get_observation()
         
-        # Run policy
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
             raw_actions = self.policy(obs_tensor).squeeze().numpy()
         
-        # Clip actions
         clipped_actions = np.clip(raw_actions, -1.0, 1.0)
         
-        # Startup fade-in
         if self.startup_steps < self.startup_duration:
             fade = self.startup_steps / self.startup_duration
             self.startup_steps += 1
@@ -488,20 +427,16 @@ class DualMappingController:
         
         faded_actions = clipped_actions * fade
         
-        # Action smoothing
         smoothed_actions = (self.action_smoothing * faded_actions + 
                           (1 - self.action_smoothing) * self.prev_actions)
         self.prev_actions = smoothed_actions.copy()
         
-        # Compute target (sim frame)
         target_sim = self.sim_default_positions + smoothed_actions * self.ACTION_SCALE
         target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
         
-        # Send to hardware (handles frame + direction conversion)
         target_matrix = self._isaac_to_hardware_matrix(target_sim)
         self.hardware.set_actuator_postions(target_matrix)
         
-        # Debug
         self.debug_counter += 1
         if self.debug_counter % 50 == 0:
             pos_rel = obs[12:24]
@@ -566,15 +501,15 @@ class DualMappingController:
                  'RB_hip', 'RB_thigh', 'RB_calf']
         
         print("\n[JOINT POSITIONS]")
-        print(f"{'Joint':<12} {'Real':>8} {'Sim':>8} {'Default':>8} {'Rel':>8} {'JntDir':>7}")
-        print("-" * 55)
+        print(f"{'Joint':<12} {'Real':>8} {'RealDef':>8} {'Sim':>8} {'SimDef':>8} {'Rel':>8}")
+        print("-" * 60)
         for i, name in enumerate(names):
             real = angles_real[i] if angles_real is not None else 0
+            real_def = self.real_default_positions[i]
             sim = angles_sim[i]
-            default = self.sim_default_positions[i]
-            rel = sim - default
-            jd = "FLIP" if self.joint_direction[i] < 0 else "same"
-            print(f"{name:<12} {real:>+8.3f} {sim:>+8.3f} {default:>+8.3f} {rel:>+8.3f} {jd:>7}")
+            sim_def = self.sim_default_positions[i]
+            rel = sim - sim_def
+            print(f"{name:<12} {real:>+8.3f} {real_def:>+8.3f} {sim:>+8.3f} {sim_def:>+8.3f} {rel:>+8.3f}")
         
         print("\n[JOINT EFFORTS]")
         print(f"{'Joint':<12} {'Effort':>10} {'EffDir':>8}")
@@ -592,13 +527,23 @@ class DualMappingController:
         print(f"  joint_vel:       range [{obs[24:36].min():+.3f}, {obs[24:36].max():+.3f}]")
         print(f"  joint_effort:    range [{obs[36:48].min():+.3f}, {obs[36:48].max():+.3f}]")
         print(f"  prev_actions:    range [{obs[48:60].min():+.3f}, {obs[48:60].max():+.3f}]")
+        
+        # Show what the transformation is doing
+        print("\n[TRANSFORMATION CHECK]")
+        if angles_real is not None:
+            dev_real = angles_real - self.real_default_positions
+            dev_sim = dev_real * self.joint_direction
+            print(f"  Real deviation from real_default: [{dev_real.min():+.3f}, {dev_real.max():+.3f}]")
+            print(f"  After direction flip:             [{dev_sim.min():+.3f}, {dev_sim.max():+.3f}]")
+            print(f"  Sim position (sim_def + dev_sim): should match 'Sim' column above")
+        
         print("="*70)
 
 
 # ==================== MAIN ====================
 if __name__ == "__main__":
     print("\n" + "="*70)
-    print("MINI PUPPER 2 - DUAL MAPPING CONTROLLER")
+    print("MINI PUPPER 2 - FIXED MAPPING CONTROLLER")
     print("="*70)
     print("""
 Controls:
@@ -611,9 +556,8 @@ Controls:
   x      - Exit
 """)
     
-    controller = DualMappingController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
+    controller = FixedMappingController("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
     
-    # Start control thread
     control_thread = threading.Thread(target=controller.control_loop, daemon=True)
     control_thread.start()
     

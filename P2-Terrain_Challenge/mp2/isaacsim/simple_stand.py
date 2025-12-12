@@ -47,7 +47,7 @@ cfg_robot = ArticulationCfg(
             #Legs @ 45°
             "base_lf1": 0.0,      
             "lf1_lf2": 0.785,
-            "lf2_lf3": -1.57,     
+            "lf2_lf3": -1.57,#-1.57     
             
             "base_rf1": 0.0,      
             "rf1_rf2": 0.785,      
@@ -86,7 +86,7 @@ cfg_robot = ArticulationCfg(
         saturation_effort=0.35, #3.5kg
         velocity_limit=10.5,
         stiffness=80.0,#80.0 Official/Final: 45.0       
-        damping=2.5,#2.0 Official/Final: 1.3        
+        damping=2.5,#Official:2.5,#2.0 Official/Final: 1.3        
         friction=0.03,        
         armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
     ),

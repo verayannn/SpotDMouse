@@ -16,6 +16,7 @@ import os
 from mlp_controller_v3 import FixedMappingControllerV3
 
 
+
 def test_trajectory(controller, csv_path, description, max_steps=150):
     """Test a single trajectory from CSV."""
     import pandas as pd
@@ -108,7 +109,7 @@ Press Enter after each test to continue to the next one.
     controller = FixedMappingControllerV3("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
 
     # Define test cases
-    base_dir = "/home/ubuntu/debug/obs_action_logs"
+    base_dir = "/home/ubuntu/debug/"
     tests = [
         {
             "csv": f"{base_dir}/obs_action_logs_x_010/env_1_actions.csv",

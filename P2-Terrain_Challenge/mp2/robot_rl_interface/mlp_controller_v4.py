@@ -113,8 +113,8 @@ class FixedMappingControllerV4:
 
         # ==================== TUNING ====================
         self.ACTION_SCALE = 0.5          # Back to sim scale now that we fix coords
-        self.ema_alpha = 0.3
-        self.action_rate_limit = 0.10
+        self.ema_alpha = 0.6#0.3
+        self.action_rate_limit = 0.05#0.05
 
         # Velocity smoothing
         self.vel_filter_alpha = 0.2

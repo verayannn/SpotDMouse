@@ -108,37 +108,42 @@ Press Enter after each test to continue to the next one.
     controller = FixedMappingControllerV3("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
 
     # Define test cases
-    base_dir = "/home/ubuntu/debug"
+    base_dir = "/home/ubuntu/debug/obs_action_logs"
     tests = [
         {
-            "csv": f"{base_dir}/obs_action_logs_x_030/env_0_actions.csv",
-            "desc": "Forward (X+, vx=+0.3)",
-            "expected": "Robot should walk FORWARD"
+            "csv": f"{base_dir}/obs_action_logs_x_010/env_1_actions.csv",
+            "desc": "Forward Walk (X+, vx=+0.10)",
+            "expected": "Robot should move FORWARD"
         },
         {
-            "csv": f"{base_dir}/obs_action_logs_x_n030/env_0_actions.csv",
-            "desc": "Backward (X-, vx=-0.3)",
-            "expected": "Robot should walk BACKWARD"
+            "csv": f"{base_dir}/obs_action_logs_y_010/env_0_actions.csv",
+            "desc": "Strafe Left (Y+, vy=+0.10)",
+            "expected": "Robot should STRAFE LEFT"
         },
         {
-            "csv": f"{base_dir}/obs_action_logs_y_030/env_0_actions.csv",
-            "desc": "Strafe Left (Y+, vy=+0.3)",
-            "expected": "Robot should strafe LEFT"
+            "csv": f"{base_dir}/obs_action_logs_z_030/env_3_actions.csv",
+            "desc": "Turn Left (Z+, vyaw=+0.30)",
+            "expected": "Robot should TURN LEFT (counter-clockwise)"
         },
         {
-            "csv": f"{base_dir}/obs_action_logs_y_n030/env_0_actions.csv",
-            "desc": "Strafe Right (Y-, vy=-0.3)",
-            "expected": "Robot should strafe RIGHT"
+            "csv": f"{base_dir}/obs_action_logs_xyz_010/env_1_actions.csv",
+            "desc": "Combined (Forward+Left+TurnLeft, xyz=+0.10)",
+            "expected": "Robot should move FORWARD-LEFT while TURNING LEFT"
         },
         {
-            "csv": f"{base_dir}/obs_action_logs_z_030/env_0_actions.csv",
-            "desc": "Turn Left (Z+, vyaw=+0.3)",
-            "expected": "Robot should turn LEFT (CCW)"
+            "csv": f"{base_dir}/obs_action_logs_x_n030/env_2_actions.csv",
+            "desc": "Backward Walk (X-, vx=-0.30)",
+            "expected": "Robot should move BACKWARD"
         },
         {
-            "csv": f"{base_dir}/obs_action_logs_z_n030/env_0_actions.csv",
-            "desc": "Turn Right (Z-, vyaw=-0.3)",
-            "expected": "Robot should turn RIGHT (CW)"
+            "csv": f"{base_dir}/obs_action_logs_y_n030/env_1_actions.csv",
+            "desc": "Strafe Right (Y-, vy=-0.30)",
+            "expected": "Robot should STRAFE RIGHT"
+        },
+        {
+            "csv": f"{base_dir}/obs_action_logs_z_n030/env_5_actions.csv",
+            "desc": "Turn Right (Z-, vyaw=-0.30)",
+            "expected": "Robot should TURN RIGHT (clockwise)"
         },
     ]
 

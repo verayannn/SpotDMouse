@@ -84,127 +84,194 @@ def test_trajectory(controller, csv_path, description, max_steps=150):
 
 def main():
     print("\n" + "="*70)
-    print("SIMULATION TRAJECTORY REPLAY TEST SUITE")
+    print("COMPREHENSIVE SIMULATION TRAJECTORY TEST SUITE")
     print("="*70)
     print("""
-This script will replay simulation actions from all 6 directions:
-  1. X+  (forward)
-  2. X-  (backward)
-  3. Y+  (strafe left)
-  4. Y-  (strafe right)
-  5. Z+  (turn left)
-  6. Z-  (turn right)
+This script will test ALL 6 environments for each direction to empirically
+discover which simulation logs actually produce the correct real-world movement.
 
-Expected behavior:
-  - Robot should move in the labeled direction
-  - Movement should be smooth and coordinated
-  - If direction is wrong, there may be a frame transformation error
+Directions to test:
+  1. obs_action_logs_x_010   (labeled: forward, vx=+0.10)
+  2. obs_action_logs_x_030   (labeled: forward, vx=+0.30)
+  3. obs_action_logs_x_n030  (labeled: backward, vx=-0.30)
+  4. obs_action_logs_y_010   (labeled: strafe left, vy=+0.10)
+  5. obs_action_logs_y_030   (labeled: strafe left, vy=+0.30)
+  6. obs_action_logs_y_n030  (labeled: strafe right, vy=-0.30)
+  7. obs_action_logs_z_010   (labeled: turn left, vyaw=+0.10)
+  8. obs_action_logs_z_030   (labeled: turn left, vyaw=+0.30)
+  9. obs_action_logs_z_n030  (labeled: turn right, vyaw=-0.30)
 
-Press Enter after each test to continue to the next one.
+For each direction, you'll test env_0 through env_5 (6 environments each).
+
+After each test, you'll record what the robot ACTUALLY did:
+  - Forward, Backward, Strafe Left, Strafe Right, Turn Left, Turn Right, or Barely Moves
+
+Press Enter after each test to continue.
 """)
 
-    input("Press Enter to begin tests...")
+    input("Press Enter to begin comprehensive testing...")
 
     # Initialize controller
     controller = FixedMappingControllerV3("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
 
-    # Define test cases
-    base_dir = "/home/ubuntu/debug/"
-    tests = [
-        {
-            "csv": f"{base_dir}/obs_action_logs_x_010/env_1_actions.csv",
-            "desc": "Forward Walk (X+, vx=+0.10)",
-            "expected": "Robot should move FORWARD"
-        },
-        {
-            "csv": f"{base_dir}/obs_action_logs_y_010/env_0_actions.csv",
-            "desc": "Strafe Left (Y+, vy=+0.10)",
-            "expected": "Robot should STRAFE LEFT"
-        },
-        {
-            "csv": f"{base_dir}/obs_action_logs_z_030/env_3_actions.csv",
-            "desc": "Turn Left (Z+, vyaw=+0.30)",
-            "expected": "Robot should TURN LEFT (counter-clockwise)"
-        },
-        {
-            "csv": f"{base_dir}/obs_action_logs_xyz_010/env_1_actions.csv",
-            "desc": "Combined (Forward+Left+TurnLeft, xyz=+0.10)",
-            "expected": "Robot should move FORWARD-LEFT while TURNING LEFT"
-        },
-        {
-            "csv": f"{base_dir}/obs_action_logs_x_n030/env_2_actions.csv",
-            "desc": "Backward Walk (X-, vx=-0.30)",
-            "expected": "Robot should move BACKWARD"
-        },
-        {
-            "csv": f"{base_dir}/obs_action_logs_y_n030/env_1_actions.csv",
-            "desc": "Strafe Right (Y-, vy=-0.30)",
-            "expected": "Robot should STRAFE RIGHT"
-        },
-        {
-            "csv": f"{base_dir}/obs_action_logs_z_n030/env_5_actions.csv",
-            "desc": "Turn Right (Z-, vyaw=-0.30)",
-            "expected": "Robot should TURN RIGHT (clockwise)"
-        },
+    # Define test cases - ALL environments for ALL directions
+    base_dir = "/home/ubuntu/debug"
+
+    test_directions = [
+        ("obs_action_logs_x_010", "Forward X+0.10"),
+        ("obs_action_logs_x_030", "Forward X+0.30"),
+        ("obs_action_logs_x_n030", "Backward X-0.30"),
+        ("obs_action_logs_y_010", "Strafe Left Y+0.10"),
+        ("obs_action_logs_y_030", "Strafe Left Y+0.30"),
+        ("obs_action_logs_y_n030", "Strafe Right Y-0.30"),
+        ("obs_action_logs_z_010", "Turn Left Z+0.10"),
+        ("obs_action_logs_z_030", "Turn Left Z+0.30"),
+        ("obs_action_logs_z_n030", "Turn Right Z-0.30"),
     ]
 
+    tests = []
+    for dir_name, label in test_directions:
+        for env_num in range(6):  # env_0 through env_5
+            tests.append({
+                "csv": f"{base_dir}/{dir_name}/env_{env_num}_actions.csv",
+                "desc": f"{label} - env_{env_num}",
+                "direction": dir_name,
+                "env": env_num,
+                "label": label
+            })
+
     results = []
+    total_tests = len(tests)
 
     # Run all tests
     for i, test in enumerate(tests, 1):
         print(f"\n{'='*70}")
-        print(f"TEST {i}/6: {test['desc']}")
-        print(f"EXPECTED: {test['expected']}")
+        print(f"TEST {i}/{total_tests}: {test['desc']}")
+        print(f"LABELED AS: {test['label']}")
         print(f"{'='*70}")
 
         success = test_trajectory(controller, test['csv'], test['desc'])
+
+        if success:
+            print("\n[OBSERVATION] What did the robot ACTUALLY do?")
+            print("Options:")
+            print("  1. Forward")
+            print("  2. Backward")
+            print("  3. Strafe Left")
+            print("  4. Strafe Right")
+            print("  5. Turn Left (CCW)")
+            print("  6. Turn Right (CW)")
+            print("  7. Barely Moves / Unclear")
+            print("  8. Combined Movement")
+
+            observation = input("Enter number (1-8): ").strip()
+            observation_map = {
+                "1": "Forward",
+                "2": "Backward",
+                "3": "Strafe Left",
+                "4": "Strafe Right",
+                "5": "Turn Left (CCW)",
+                "6": "Turn Right (CW)",
+                "7": "Barely Moves",
+                "8": "Combined Movement"
+            }
+            actual_behavior = observation_map.get(observation, "Unknown")
+        else:
+            actual_behavior = "FILE NOT FOUND"
+
         results.append({
             "test": test['desc'],
-            "success": success,
-            "expected": test['expected']
+            "csv": test['csv'],
+            "labeled": test['label'],
+            "actual": actual_behavior,
+            "success": success
         })
 
-        if i < len(tests):
-            print("\n[PAUSE] Observe the robot's movement.")
-            input("Did the robot move as expected? Press Enter to continue...")
+        if i < total_tests:
+            input("\nPress Enter to continue to next test...")
 
-    # Summary
+    # Summary - Group by actual behavior
     print("\n" + "="*70)
-    print("TEST SUMMARY")
+    print("COMPREHENSIVE TEST RESULTS")
+    print("="*70)
+    print(f"\nTotal Tests Run: {len(results)}\n")
+
+    # Group results by actual behavior
+    behavior_groups = {}
+    for result in results:
+        actual = result['actual']
+        if actual not in behavior_groups:
+            behavior_groups[actual] = []
+        behavior_groups[actual].append(result)
+
+    # Print grouped results
+    for behavior in sorted(behavior_groups.keys()):
+        tests = behavior_groups[behavior]
+        print(f"\n{'='*70}")
+        print(f"ACTUAL BEHAVIOR: {behavior} ({len(tests)} tests)")
+        print(f"{'='*70}")
+
+        for test in tests:
+            match = "✓ MATCH" if behavior.upper() in test['labeled'].upper() else "✗ MISMATCH"
+            print(f"  {match} | {test['test']:<40}")
+            print(f"          Labeled: {test['labeled']}")
+            print(f"          CSV: {test['csv']}")
+            print()
+
+    # Analysis section
+    print("\n" + "="*70)
+    print("KEY FINDINGS")
     print("="*70)
 
-    for i, result in enumerate(results, 1):
-        status = "✓ LOADED" if result['success'] else "✗ FAILED"
-        print(f"{i}. {result['test']:<30} {status}")
-        print(f"   Expected: {result['expected']}")
+    # Find which environments consistently produce correct movements
+    print("\n1. CORRECT MOVEMENTS (Label matches Actual):")
+    correct_movements = [r for r in results if r['actual'].upper() in r['labeled'].upper()]
+    if correct_movements:
+        for result in correct_movements:
+            print(f"   ✓ {result['test']} → {result['actual']}")
+    else:
+        print("   None found - significant transformation issue!")
+
+    print("\n2. MISMATCHES (Label does NOT match Actual):")
+    mismatches = [r for r in results if r['success'] and r['actual'].upper() not in r['labeled'].upper() and r['actual'] != "Barely Moves"]
+    if mismatches:
+        for result in mismatches:
+            print(f"   ✗ {result['test']}")
+            print(f"     Expected: {result['labeled']} | Got: {result['actual']}")
+    else:
+        print("   None - all movements matched expectations!")
+
+    print("\n3. BARELY MOVES / UNCLEAR:")
+    barely = [r for r in results if r['actual'] == "Barely Moves"]
+    if barely:
+        for result in barely:
+            print(f"   ? {result['test']}")
+    else:
+        print("   None")
 
     print("\n" + "="*70)
-    print("ANALYSIS QUESTIONS:")
+    print("RECOMMENDATIONS")
     print("="*70)
     print("""
-1. Did ALL tests move the robot smoothly and coordinated?
-   - If YES: Joint transformations are CORRECT
-   - If NO: Which test failed?
+Based on your results:
 
-2. Did the robot move in the EXPECTED direction for each test?
-   - If YES: Frame orientations are CORRECT
-   - If NO: Which directions were wrong?
-     * If X+/X- are swapped: X axis is flipped
-     * If Y+/Y- are swapped: Y axis is flipped
-     * If turns are swapped: Yaw axis is flipped
-     * If forward goes left: X/Y axes are swapped
+1. Use environments that MATCHED for training data
+   - These have correct action → movement mappings
 
-3. Compare to live RL policy performance:
-   - Sim replay: smooth, coordinated, directional
-   - Live policy: thrashing, tilting, non-directional
-   - This suggests OBSERVATION mismatch, not action transformation!
+2. Investigate MISMATCHES to understand transformation errors:
+   - If Forward → Backward: X-axis may be inverted
+   - If Strafe Left → Strafe Right: Y-axis may be inverted
+   - If Turn Left → Turn Right: Yaw-axis may be inverted
+   - If Forward → Strafe: X and Y axes may be swapped
 
-Next steps:
-- If sim replay works perfectly → Problem is in observations
-- If sim replay has issues → Problem is in transformations
+3. For environments that "Barely Move":
+   - May have incorrect action scaling
+   - May have joint limit clipping issues
+
+4. Next step: Update policy training to use ONLY correct environments
 """)
 
-    print("\n[DONE] All tests complete")
+    print("\n[DONE] All tests complete - results saved above")
 
 
 if __name__ == "__main__":

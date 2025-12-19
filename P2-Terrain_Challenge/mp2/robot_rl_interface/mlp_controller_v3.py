@@ -53,7 +53,7 @@ class FixedMappingControllerV3:
         # almost all correct except LF hip 
         self.joint_direction = np.array([
             -1.0, +1.0, +1.0,   # LF: hip FLIP 
-            +1.0, +1.0, +1.0,   # RF: calf (might) need to be flipped
+            +1.0, +1.0, -1.0,   # RF: calf (might) need to be flipped
             +1.0, +1.0, +1.0,   # LB: none
             +1.0, +1.0, +1.0,   # RB: none
         ])

@@ -50,6 +50,7 @@ class FixedMappingControllerV3:
         ])
 
         # ==================== JOINT DIRECTION MAPPING ====================
+        # almost all correct except LF hip 
         self.joint_direction = np.array([
             +1.0, +1.0, +1.0,   # LF: all FLIP
             +1.0, +1.0, +1.0,   # RF: hip FLIP

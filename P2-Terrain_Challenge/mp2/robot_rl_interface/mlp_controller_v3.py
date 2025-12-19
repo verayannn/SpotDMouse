@@ -75,7 +75,7 @@ class FixedMappingControllerV3:
         self.hw_to_isaac_leg = {0: 1, 1: 0, 2: 3, 3: 2}
 
         # ==================== TUNING (v3 CONSERVATIVE) ====================
-        self.ACTION_SCALE = 0.25          # Conservative starting point
+        self.ACTION_SCALE = 0.5          # Conservative starting point
         self.ema_alpha = 0.3              # EMA smoothing (lower = smoother)
         self.action_rate_limit = 0.10     # Max change per step
 

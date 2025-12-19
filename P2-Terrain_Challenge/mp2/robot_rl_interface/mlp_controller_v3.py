@@ -52,13 +52,14 @@ class FixedMappingControllerV3:
         # ==================== JOINT DIRECTION MAPPING ====================
         # almost all correct except LF hip 
         self.joint_direction = np.array([
-            +1.0, +1.0, +1.0,   # LF: all FLIP
+            -1.0, +1.0, +1.0,   # LF: hip FLIP 
             +1.0, +1.0, +1.0,   # RF: hip FLIP
             +1.0, +1.0, +1.0,   # LB: thigh/calf FLIP
             +1.0, +1.0, +1.0,   # RB: none
         ])
 
         # ==================== EFFORT DIRECTION MAPPING ====================
+         # create a test to verify this wrt to the hardware interface becase it may differ
         self.effort_direction = np.array([
             +1.0, -1.0, -1.0,   # LF
             -1.0, +1.0, +1.0,   # RF

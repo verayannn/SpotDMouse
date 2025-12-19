@@ -49,46 +49,69 @@ class JointDirectionTestHardware:
             'RB': {'hip': 'OUTWARD', 'thigh': 'BACKWARD', 'calf': 'EXTENDS'}
         }
         
-    def test_single_joint(self, leg_name, axis_index, amplitude=0.3):
-        """Test a single joint to verify direction."""
+    def test_single_joint_isolated(self, leg_name, axis_index, amplitude=0.3):
+        """Test a single joint with isolated movements."""
         leg_index = self.leg_mapping[leg_name]
         axis_names = ['hip', 'thigh', 'calf']
         
-        print(f"\nTesting {leg_name} {axis_names[axis_index]} (leg_idx={leg_index}, axis_idx={axis_index})")
-        print(f"Expected: +angle = {self.expected_directions[leg_name][axis_names[axis_index]]}")
-        print("Watch the robot and verify the motion direction...")
+        print(f"\n{'='*50}")
+        print(f"Testing {leg_name} {axis_names[axis_index]} (leg_idx={leg_index}, axis_idx={axis_index})")
+        print(f"Expected: +{amplitude:.3f} rad = {self.expected_directions[leg_name][axis_names[axis_index]]}")
+        print(f"{'='*50}")
         
-        # Create joint angle array starting at neutral
+        # Start at neutral
         joint_angles = self.neutral_angles.copy()
+        self.hardware.set_actuator_postions(joint_angles)
+        time.sleep(0.5)
         
-        for t in range(100):
-            # Sine wave on one joint
-            angle_offset = amplitude * np.sin(t * 0.1)
-            joint_angles[axis_index, leg_index] = self.neutral_angles[axis_index, leg_index] + angle_offset
-            
-            self.hardware.set_actuator_postions(joint_angles)
-            time.sleep(0.02)
-            
-            if t % 25 == 0:
-                print(f"  t={t}: angle offset = {angle_offset:.3f} rad")
+        # Test positive direction
+        print(f"\n1. Moving to +{amplitude:.3f} rad...")
+        joint_angles[axis_index, leg_index] = self.neutral_angles[axis_index, leg_index] + amplitude
+        self.hardware.set_actuator_postions(joint_angles)
+        time.sleep(1.5)  # Hold position
+        
+        positive_correct = input(f"   Did it move {self.expected_directions[leg_name][axis_names[axis_index]]}? (y/n): ").strip().lower() == 'y'
         
         # Return to neutral
-        self.hardware.set_actuator_postions(self.neutral_angles)
-        print("Done. Did the joint move in the expected direction?")
+        print("\n2. Returning to neutral...")
+        joint_angles[axis_index, leg_index] = self.neutral_angles[axis_index, leg_index]
+        self.hardware.set_actuator_postions(joint_angles)
+        time.sleep(1.0)
+        
+        # Test negative direction
+        print(f"\n3. Moving to -{amplitude:.3f} rad...")
+        joint_angles[axis_index, leg_index] = self.neutral_angles[axis_index, leg_index] - amplitude
+        self.hardware.set_actuator_postions(joint_angles)
+        time.sleep(1.5)  # Hold position
+        
+        negative_direction = "OPPOSITE of " + self.expected_directions[leg_name][axis_names[axis_index]]
+        negative_correct = input(f"   Did it move {negative_direction}? (y/n): ").strip().lower() == 'y'
+        
+        # Return to neutral
+        print("\n4. Returning to neutral...")
+        joint_angles[axis_index, leg_index] = self.neutral_angles[axis_index, leg_index]
+        self.hardware.set_actuator_postions(joint_angles)
+        time.sleep(0.5)
+        
+        return positive_correct and negative_correct
         
     def run_full_test(self):
         """Run the complete joint direction test."""
         print("\n" + "="*60)
         print("JOINT DIRECTION VERIFICATION - Hardware Interface")
         print("="*60)
-        print("Testing each joint with the REAL robot mapping.")
-        print("Verify movements match the expected directions.")
+        print("Testing each joint with isolated movements.")
+        print("Each joint will:")
+        print("  1. Move to positive angle")
+        print("  2. Return to neutral")
+        print("  3. Move to negative angle")
+        print("  4. Return to neutral")
         print("="*60)
         
         # Return to neutral position first
-        print("\nSetting to neutral position...")
+        print("\nSetting all joints to neutral position...")
         self.hardware.set_actuator_postions(self.neutral_angles)
-        time.sleep(1)
+        time.sleep(2)
         
         test_sequence = [
             ('LF', 0), ('LF', 1), ('LF', 2),  # LF hip, thigh, calf
@@ -100,27 +123,32 @@ class JointDirectionTestHardware:
         results = []
         
         for idx, (leg_name, axis_index) in enumerate(test_sequence):
-            print(f"\n--- Test {idx}: {self.joint_names[idx]} ---")
-            input("Press Enter to test this joint...")
+            print(f"\n{'#'*60}")
+            print(f"TEST {idx + 1}/12: {self.joint_names[idx]}")
+            print(f"{'#'*60}")
+            input("Press Enter to start this joint test...")
             
-            self.test_single_joint(leg_name, axis_index, amplitude=0.3)
+            passed = self.test_single_joint_isolated(leg_name, axis_index, amplitude=0.3)
+            results.append((self.joint_names[idx], passed))
             
-            result = input("Did it move correctly? (y/n): ").strip().lower()
-            results.append((self.joint_names[idx], result == 'y'))
-            
-            if result != 'y':
-                print(f"  *** FAILED - servo multiplier may need adjustment ***")
+            if not passed:
+                print(f"\n*** FAILED - servo multiplier may need adjustment ***")
+            else:
+                print(f"\n*** PASSED ***")
         
         # Summary
         print("\n" + "="*60)
         print("TEST SUMMARY")
         print("="*60)
         for name, passed in results:
-            status = "PASS" if passed else "FAIL"
+            status = "✓ PASS" if passed else "✗ FAIL"
             print(f"{status}: {name}")
         
         passed_count = sum(1 for _, p in results if p)
         print(f"\nTotal: {passed_count}/12 joints passed")
+        
+        if passed_count < 12:
+            print("\nFailed joints need servo_multiplier adjustments in Config.py")
         print("="*60)
 
 

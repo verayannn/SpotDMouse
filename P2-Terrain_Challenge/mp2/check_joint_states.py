@@ -29,10 +29,15 @@ class JointStateChecker(Node):
             print(f"\nNumber of joints: {len(msg.name)}")
             print(f"\nJoint names (in order):")
             for i, name in enumerate(msg.name):
-                pos = msg.position[i] if i < len(msg.position) else "N/A"
-                vel = msg.velocity[i] if i < len(msg.velocity) else "N/A"
-                eff = msg.effort[i] if i < len(msg.effort) else "N/A"
-                print(f"  [{i:2d}] {name:20s}  pos: {pos:+7.3f}  vel: {vel:+7.3f}  eff: {eff:+7.3f}")
+                pos = msg.position[i] if i < len(msg.position) else None
+                vel = msg.velocity[i] if i < len(msg.velocity) else None
+                eff = msg.effort[i] if i < len(msg.effort) else None
+
+                pos_str = f"{pos:+7.3f}" if pos is not None else "N/A    "
+                vel_str = f"{vel:+7.3f}" if vel is not None else "N/A    "
+                eff_str = f"{eff:+7.3f}" if eff is not None else "N/A    "
+
+                print(f"  [{i:2d}] {name:20s}  pos: {pos_str}  vel: {vel_str}  eff: {eff_str}")
 
             print("\n" + "="*60)
             print("Copy this joint name order for the MLP controller!")

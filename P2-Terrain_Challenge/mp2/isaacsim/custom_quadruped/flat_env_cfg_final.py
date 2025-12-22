@@ -128,7 +128,7 @@ class SpotObservationsCfg:
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
         
-        # Base velocities (6 dims)
+        # Base velocities (3 dims)
         base_lin_vel = ObsTerm(
             func=mdp.base_lin_vel, 
             params={"asset_cfg": SceneEntityCfg("robot")}, 

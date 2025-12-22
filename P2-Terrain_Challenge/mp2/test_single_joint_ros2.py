@@ -65,20 +65,41 @@ class SingleJointTester(Node):
         print(f"  Offset: {angle - self.neutral[joint_idx]:+.3f} rad")
         print(f"{'='*60}\n")
 
-        # Move to neutral first
-        print("[1/2] Moving to neutral pose...")
-        self.publish_joint_command(self.neutral)
-        time.sleep(1.5)
+        print("All 12 joint positions (for debugging):")
+        for i, name in enumerate(self.joint_names):
+            print(f"  [{i}] {name}: {self.neutral[i]:.3f} rad")
+        print()
 
-        # Test the joint
-        test_position = self.neutral.copy()
+        # Move to neutral first - publish multiple times to ensure it's received
+        print("[1/3] Moving to neutral pose...")
+        for _ in range(3):
+            self.publish_joint_command(self.neutral, duration_sec=1.0)
+            time.sleep(0.1)
+        time.sleep(2.0)
+
+        # Test the joint - create explicit position array
+        test_position = [
+            self.neutral[0], self.neutral[1], self.neutral[2],   # LF
+            self.neutral[3], self.neutral[4], self.neutral[5],   # RF
+            self.neutral[6], self.neutral[7], self.neutral[8],   # LB
+            self.neutral[9], self.neutral[10], self.neutral[11]  # RB
+        ]
         test_position[joint_idx] = angle
 
-        print(f"[2/2] Moving joint {joint_idx} to {angle:.3f} rad...")
-        self.publish_joint_command(test_position)
-        time.sleep(1.5)
+        print(f"[2/3] Moving joint {joint_idx} to {angle:.3f} rad...")
+        print(f"  Other joints stay at neutral")
+        for _ in range(3):
+            self.publish_joint_command(test_position, duration_sec=1.0)
+            time.sleep(0.1)
+        time.sleep(2.0)
 
-        print("\nDone! Robot should hold position.")
+        print("[3/3] Returning to neutral...")
+        for _ in range(3):
+            self.publish_joint_command(self.neutral, duration_sec=1.0)
+            time.sleep(0.1)
+        time.sleep(1.0)
+
+        print("\nDone! Check which leg moved.")
 
 def main():
     if len(sys.argv) != 3:

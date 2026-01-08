@@ -27,6 +27,9 @@ class JointStateChecker(Node):
             print("JOINT STATES MESSAGE")
             print("="*60)
             print(f"\nNumber of joints: {len(msg.name)}")
+            print(f"Has velocities: {len(msg.velocity) > 0} (count: {len(msg.velocity)})")
+            print(f"Has efforts: {len(msg.effort) > 0} (count: {len(msg.effort)})")
+
             print(f"\nJoint names (in order):")
             for i, name in enumerate(msg.name):
                 pos = msg.position[i] if i < len(msg.position) else None
@@ -43,6 +46,19 @@ class JointStateChecker(Node):
             print("Copy this joint name order for the MLP controller!")
             print("="*60)
             print(f"joint_names = {list(msg.name)}")
+
+            if len(msg.velocity) == 0:
+                print("\n⚠️  WARNING: Velocities are NOT being published!")
+                print("    The hardware interface needs to publish velocity data.")
+            else:
+                print("\n✓ Velocities ARE being published!")
+
+            if len(msg.effort) == 0:
+                print("\n⚠️  WARNING: Efforts are NOT being published!")
+                print("    The hardware interface needs to publish effort data.")
+            else:
+                print("\n✓ Efforts ARE being published!")
+
             print("\n")
 
             self.get_logger().info("First message received. Continuing to monitor...")

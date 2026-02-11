@@ -50,21 +50,19 @@ class FixedMappingControllerV3:
         ])
 
         # ==================== JOINT DIRECTION MAPPING ====================
-        # almost all correct except LF hip 
         self.joint_direction = np.array([
-            -1.0, +1.0, +1.0,   # LF: hip FLIP 
-            +1.0, +1.0, -1.0,   # RF: calf (might) need to be flipped
-            +1.0, +1.0, +1.0,   # LB: none
-            +1.0, +1.0, +1.0,   # RB: none
+            +1.0, +1.0, +1.0,   # LF: HIP(C)/THIGH/CALF
+            +1.0, +1.0, +1.0,   # RF: HIP(C)/THIGH/CALF
+            +1.0, +1.0, +1.0,   # LB: HIP(C)/THIGH/CALF
+            +1.0, +1.0, +1.0,   # RB: HIP(C)/THIGH/CALF
         ])
 
         # ==================== EFFORT DIRECTION MAPPING ====================
-         # create a test to verify this wrt to the hardware interface becase it may differ
         self.effort_direction = np.array([
-            +1.0, -1.0, -1.0,   # LF
-            -1.0, +1.0, +1.0,   # RF
-            -1.0, +1.0, -1.0,   # LB
-            +1.0, +1.0, -1.0,   # RB
+            +1.0, +1.0, +1.0,   # LF
+            +1.0, +1.0, +1.0,   # RF
+            +1.0, +1.0, +1.0,   # LB
+            +1.0, +1.0, +1.0,   # RB
         ])
 
         # ==================== JOINT LIMITS (sim frame) ====================
@@ -75,9 +73,9 @@ class FixedMappingControllerV3:
         self.hw_to_isaac_leg = {0: 1, 1: 0, 2: 3, 3: 2}
 
         # ==================== TUNING (v3 CONSERVATIVE) ====================
-        self.ACTION_SCALE = 0.5          # Conservative starting point
-        self.ema_alpha = 0.3              # EMA smoothing (lower = smoother)
-        self.action_rate_limit = 0.10     # Max change per step
+        self.ACTION_SCALE = 0.35          
+        self.ema_alpha = 1.0              # EMA smoothing (lower = smoother)
+        self.action_rate_limit = 100.0     # Max change per step
 
         # Velocity smoothing
         self.vel_filter_alpha = 0.2       # Joint velocity smoothing
@@ -112,7 +110,7 @@ class FixedMappingControllerV3:
         self.control_active = False
         self.shutdown = False
         self.startup_steps = 0
-        self.startup_duration = 75
+        self.startup_duration = 0
         self.debug_counter = 0
 
         self.CONTROL_FREQUENCY = 50
@@ -318,6 +316,7 @@ class FixedMappingControllerV3:
         # Base linear velocity
         accel_raw = np.array([imu['ax'], imu['ay'], imu['az']])
         accel = accel_raw * self.accel_scale
+
         base_lin_vel = self._estimate_base_lin_vel(accel, dt)
 
         # Base angular velocity
@@ -330,6 +329,7 @@ class FixedMappingControllerV3:
             projected_gravity = accel / accel_norm
         else:
             projected_gravity = np.array([0.0, 0.0, -1.0])
+        # Projected Gravity
 
         velocity_commands = self.velocity_command.copy()
 
@@ -402,8 +402,13 @@ class FixedMappingControllerV3:
     # ==============================================================
 
     def control_step(self):
-        """Execute one control step with EMA smoothing and rate limiting."""
+
         obs = self.get_observation()
+
+        obs[6:9] = [0.0, 0.0, -1.0]
+        # obs[3:6] = 0.0 basically still
+        # obs[24:36] = 0.0 jittery
+        # obs[36:48] = 0.0 jittery
 
         # Check observation health
         self.check_observation_health(obs)
@@ -589,7 +594,7 @@ class FixedMappingControllerV3:
 
             # Apply directly (no smoothing, no rate limiting)
             # Simulation uses ACTION_SCALE = 0.5
-            target_sim = self.sim_default_positions + actions * 0.5
+            target_sim = self.sim_default_positions + actions * 0.30
             target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
 
             target_matrix = self._isaac_to_hardware_matrix(target_sim)
@@ -633,7 +638,7 @@ Controls:
     control_thread = threading.Thread(target=controller.control_loop, daemon=True)
     control_thread.start()
 
-    speed = 0.10  # Start with low speed
+    speed = 0.3  # Start with low speed
 
     try:
         while True:

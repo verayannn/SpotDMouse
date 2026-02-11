@@ -90,11 +90,6 @@ class SpotCommandsCfg:
             lin_vel_x=(-0.35, 0.40), 
             lin_vel_y=(-0.35, 0.35), 
             ang_vel_z=(-0.30, 0.30),
-            # heading = (-3.14, 3.14)
-            # lin_vel_x=(0.1, 0.1),    
-            # lin_vel_y=(0.1, 0.1),    
-            # ang_vel_z=(0.1, 0.1),
-            # heading=(0.0, 0.0)
         ),
     )
 
@@ -113,11 +108,7 @@ class SpotCommandsCfg_PLAY:
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
             lin_vel_x=(-0.35, 0.40), 
             lin_vel_y=(-0.35, 0.35), 
-            ang_vel_z=(-0.30, 0.30),
-            # heading=(0.0, 0.0)
-            # lin_vel_x=(0.1, 0.1),    
-            # lin_vel_y=(0.1, 0.1),    
-            # ang_vel_z=(0.1, 0.1),       
+            ang_vel_z=(-0.30, 0.30),    
         ),
     )
 
@@ -128,12 +119,7 @@ class SpotObservationsCfg:
     class PolicyCfg(ObsGroup):
         """Observations for policy group."""
         
-        # Base velocities (3 dims)
-        base_lin_vel = ObsTerm(
-            func=mdp.base_lin_vel, 
-            params={"asset_cfg": SceneEntityCfg("robot")}, 
-            noise=Unoise(n_min=-0.1, n_max=0.1)
-        )
+        # Base velocities (3 dims)(Removed)
 
         base_ang_vel = ObsTerm(
             func=mdp.base_ang_vel, 
@@ -145,7 +131,7 @@ class SpotObservationsCfg:
         projected_gravity = ObsTerm(
             func=mdp.projected_gravity,
             params={"asset_cfg": SceneEntityCfg("robot")},
-            noise=Unoise(n_min=-0.05, n_max=0.05),
+            noise=Unoise(n_min=-0.20, n_max=0.20),#previously: n_min=-0.05, n_max=0.05
         )
         
         # Commands (3 dims)
@@ -165,41 +151,21 @@ class SpotObservationsCfg:
                     "base_rb1", "rb1_rb2", "rb2_rb3"
                 ])
             }, 
-            noise=Unoise(n_min=-0.01, n_max=0.01)#prev: n_min=-0.01, n_max=0.01 tes: n_min=-0.05 n_max=0.05
+            noise=Unoise(n_min=-0.05, n_max=0.05)#prev: n_min=-0.01, n_max=0.01 now: n_min=-0.05 n_max=0.05
         )
 
-        joint_vel = ObsTerm(
-            func=mdp.joint_vel_rel, 
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=[
-                    "base_lf1", "lf1_lf2", "lf2_lf3",
-                    "base_rf1", "rf1_rf2", "rf2_rf3",
-                    "base_lb1", "lb1_lb2", "lb2_lb3",
-                    "base_rb1", "rb1_rb2", "rb2_rb3"
-                ])
-            }, 
-            noise=Unoise(n_min=-1.5, n_max=1.5)
-        )
+        # joint_vel (Removed)
 
-        joint_effort = ObsTerm(
-            func=mdp.joint_effort,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=[
-                    "base_lf1", "lf1_lf2", "lf2_lf3",
-                    "base_rf1", "rf1_rf2", "rf2_rf3",
-                    "base_lb1", "lb1_lb2", "lb2_lb3",
-                    "base_rb1", "rb1_rb2", "rb2_rb3"
-                ])
-            },
-            noise=Unoise(n_min=-0.1, n_max=0.1)
-        )
-        
+        # joint_effort (Removed)
+
         # Previous actions (12 dims)
         actions = ObsTerm(func=mdp.last_action)
         
         def __post_init__(self):
             self.enable_corruption = False
             self.concatenate_terms = True
+
+        #Total dims 33
     
     # observation groups
     policy: PolicyCfg = PolicyCfg()

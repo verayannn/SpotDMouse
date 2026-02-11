@@ -1,29 +1,31 @@
 #!/usr/bin/env python3
 import time
 import numpy as np
+import torch
 from MangDang.mini_pupper.HardwareInterface import HardwareInterface
+
+POLICY_PATH = "/home/ubuntu/mp2_mlp/policy_joyboy.pt"
 
 hw = HardwareInterface()
 esp32 = hw.pwm_params.esp32
+
+policy = torch.jit.load(POLICY_PATH)
+policy.eval()
+print(f"[OK] Loaded policy: {POLICY_PATH}")
 
 TARGET_FREQ = 50
 TARGET_DT = 1.0 / TARGET_FREQ
 NUM_ITERATIONS = 200
 
 print("=" * 60)
-print(f"CONTROL LOOP TIMING TEST ({TARGET_FREQ}Hz target)")
+print(f"CONTROL LOOP TIMING TEST ({TARGET_FREQ}Hz target, real policy)")
 print("=" * 60)
-
-def dummy_policy(obs):
-    return np.zeros(12)
 
 def simulate_control_loop():
     loop_times = []
     read_times = []
     compute_times = []
     write_times = []
-
-    prev_pos = None
 
     for i in range(NUM_ITERATIONS):
         loop_start = time.perf_counter()
@@ -34,12 +36,14 @@ def simulate_control_loop():
         imu = esp32.imu_get_data()
         t1 = time.perf_counter()
 
-        obs = np.zeros(60)
+        obs = np.zeros(60, dtype=np.float32)
         if pos and load and imu:
             obs[12:24] = pos
             obs[36:48] = load
             obs[3:6] = [imu['gx'], imu['gy'], imu['gz']]
-        action = dummy_policy(obs)
+        with torch.no_grad():
+            obs_tensor = torch.tensor(obs).unsqueeze(0)
+            action = policy(obs_tensor).squeeze().numpy()
         t2 = time.perf_counter()
 
         cmd = [512] * 12

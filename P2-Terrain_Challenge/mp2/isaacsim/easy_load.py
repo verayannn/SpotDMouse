@@ -235,16 +235,16 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
     desired_joint_angles_dict = {
         "base_lf1": 0.0,
         "lf1_lf2": 0.785,
-        "lf2_lf3": -0.785,#-1.57
+        "lf2_lf3": -1.57,#-1.57
         "base_rf1": 0.0,
         "rf1_rf2": 0.785,
-        "rf2_rf3": -0.785,
+        "rf2_rf3": -1.57,
         "base_lb1": 0.0,
         "lb1_lb2": 0.785,
-        "lb2_lb3": -0.785,
+        "lb2_lb3": -1.57,
         "base_rb1": 0.0,
         "rb1_rb2": 0.785,
-        "rb2_rb3": -0.785,
+        "rb2_rb3": -1.57,
         # Fixed joints
         "lf3_foot": 0.0, "rf3_foot": 0.0, "lb3_foot": 0.0, "rb3_foot": 0.0,
         "lf1_plate": 0.0, "rf1_plate": 0.0, "lb1_plate": 0.0, "rb1_plate": 0.0,

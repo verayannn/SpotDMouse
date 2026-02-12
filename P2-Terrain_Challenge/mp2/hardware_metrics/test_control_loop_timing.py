@@ -93,3 +93,4 @@ hist, edges = np.histogram(loop_times * 1000, bins=10)
 for i in range(len(hist)):
     bar = "#" * int(hist[i] / max(hist) * 40)
     print(f"  {edges[i]:5.1f}-{edges[i+1]:5.1f}ms: {bar} ({hist[i]})")
+    

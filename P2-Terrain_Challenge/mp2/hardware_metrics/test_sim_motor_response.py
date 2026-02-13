@@ -13,19 +13,18 @@ args = parser.parse_args()
 app_launcher = AppLauncher(args)
 simulation_app = app_launcher.app
 
-# --- All other imports AFTER AppLauncher ---
 import torch
 import numpy as np
 import csv
 
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import DCMotorCfg
-from isaaclab.assets import Articulation
+from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
-from isaaclab.sim import SimulationContext
+from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 
-# --- Define robot config inline (same as your working stand script) ---
-CUSTOM_QUAD_CFG = ArticulationCfg(
+# --- Robot config (same as working stand script) ---
+cfg_robot = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path="/workspace/mini_pupper_ros/mini_pupper_description/urdf/mini_pupper_2/mini_pupper_description/mini_pupper_description.usd",
         activate_contact_sensors=True,
@@ -33,21 +32,10 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.10),
         joint_pos={
-            "base_lf1": 0.0,      
-            "lf1_lf2": 0.785, 
-            "lf2_lf3": -1.57,
-
-            "base_rf1": 0.0,     
-            "rf1_rf2": 0.785,
-            "rf2_rf3": -1.57,
-            
-            "base_lb1": 0.0,      
-            "lb1_lb2": 0.785, 
-            "lb2_lb3": -1.57,
-            
-            "base_rb1": 0.0,      
-            "rb1_rb2": 0.785, 
-            "rb2_rb3": -1.57,
+            "base_lf1": 0.0,      "lf1_lf2": 0.785, "lf2_lf3": -1.57,
+            "base_rf1": 0.0,      "rf1_rf2": 0.785, "rf2_rf3": -1.57,
+            "base_lb1": 0.0,      "lb1_lb2": 0.785, "lb2_lb3": -1.57,
+            "base_rb1": 0.0,      "rb1_rb2": 0.785, "rb2_rb3": -1.57,
         },
         joint_vel={".*": 0.0},
     ),
@@ -70,95 +58,154 @@ CUSTOM_QUAD_CFG = ArticulationCfg(
     },
 )
 
-# --- Rest of the script unchanged ---
+class TestSceneCfg(InteractiveSceneCfg):
+    ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
+    dome_light = AssetBaseCfg(prim_path="/World/Light", spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)))
+    robot = cfg_robot.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
 SIM_DT = 0.002
 CONTROL_DT = 0.02
 
-sim_cfg = sim_utils.SimulationCfg(dt=SIM_DT, device="cpu")
-sim = SimulationContext(sim_cfg)
+# Joints to test, by name (thigh joints)
+TEST_JOINTS = [
+    ("lf1_lf2", "LF_thigh"),
+    ("rf1_rf2", "RF_thigh"),
+    ("lb1_lb2", "LB_thigh"),
+    ("rb1_rb2", "RB_thigh"),
+]
 
-sim_utils.GroundPlaneCfg().func("/World/ground", sim_utils.GroundPlaneCfg())
-robot_cfg = CUSTOM_QUAD_CFG.copy()
-robot_cfg.prim_path = "/World/Robot"
-robot = Articulation(cfg=robot_cfg)
-
-sim.reset()
-robot.reset()
-
-default_pos = robot.data.default_joint_pos.clone()
-num_joints = default_pos.shape[1]
-decimation = int(CONTROL_DT / SIM_DT)
-
-NAMES = ['LF_hip','LF_thigh','LF_calf','RF_hip','RF_thigh','RF_calf',
-         'LB_hip','LB_thigh','LB_calf','RB_hip','RB_thigh','RB_calf']
-
-TEST_MOTORS = [1, 4, 7, 10]
 TEST_FREQS = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
 AMPLITUDE = 0.3
 DURATION_PER_FREQ = 3.0
 SQUARE = False
 
-print("=" * 60)
-print("SIM MOTOR RESPONSE CHARACTERIZATION")
-print(f"Actuator: DCMotorCfg stiffness=80, damping=2.5, friction=0.03, armature=0.005")
-print(f"Motors: {[NAMES[m] for m in TEST_MOTORS]}")
-print(f"Freqs: {TEST_FREQS} Hz, Amp: {AMPLITUDE} rad")
-print("=" * 60)
 
-for motor_idx in TEST_MOTORS:
-    all_rows = []
+def run_test(sim, scene):
+    sim_dt = sim.get_physics_dt()
+    decimation = int(CONTROL_DT / SIM_DT)
 
-    for freq in TEST_FREQS:
-        print(f"  {NAMES[motor_idx]} @ {freq}Hz...", end=" ", flush=True)
+    # Build default joint pos tensor from joint names (same pattern as working script)
+    desired_joint_angles_dict = {
+        "base_lf1": 0.0, "lf1_lf2": 0.785, "lf2_lf3": -1.57,
+        "base_rf1": 0.0, "rf1_rf2": 0.785, "rf2_rf3": -1.57,
+        "base_lb1": 0.0, "lb1_lb2": 0.785, "lb2_lb3": -1.57,
+        "base_rb1": 0.0, "rb1_rb2": 0.785, "rb2_rb3": -1.57,
+        "lf3_foot": 0.0, "rf3_foot": 0.0, "lb3_foot": 0.0, "rb3_foot": 0.0,
+        "lf1_plate": 0.0, "rf1_plate": 0.0, "lb1_plate": 0.0, "rb1_plate": 0.0,
+        "lf2_plate": 0.0, "rf2_plate": 0.0, "lb2_plate": 0.0, "rb2_plate": 0.0,
+        "base_lidar": 0.0, "imu_joint": 0.0,
+    }
 
-        robot.write_joint_state_to_sim(default_pos, torch.zeros_like(default_pos))
-        robot.reset()
-        for _ in range(50):
-            robot.set_joint_position_target(default_pos)
-            robot.write_data_to_sim()
-            sim.step()
-            robot.update(SIM_DT)
+    joint_names = scene["robot"].data.joint_names
+    print(f"[DEBUG] All joint names: {list(enumerate(joint_names))}")
 
-        phase = 0.0
-        elapsed = 0.0
-        count = 0
+    default_pos = torch.zeros(len(joint_names), device=sim.device, dtype=torch.float)
+    for i, name in enumerate(joint_names):
+        if name in desired_joint_angles_dict:
+            default_pos[i] = desired_joint_angles_dict[name]
 
-        while elapsed < DURATION_PER_FREQ:
-            phase += freq * 2 * np.pi * CONTROL_DT
+    # Resolve test joint indices by name
+    test_motor_indices = []
+    for joint_name, friendly_name in TEST_JOINTS:
+        idx = joint_names.index(joint_name)
+        test_motor_indices.append((idx, joint_name, friendly_name))
+        print(f"[DEBUG] {friendly_name} ({joint_name}) -> index {idx}")
 
-            if SQUARE:
-                signal = np.sign(np.sin(phase))
-            else:
-                signal = np.sin(phase)
-            command = signal * AMPLITUDE
+    print("=" * 60)
+    print("SIM MOTOR RESPONSE CHARACTERIZATION")
+    print(f"Actuator: DCMotorCfg stiffness=80, damping=2.5, friction=0.03, armature=0.005")
+    print(f"Motors: {[f[2] for f in test_motor_indices]}")
+    print(f"Freqs: {TEST_FREQS} Hz, Amp: {AMPLITUDE} rad")
+    print("=" * 60)
 
-            target = default_pos.clone()
-            target[0, motor_idx] += command
+    for motor_idx, joint_name, friendly_name in test_motor_indices:
+        all_rows = []
 
-            for _ in range(decimation):
-                robot.set_joint_position_target(target)
-                robot.write_data_to_sim()
+        for freq in TEST_FREQS:
+            print(f"  {friendly_name} ({joint_name}, idx {motor_idx}) @ {freq}Hz...", end=" ", flush=True)
+
+            # Reset to standing
+            root_state = scene["robot"].data.default_root_state.clone()
+            root_state[:, :3] += scene.env_origins
+            scene["robot"].write_root_pose_to_sim(root_state[:, :7])
+            scene["robot"].write_root_velocity_to_sim(root_state[:, 7:])
+            scene["robot"].write_joint_state_to_sim(default_pos, scene["robot"].data.default_joint_vel.clone())
+            scene.reset()
+
+            # Settle
+            for _ in range(50):
+                scene["robot"].set_joint_position_target(default_pos)
+                scene.write_data_to_sim()
                 sim.step()
-                robot.update(SIM_DT)
+                scene.update(sim_dt)
 
-            actual_pos = robot.data.joint_pos[0, motor_idx].item()
-            actual_vel = robot.data.joint_vel[0, motor_idx].item()
-            default_val = default_pos[0, motor_idx].item()
-            actual_rel = actual_pos - default_val
+            phase = 0.0
+            elapsed = 0.0
+            count = 0
 
-            all_rows.append([elapsed, phase, AMPLITUDE, freq, motor_idx, signal, command, actual_rel, actual_vel])
+            while elapsed < DURATION_PER_FREQ:
+                phase += freq * 2 * np.pi * CONTROL_DT
 
-            elapsed += CONTROL_DT
-            count += 1
+                if SQUARE:
+                    signal = np.sign(np.sin(phase))
+                else:
+                    signal = np.sin(phase)
+                command = signal * AMPLITUDE
 
-        print(f"{count} samples")
+                target = default_pos.clone()
+                target[motor_idx] += command
 
-    fname = f"sim_motor_{motor_idx}_{NAMES[motor_idx]}_amp{AMPLITUDE}.csv"
-    with open(fname, 'w', newline='') as f:
-        w = csv.writer(f)
-        w.writerow(['time_s','phase','amp_rad','freq_hz','motor_idx','signal','command_rad','actual_rad','actual_vel'])
-        w.writerows(all_rows)
-    print(f"  Saved: {fname}")
+                for _ in range(decimation):
+                    scene["robot"].set_joint_position_target(target)
+                    scene.write_data_to_sim()
+                    sim.step()
+                    scene.update(sim_dt)
 
-simulation_app.close()
-print("\nDone. Compare these CSVs against real motor output.")
+                actual_pos = scene["robot"].data.joint_pos[0, motor_idx].item()
+                actual_vel = scene["robot"].data.joint_vel[0, motor_idx].item()
+                default_val = default_pos[motor_idx].item()
+                actual_rel = actual_pos - default_val
+
+                all_rows.append([elapsed, phase, AMPLITUDE, freq, motor_idx, signal, command, actual_rel, actual_vel])
+
+                elapsed += CONTROL_DT
+                count += 1
+
+            print(f"{count} samples")
+
+        fname = f"sim_motor_{motor_idx}_{friendly_name}_amp{AMPLITUDE}.csv"
+        with open(fname, 'w', newline='') as f:
+            w = csv.writer(f)
+            w.writerow(['time_s', 'phase', 'amp_rad', 'freq_hz', 'motor_idx', 'signal', 'command_rad', 'actual_rad', 'actual_vel'])
+            w.writerows(all_rows)
+        print(f"  Saved: {fname}")
+
+
+def main():
+    sim_cfg = sim_utils.SimulationCfg(
+        device="cpu",
+        dt=SIM_DT,
+        physx=sim_utils.PhysxCfg(
+            solver_type=1,
+            enable_stabilization=True,
+            bounce_threshold_velocity=0.05,
+            friction_offset_threshold=0.02,
+            friction_correlation_distance=0.01,
+        ),
+    )
+    sim = sim_utils.SimulationContext(sim_cfg)
+    sim.set_camera_view([2.0, 2.0, 1.5], [0.0, 0.0, 0.3])
+
+    scene_cfg = TestSceneCfg(num_envs=1, env_spacing=2.0)
+    scene = InteractiveScene(scene_cfg)
+
+    sim.reset()
+
+    print("[INFO]: Setup complete...")
+    run_test(sim, scene)
+
+
+if __name__ == "__main__":
+    main()
+    simulation_app.close()
+    print("\nDone. Compare these CSVs against real motor output.")

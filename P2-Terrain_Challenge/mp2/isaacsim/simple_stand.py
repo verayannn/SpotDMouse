@@ -20,7 +20,7 @@ import numpy as np
 import torch
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg, DCMotorCfg
+from isaaclab.actuators import ImplicitActuatorCfg, DCMotorCfg, DelayedPDActuatorCfg
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
@@ -65,8 +65,8 @@ cfg_robot = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.95,
     actuators={
-    # Main leg joints (the ones that do the real work)
-    "leg_joints": DCMotorCfg(
+
+    "leg_joints": DelayedPDActuatorCfg( #changed from DCMotorCfg
         joint_names_expr=[
             # LF leg (front-left)
             "base_lf1", "lf1_lf2", "lf2_lf3",
@@ -77,18 +77,15 @@ cfg_robot = ArticulationCfg(
             # RB leg (back-right)
             "base_rb1", "rb1_rb2", "rb2_rb3"
             ],
-        # saturation_effort=2.5,
-        # velocity_limit=10.0,
-        # stiffness=45.0,#80.0 Official/Final: 45.0       
-        # damping=1.3,#2.0 Official/Final: 1.3        
-        # friction=0.02,        
-        # armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
-        saturation_effort=0.35, #3.5kg
+        # saturation_effort=0.35, #3.5kg #changed to effort_limit
+        effort_limit=0.35,
         velocity_limit=10.5,
-        stiffness=80.0,#80.0 Official/Final: 45.0       
-        damping=2.5,#Official:2.5,#2.0 Official/Final: 1.3        
+        stiffness=8.0,#80.0
+        damping=0.5,#Official:2.5       
         friction=0.03,        
-        armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
+        armature=0.005,
+        min_delay=30,
+        max_delay=45
     ),
     }
 )
@@ -129,6 +126,11 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         "base_rb1": 0.0,
         "rb1_rb2": 0.785,
         "rb2_rb3": -1.57,
+        # Fixed-but-revolute joints (usually 0.0 unless they have a non-zero default angle in your URDF/USD)
+        "lf3_foot": 0.0, "rf3_foot": 0.0, "lb3_foot": 0.0, "rb3_foot": 0.0,
+        "lf1_plate": 0.0, "rf1_plate": 0.0, "lb1_plate": 0.0, "rb1_plate": 0.0,
+        "lf2_plate": 0.0, "rf2_plate": 0.0, "lb2_plate": 0.0, "rb2_plate": 0.0,
+        "base_lidar": 0.0, "imu_joint": 0.0
     }
 
     # Construct the target tensor in the correct joint order from scene["robot"].data.joint_names

@@ -125,7 +125,7 @@ def run_test(sim, scene):
 
     print("=" * 60)
     print("SIM MOTOR RESPONSE CHARACTERIZATION")
-    print(f"Actuator: DCMotorCfg stiffness=80, damping=2.5, friction=0.03, armature=0.005")
+    print(f"Actuator: DCMotorCfg saturation effort= 0.35, velocity limit = 10.5, stiffness=80, damping=2.5, friction=0.03, armature=0.005")
     print(f"Motors: {[f[2] for f in test_motor_indices]}")
     print(f"Freqs: {TEST_FREQS} Hz, Amp: {AMPLITUDE} rad")
     print("=" * 60)

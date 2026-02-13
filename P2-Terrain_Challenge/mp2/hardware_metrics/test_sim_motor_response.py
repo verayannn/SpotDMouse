@@ -4,9 +4,6 @@ Run inside Isaac Sim: python test_sim_motor_response.py
 Sends same freq sweep signals as test_real_motor_response.py
 and records the simulated motor response for comparison.
 """
-import torch
-import numpy as np
-import csv
 import argparse
 
 from isaaclab.app import AppLauncher
@@ -16,14 +13,66 @@ args = parser.parse_args()
 app_launcher = AppLauncher(args)
 simulation_app = app_launcher.app
 
+# --- All other imports AFTER AppLauncher ---
+import torch
+import numpy as np
+import csv
+
 import isaaclab.sim as sim_utils
+from isaaclab.actuators import DCMotorCfg
 from isaaclab.assets import Articulation
+from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.sim import SimulationContext
 
+# --- Define robot config inline (same as your working stand script) ---
+CUSTOM_QUAD_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path="/workspace/mini_pupper_ros/mini_pupper_description/urdf/mini_pupper_2/mini_pupper_description/mini_pupper_description.usd",
+        activate_contact_sensors=True,
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.10),
+        joint_pos={
+            "base_lf1": 0.0,      
+            "lf1_lf2": 0.785, 
+            "lf2_lf3": -1.57,
+
+            "base_rf1": 0.0,     
+            "rf1_rf2": 0.785,
+            "rf2_rf3": -1.57,
+            
+            "base_lb1": 0.0,      
+            "lb1_lb2": 0.785, 
+            "lb2_lb3": -1.57,
+            
+            "base_rb1": 0.0,      
+            "rb1_rb2": 0.785, 
+            "rb2_rb3": -1.57,
+        },
+        joint_vel={".*": 0.0},
+    ),
+    soft_joint_pos_limit_factor=0.95,
+    actuators={
+        "leg_joints": DCMotorCfg(
+            joint_names_expr=[
+                "base_lf1", "lf1_lf2", "lf2_lf3",
+                "base_rf1", "rf1_rf2", "rf2_rf3",
+                "base_lb1", "lb1_lb2", "lb2_lb3",
+                "base_rb1", "rb1_rb2", "rb2_rb3",
+            ],
+            saturation_effort=0.35,
+            velocity_limit=10.5,
+            stiffness=80.0,
+            damping=2.5,
+            friction=0.03,
+            armature=0.005,
+        ),
+    },
+)
+
+# --- Rest of the script unchanged ---
 SIM_DT = 0.002
 CONTROL_DT = 0.02
-
-from isaaclab_tasks.manager_based.locomotion.velocity.config.custom_quadruped_2.custom_quad import CUSTOM_QUAD_CFG
 
 sim_cfg = sim_utils.SimulationCfg(dt=SIM_DT, device="cpu")
 sim = SimulationContext(sim_cfg)
@@ -35,13 +84,6 @@ robot = Articulation(cfg=robot_cfg)
 
 sim.reset()
 robot.reset()
-
-joint_names = [
-    "base_lf1","lf1_lf2","lf2_lf3",
-    "base_rf1","rf1_rf2","rf2_rf3",
-    "base_lb1","lb1_lb2","lb2_lb3",
-    "base_rb1","rb1_rb2","rb2_rb3",
-]
 
 default_pos = robot.data.default_joint_pos.clone()
 num_joints = default_pos.shape[1]

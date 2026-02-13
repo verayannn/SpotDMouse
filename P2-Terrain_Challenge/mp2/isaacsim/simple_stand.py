@@ -129,11 +129,6 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
         "base_rb1": 0.0,
         "rb1_rb2": 0.785,
         "rb2_rb3": -1.57,
-        # Fixed-but-revolute joints (usually 0.0 unless they have a non-zero default angle in your URDF/USD)
-        "lf3_foot": 0.0, "rf3_foot": 0.0, "lb3_foot": 0.0, "rb3_foot": 0.0,
-        "lf1_plate": 0.0, "rf1_plate": 0.0, "lb1_plate": 0.0, "rb1_plate": 0.0,
-        "lf2_plate": 0.0, "rf2_plate": 0.0, "lb2_plate": 0.0, "rb2_plate": 0.0,
-        "base_lidar": 0.0, "imu_joint": 0.0
     }
 
     # Construct the target tensor in the correct joint order from scene["robot"].data.joint_names

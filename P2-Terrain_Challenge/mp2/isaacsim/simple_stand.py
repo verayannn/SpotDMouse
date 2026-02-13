@@ -78,14 +78,14 @@ cfg_robot = ArticulationCfg(
             "base_rb1", "rb1_rb2", "rb2_rb3"
             ],
         # saturation_effort=0.35, #3.5kg #changed to effort_limit
-        effort_limit=0.35,
+        effort_limit=0.8,
         velocity_limit=10.5,
-        stiffness=8.0,#80.0
-        damping=0.5,#Official:2.5       
+        stiffness=70.0,#80.0
+        damping=1.2,#Official:2.5       
         friction=0.03,        
         armature=0.005,
-        min_delay=30,
-        max_delay=45
+        min_delay=20,
+        max_delay=30
     ),
     }
 )

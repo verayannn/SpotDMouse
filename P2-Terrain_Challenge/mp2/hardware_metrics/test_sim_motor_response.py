@@ -18,7 +18,7 @@ import numpy as np
 import csv
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import DCMotorCfg
+from isaaclab.actuators import DCMotorCfg, DelayedPDActuatorCfg
 from isaaclab.assets import AssetBaseCfg
 from isaaclab.assets.articulation import ArticulationCfg
 from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
@@ -49,21 +49,23 @@ cfg_robot = ArticulationCfg(
     ),
     soft_joint_pos_limit_factor=0.95,
     actuators={
-        "leg_joints": DCMotorCfg(
+        "leg_joints": DelayedPDActuatorCfg(
             joint_names_expr=[
                 "base_lf1", "lf1_lf2", "lf2_lf3",
                 "base_rf1", "rf1_rf2", "rf2_rf3",
                 "base_lb1", "lb1_lb2", "lb2_lb3",
                 "base_rb1", "rb1_rb2", "rb2_rb3",
             ],
-            saturation_effort=0.35,
+            effort_limit=0.35,
             velocity_limit=10.5,
-            stiffness=80.0,
-            damping=2.5,
-            friction=0.03,
+            stiffness=8.0,
+            damping=0.5,       
+            friction=0.03,        
             armature=0.005,
+            min_delay=30,
+            max_delay=45
         ),
-    },
+        },
 )
 
 class TestSceneCfg(InteractiveSceneCfg):

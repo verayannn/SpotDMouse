@@ -48,6 +48,29 @@ cfg_robot = ArticulationCfg(
         joint_vel={".*": 0.0},
     ),
     soft_joint_pos_limit_factor=0.95,
+    # actuators={
+    # "leg_joints": DCMotorCfg(
+    #     joint_names_expr=[
+    #         "base_lf1", "lf1_lf2", "lf2_lf3",  
+    #         "base_rf1", "rf1_rf2", "rf2_rf3",
+    #         "base_lb1", "lb1_lb2", "lb2_lb3",
+    #         "base_rb1", "rb1_rb2", "rb2_rb3"
+    #         ],
+    #     # saturation_effort=2.5,
+    #     # velocity_limit=10.0,
+    #     # stiffness=45.0,        
+    #     # damping=1.3,          
+    #     # friction=0.02,        
+    #     # armature=0.005,#0.004269, # Sweet spot - jitters in place, no drift
+    #     # Accurate specs from https://www.robotshop.com/products/mangdang-high-performance-35kg-cm-robot-digital-servo?qd=cc36ca2653f9fea65ad13bd91c459f1c
+    #     saturation_effort=0.35, #0.35 # 3.5 kg·cm converted to N·m
+    #     velocity_limit=10.5, # 0.1s/60° = 10.47 rad/s or 10.5 rounding
+    #     velocity_limit_sim=10.5,
+    #     stiffness=80.0,#80.0 Official/Final: 45.0       
+    #     damping=2.5,#2.0 Official/Final: 1.3     
+    #     friction=0.03,        
+    #     armature=0.005,#0.005, # Sweet spot - jitters in place, no drift      
+    # ),
     actuators={
     "leg_joints": DelayedPDActuatorCfg( #changed from DCMotorCfg
         joint_names_expr=[
@@ -70,8 +93,8 @@ cfg_robot = ArticulationCfg(
         armature=0.005,#0.005
         min_delay=26,
         max_delay=31
-        ),
-        },
+    ),
+    },
 )
 
 class TestSceneCfg(InteractiveSceneCfg):
@@ -79,15 +102,15 @@ class TestSceneCfg(InteractiveSceneCfg):
     dome_light = AssetBaseCfg(prim_path="/World/Light", spawn=sim_utils.DomeLightCfg(intensity=3000.0, color=(0.75, 0.75, 0.75)))
     robot = cfg_robot.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
-SIM_DT = 0.002
+SIM_DT = 0.002 #0.002
 CONTROL_DT = 0.02
 
 # Joints to test, by name (thigh joints)
 TEST_JOINTS = [
-    ("lf1_lf2", "LF_thigh"),
-    ("rf1_rf2", "RF_thigh"),
-    ("lb1_lb2", "LB_thigh"),
-    ("rb1_rb2", "RB_thigh"),
+    ("base_lf1", "LF_hip"),
+    ("base_rf1", "RF_hip"),
+    ("base_lb1", "LB_hip"),
+    ("base_rb1", "RB_hip"),
 ]
 
 TEST_FREQS = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]

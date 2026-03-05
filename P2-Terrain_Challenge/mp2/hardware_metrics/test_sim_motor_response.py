@@ -165,7 +165,7 @@ def run_test(sim, scene):
                 else:
                     signal = np.sin(phase)
                 command = signal * AMPLITUDE
-
+``
                 target = default_pos.clone()
                 target[motor_idx] += command
 

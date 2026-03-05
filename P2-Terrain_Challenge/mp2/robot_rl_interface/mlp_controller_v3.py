@@ -73,7 +73,7 @@ class FixedMappingControllerV3:
         self.hw_to_isaac_leg = {0: 1, 1: 0, 2: 3, 3: 2}
 
         # ==================== TUNING (v3 CONSERVATIVE) ====================
-        self.ACTION_SCALE = 0.35          
+        self.ACTION_SCALE = 0.35   #What is the maximum amplitude traversed in sim?       
         self.ema_alpha = 1.0              # EMA smoothing (lower = smoother)
         self.action_rate_limit = 100.0     # Max change per step
 
@@ -113,7 +113,7 @@ class FixedMappingControllerV3:
         self.startup_duration = 0
         self.debug_counter = 0
 
-        self.CONTROL_FREQUENCY = 50
+        self.CONTROL_FREQUENCY = 50 #25 or 10 depending on the sim csv output ranges
 
         # ==================== OBSERVATION HEALTH MONITORING ====================
         self.health_check_enabled = True
@@ -405,7 +405,7 @@ class FixedMappingControllerV3:
 
         obs = self.get_observation()
 
-        obs[6:9] = [0.0, 0.0, -1.0]
+        obs[6:9] = [0.0, 0.0, -1.0] # gravity overide for noisy IMU
         # obs[3:6] = 0.0 basically still
         # obs[24:36] = 0.0 jittery
         # obs[36:48] = 0.0 jittery

@@ -86,8 +86,8 @@ def run_freq_test(motor_idx, freq, amplitude, duration, square_wave=False):
 NAMES = ['LF_hip','LF_thigh','LF_calf','RF_hip','RF_thigh','RF_calf',
          'LB_hip','LB_thigh','LB_calf','RB_hip','RB_thigh','RB_calf']
 
-TEST_MOTORS = [1, 4, 7, 10]
-TEST_FREQS = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+TEST_MOTORS = [0, 1, 2]  # LF leg: hip, thigh, calf
+TEST_FREQS = [1.0, 2.0, 3.0, 4.0]
 AMPLITUDE = 0.3
 DURATION_PER_FREQ = 3.0
 SQUARE = False

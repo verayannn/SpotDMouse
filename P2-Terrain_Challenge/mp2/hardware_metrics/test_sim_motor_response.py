@@ -108,12 +108,11 @@ CONTROL_DT = 0.02
 # Joints to test, by name (thigh joints)
 TEST_JOINTS = [
     ("base_lf1", "LF_hip"),
-    ("base_rf1", "RF_hip"),
-    ("base_lb1", "LB_hip"),
-    ("base_rb1", "RB_hip"),
+    ("lf1_lf2", "LF_thigh"),
+    ("lf2_lf3", "LF_calf"),
 ]
 
-TEST_FREQS = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]
+TEST_FREQS = [1.0, 2.0, 3.0, 4.0]
 AMPLITUDE = 0.3
 DURATION_PER_FREQ = 3.0
 SQUARE = False

@@ -51,36 +51,91 @@ def analyze_file(filename):
     return results
 
 # --- CONFIGURATION ---
-sim_file = 'sim_motor_5_LF_thigh_amp0.3.csv'
-real_file = 'real_motor_1_LF_thigh_amp0.3.csv'
+import glob
 
-print(f"\n{'='*60}\nACTUATOR COMPARISON TOOL\n{'='*60}")
+JOINTS = ["LF_hip", "LF_thigh", "LF_calf"]
+AMPLITUDE = 0.3
 
-sim_results = analyze_file(sim_file)
-real_results = analyze_file(real_file)
+# Load all joint data
+sim_data = {}
+real_data = {}
+for joint_name in JOINTS:
+    sim_matches = glob.glob(f"sim_motor_*_{joint_name}_amp{AMPLITUDE}.csv")
+    real_matches = glob.glob(f"real_motor_*_{joint_name}_amp{AMPLITUDE}.csv")
+    if sim_matches:
+        sim_data[joint_name] = analyze_file(sim_matches[0])
+    if real_matches:
+        real_data[joint_name] = analyze_file(real_matches[0])
 
-if sim_results:
-    print(f"\nSIM Data: {sim_file}")
-    print(f"{'Freq (Hz)':<10} | {'Lag (ms)':<10} | {'Amp Ratio':<10}")
-    print("-" * 35)
-    for f, data in sim_results.items():
-        print(f"{f:<10.1f} | {data['lag_ms']:<10.2f} | {data['ratio']:<10.2f}")
+all_freqs = sorted(set().union(
+    *(r.keys() for r in sim_data.values() if r),
+    *(r.keys() for r in real_data.values() if r),
+))
 
-if real_results:
-    print(f"\nREAL Data: {real_file}")
-    print(f"{'Freq (Hz)':<10} | {'Lag (ms)':<10} | {'Amp Ratio':<10}")
-    print("-" * 35)
-    for f, data in real_results.items():
-        print(f"{f:<10.1f} | {data['lag_ms']:<10.2f} | {data['ratio']:<10.2f}")
-else:
-    print(f"\n[Note] Real motor file '{real_file}' not found for side-by-side comparison.")
+print(f"\n{'='*80}")
+print(f"  LF LEG COMPARISON — SIM vs REAL  (Amplitude={AMPLITUDE} rad)")
+print(f"{'='*80}")
 
-if sim_results and real_results:
-    print(f"\n{'='*15} SIDE-BY-SIDE (SIM vs REAL) {'='*15}")
-    print(f"{'Freq':<6} | {'Sim Lag':<8} | {'Real Lag':<8} | {'Lag Diff':<8} | {'Sim Ratio':<9} | {'Real Ratio':<10}")
-    print("-" * 75)
-    common_freqs = sorted(set(sim_results.keys()) & set(real_results.keys()))
-    for f in common_freqs:
-        s_l, r_l = sim_results[f]['lag_ms'], real_results[f]['lag_ms']
-        s_r, r_r = sim_results[f]['ratio'], real_results[f]['ratio']
-        print(f"{f:<6.1f} | {s_l:<8.2f} | {r_l:<8.2f} | {s_l-r_l:<8.2f} | {s_r:<9.2f} | {r_r:<10.2f}")
+# Header
+jw = 22  # column width per joint
+print(f"\n{'':>8}", end="")
+for j in JOINTS:
+    print(f" | {j:^{jw}}", end="")
+print()
+print(f"{'Freq':>8}", end="")
+for _ in JOINTS:
+    print(f" | {'Sim Lag':>7} {'Real Lag':>8} {'LagΔ':>6}", end="")
+print()
+print("-" * (9 + (jw + 3) * len(JOINTS)))
+
+for f in all_freqs:
+    print(f"{f:>6.1f}Hz", end="")
+    for j in JOINTS:
+        s = sim_data.get(j, {})
+        r = real_data.get(j, {})
+        sl = s[f]['lag_ms'] if s and f in s else float('nan')
+        rl = r[f]['lag_ms'] if r and f in r else float('nan')
+        dl = sl - rl if not (np.isnan(sl) or np.isnan(rl)) else float('nan')
+        print(f" | {sl:>6.1f}ms {rl:>7.1f}ms {dl:>+5.1f}", end="")
+    print()
+
+# Amplitude ratio table
+print(f"\n{'':>8}", end="")
+for j in JOINTS:
+    print(f" | {j:^{jw}}", end="")
+print()
+print(f"{'Freq':>8}", end="")
+for _ in JOINTS:
+    print(f" | {'Sim Amp':>7} {'Real Amp':>8} {'AmpΔ':>6}", end="")
+print()
+print("-" * (9 + (jw + 3) * len(JOINTS)))
+
+for f in all_freqs:
+    print(f"{f:>6.1f}Hz", end="")
+    for j in JOINTS:
+        s = sim_data.get(j, {})
+        r = real_data.get(j, {})
+        sr = s[f]['ratio'] if s and f in s else float('nan')
+        rr = r[f]['ratio'] if r and f in r else float('nan')
+        dr = sr - rr if not (np.isnan(sr) or np.isnan(rr)) else float('nan')
+        print(f" | {sr:>7.2f} {rr:>8.2f} {dr:>+5.2f}", end="")
+    print()
+
+# Summary averages
+print(f"\n{'─'*80}")
+print(f"  AVERAGES ACROSS FREQUENCIES")
+print(f"{'─'*80}")
+print(f"{'Joint':<12} | {'Avg Sim Lag':>11} | {'Avg Real Lag':>12} | {'Avg Lag Δ':>9} | {'Avg Sim Amp':>11} | {'Avg Real Amp':>12} | {'Avg Amp Δ':>9}")
+print("-" * 88)
+for j in JOINTS:
+    s = sim_data.get(j, {})
+    r = real_data.get(j, {})
+    common = sorted(set(s.keys() if s else []) & set(r.keys() if r else []))
+    if common:
+        avg_sl = np.mean([s[f]['lag_ms'] for f in common])
+        avg_rl = np.mean([r[f]['lag_ms'] for f in common])
+        avg_sr = np.mean([s[f]['ratio'] for f in common])
+        avg_rr = np.mean([r[f]['ratio'] for f in common])
+        print(f"{j:<12} | {avg_sl:>9.1f}ms | {avg_rl:>10.1f}ms | {avg_sl-avg_rl:>+8.1f} | {avg_sr:>11.2f} | {avg_rr:>12.2f} | {avg_sr-avg_rr:>+8.2f}")
+    else:
+        print(f"{j:<12} | {'N/A':>11} | {'N/A':>12} | {'N/A':>9} | {'N/A':>11} | {'N/A':>12} | {'N/A':>9}")

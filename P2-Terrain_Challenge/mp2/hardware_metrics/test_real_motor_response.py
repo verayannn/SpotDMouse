@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#pu!/usr/bin/env python3
 import time
 import csv
 import numpy as np

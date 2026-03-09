@@ -814,7 +814,7 @@ Controls:
             cmd = input("> ").strip().lower()
 
             if cmd == 'w':
-                controller.set_velocity_command(speed, 0, 0)
+                controller.set_velocity_command(speed, 0.07, 0)
             elif cmd == 's':
                 controller.set_velocity_command(-speed, 0, 0)
             elif cmd == 'a':

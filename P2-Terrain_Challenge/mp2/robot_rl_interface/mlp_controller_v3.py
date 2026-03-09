@@ -73,7 +73,8 @@ class FixedMappingControllerV3:
         self.hw_to_isaac_leg = {0: 1, 1: 0, 2: 3, 3: 2}
 
         # ==================== TUNING (v3 CONSERVATIVE) ====================
-        self.ACTION_SCALE = 0.5    # Must match training action_scale (hippy policy)
+        self.ACTION_SCALE = 0.5    # Must match training action_scale (used by synthetic PD)
+        self.HW_SCALE = 0.75      # Hardware output multiplier (amplifies physical movements)
         self.ema_alpha = 1.0              # EMA smoothing (lower = smoother)
         self.action_rate_limit = 100.0     # Max change per step
 
@@ -158,7 +159,8 @@ class FixedMappingControllerV3:
     def _print_config(self):
         """Print current configuration."""
         print(f"\n[CONFIG]")
-        print(f"  ACTION_SCALE:      {self.ACTION_SCALE}")
+        print(f"  ACTION_SCALE:      {self.ACTION_SCALE} (synthetic PD)")
+        print(f"  HW_SCALE:          {self.HW_SCALE} (servo output)")
         print(f"  ema_alpha:         {self.ema_alpha}")
         print(f"  action_rate_limit: {self.action_rate_limit}")
         print(f"  use_simple_lin_vel: {self.use_simple_lin_vel}")
@@ -555,8 +557,8 @@ class FixedMappingControllerV3:
         if self.use_synthetic_obs:
             self._step_pd_dynamics(clipped_actions)
 
-        # Compute target (sim frame)
-        target_sim = self.sim_default_positions + final_actions * self.ACTION_SCALE
+        # Compute target (sim frame) — HW_SCALE amplifies physical movements
+        target_sim = self.sim_default_positions + final_actions * self.HW_SCALE
         target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
 
         # Send to hardware
@@ -697,6 +699,9 @@ class FixedMappingControllerV3:
         if param == 'scale':
             self.ACTION_SCALE = float(value)
             print(f"[PARAM] ACTION_SCALE = {self.ACTION_SCALE}")
+        elif param == 'hw_scale':
+            self.HW_SCALE = float(value)
+            print(f"[PARAM] HW_SCALE = {self.HW_SCALE}")
         elif param == 'ema':
             self.ema_alpha = float(value)
             print(f"[PARAM] ema_alpha = {self.ema_alpha}")
@@ -757,8 +762,7 @@ class FixedMappingControllerV3:
             ])
 
             # Apply directly (no smoothing, no rate limiting)
-            # Simulation uses ACTION_SCALE = 0.5
-            target_sim = self.sim_default_positions + actions * self.ACTION_SCALE
+            target_sim = self.sim_default_positions + actions * self.HW_SCALE
             target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
 
             target_matrix = self._isaac_to_hardware_matrix(target_sim)

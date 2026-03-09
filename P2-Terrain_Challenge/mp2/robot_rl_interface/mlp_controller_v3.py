@@ -74,7 +74,7 @@ class FixedMappingControllerV3:
 
         # ==================== TUNING (v3 CONSERVATIVE) ====================
         self.ACTION_SCALE = 0.5    # Must match training action_scale (used by synthetic PD)
-        self.HW_SCALE = 0.75      # Hardware output multiplier (amplifies physical movements)
+        self.HW_SCALE = 0.55      # Hardware output multiplier (amplifies physical movements)
         self.ema_alpha = 1.0              # EMA smoothing (lower = smoother)
         self.action_rate_limit = 100.0     # Max change per step
 

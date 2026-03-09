@@ -115,6 +115,11 @@ class FixedMappingControllerV3:
 
         self.CONTROL_FREQUENCY = 50 #25 or 10 depending on the sim csv output ranges
 
+        # ==================== CSV LOGGING ====================
+        self.log_enabled = False
+        self.log_rows = []
+        self.log_max_steps = 600  # 12 seconds at 50Hz
+
         # ==================== OBSERVATION HEALTH MONITORING ====================
         self.health_check_enabled = True
 
@@ -452,6 +457,25 @@ class FixedMappingControllerV3:
         target_matrix = self._isaac_to_hardware_matrix(target_sim)
         self.hardware.set_actuator_postions(target_matrix)
 
+        # CSV logging
+        if self.log_enabled and len(self.log_rows) < self.log_max_steps:
+            row = {
+                'step': self.debug_counter,
+                'time': time.time(),
+                'cmd_x': self.velocity_command[0],
+                'cmd_y': self.velocity_command[1],
+                'cmd_yaw': self.velocity_command[2],
+                'fade': fade,
+            }
+            for i in range(60):
+                row[f'obs_{i}'] = float(obs[i])
+            for i in range(12):
+                row[f'raw_action_{i}'] = float(raw_actions[i])
+                row[f'final_action_{i}'] = float(final_actions[i])
+            self.log_rows.append(row)
+            if len(self.log_rows) == self.log_max_steps:
+                self._save_log()
+
         # Enhanced debug output
         self.debug_counter += 1
         if self.debug_counter % 50 == 0:
@@ -465,6 +489,22 @@ class FixedMappingControllerV3:
                   f"raw={raw_range} final={final_range} "
                   f"ang=[{ang_vel[0]:+.2f},{ang_vel[1]:+.2f},{ang_vel[2]:+.2f}] "
                   f"gz={gravity[2]:+.2f}")
+
+    def _save_log(self):
+        """Save collected log rows to CSV."""
+        import csv
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        filename = f"/home/ubuntu/mp2_mlp/hw_log_{timestamp}.csv"
+        if not self.log_rows:
+            print("[LOG] No data to save.")
+            return
+        fieldnames = list(self.log_rows[0].keys())
+        with open(filename, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.log_rows)
+        print(f"[LOG] Saved {len(self.log_rows)} rows to {filename}")
+        self.log_enabled = False
 
     def control_loop(self):
         """Main control loop."""
@@ -629,6 +669,7 @@ Controls:
   +/-      - Adjust speed
   debug    - Print debug info
   test     - Replay simulation actions from CSV
+  log      - Start CSV logging (12s capture)
   set X Y  - Set parameter (scale/ema/rate/simple/health) to value Y
   x        - Exit
 """)
@@ -666,6 +707,11 @@ Controls:
                 print(f"[SPEED] {speed:.2f}")
             elif cmd == 'debug':
                 controller.print_debug_info()
+            elif cmd == 'log':
+                controller.log_rows = []
+                controller.log_enabled = True
+                print("[LOG] Logging started — will capture 600 steps (12s at 50Hz)")
+                print("[LOG] Give a movement command (e.g. 'w') to capture walking data")
             elif cmd == 'test':
                 controller.set_velocity_command(0, 0, 0)  # Stop first
                 time.sleep(0.5)

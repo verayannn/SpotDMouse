@@ -12,7 +12,7 @@ class FixedMappingControllerV3:
     Controller with corrected frame transformations - Version 3
     """
 
-    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy.pt"):
+    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy_delayedpdactuator_hippy.pt"):
         print("=" * 70)
         print("FIXED MAPPING RL CONTROLLER v3")
         print("=" * 70)
@@ -73,7 +73,7 @@ class FixedMappingControllerV3:
         self.hw_to_isaac_leg = {0: 1, 1: 0, 2: 3, 3: 2}
 
         # ==================== TUNING (v3 CONSERVATIVE) ====================
-        self.ACTION_SCALE = 0.35   #What is the maximum amplitude traversed in sim?       
+        self.ACTION_SCALE = 0.5    # Must match training action_scale (hippy policy)
         self.ema_alpha = 1.0              # EMA smoothing (lower = smoother)
         self.action_rate_limit = 100.0     # Max change per step
 
@@ -110,7 +110,7 @@ class FixedMappingControllerV3:
         self.control_active = False
         self.shutdown = False
         self.startup_steps = 0
-        self.startup_duration = 0
+        self.startup_duration = 200  # ~4s at 50Hz, policy stabilizes by then
         self.debug_counter = 0
 
         self.CONTROL_FREQUENCY = 50 #25 or 10 depending on the sim csv output ranges
@@ -594,7 +594,7 @@ class FixedMappingControllerV3:
 
             # Apply directly (no smoothing, no rate limiting)
             # Simulation uses ACTION_SCALE = 0.5
-            target_sim = self.sim_default_positions + actions * 0.30
+            target_sim = self.sim_default_positions + actions * self.ACTION_SCALE
             target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
 
             target_matrix = self._isaac_to_hardware_matrix(target_sim)
@@ -633,7 +633,7 @@ Controls:
   x        - Exit
 """)
 
-    controller = FixedMappingControllerV3("/home/ubuntu/mp2_mlp/policy_joyboy.pt")
+    controller = FixedMappingControllerV3("/home/ubuntu/mp2_mlp/policy_joyboy_delayedpdactuator_hippy.pt")
 
     control_thread = threading.Thread(target=controller.control_loop, daemon=True)
     control_thread.start()

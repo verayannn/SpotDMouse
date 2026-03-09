@@ -2,18 +2,20 @@
 """
 Open-loop policy rollout — runs the trained policy WITHOUT a simulator or robot.
 Uses a simple first-order joint dynamics model to feed observations back.
+Includes a delay buffer to model DelayedPDActuator behavior.
 
-Purpose: Verify the policy produces a reasonable forward gait at cmd=[0.15, 0, 0],
-then compare against the rosbag CHAMP data.
+Purpose: Verify the policy produces a reasonable gait for multiple commands,
+check direction-dependent behavior, and validate joint ranges.
 """
 
 import torch
 import numpy as np
 import pandas as pd
 import argparse
+from collections import deque
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-POLICY_PATH = "/Users/javierweddington/misc/policy_joyboy_delayedpdactuator.pt"
+POLICY_PATH = "/Users/javierweddington/policy_joyboy_delayedpdactuator_scheduled.pt"
 
 # Sim defaults (Isaac frame)
 SIM_DEFAULTS = np.array([
@@ -45,15 +47,19 @@ JOINT_NAMES = [
     'RB_hip', 'RB_thigh', 'RB_calf',
 ]
 
-# Actuator params (from your DelayedPDActuatorCfg)
-STIFFNESS = 70.0
-DAMPING = 1.2
+# Actuator params (from current DelayedPDActuatorCfg)
+STIFFNESS = 80.0
+DAMPING = 2.5
 ACTION_SCALE = 0.5  # from SpotActionsCfg
 
+# Delay params: sim runs at 500Hz (dt=0.002), policy at 50Hz (decimation=10)
+# min_delay=26, max_delay=31 physics steps → ~3 policy steps avg
+DELAY_POLICY_STEPS = 3  # average delay in policy steps
 
-def run_openloop(cmd_vel, duration=10.0, dt=0.02, policy_path=POLICY_PATH):
+
+def run_openloop(cmd_vel, duration=10.0, dt=0.02, policy_path=POLICY_PATH, use_delay=True):
     """
-    Run the policy in open loop with a simple PD joint model.
+    Run the policy in open loop with a simple PD joint model and optional delay buffer.
 
     Observation layout (60 dims):
       [0:3]   base_lin_vel
@@ -77,10 +83,15 @@ def run_openloop(cmd_vel, duration=10.0, dt=0.02, policy_path=POLICY_PATH):
     joint_vel = np.zeros(12, dtype=np.float32)
     prev_actions = np.zeros(12, dtype=np.float32)
 
+    # Delay buffer — actions are delayed by DELAY_POLICY_STEPS before being applied
+    delay_steps = DELAY_POLICY_STEPS if use_delay else 0
+    action_buffer = deque([np.zeros(12, dtype=np.float32)] * (delay_steps + 1), maxlen=delay_steps + 1)
+
     rows = []
 
     print(f"Running {n_steps} steps ({duration}s) at cmd={cmd.tolist()}")
     print(f"Action scale={ACTION_SCALE}, stiffness={STIFFNESS}, damping={DAMPING}")
+    print(f"Delay: {delay_steps} policy steps ({'enabled' if use_delay else 'disabled'})")
 
     for step in range(n_steps):
         t = step * dt
@@ -89,51 +100,54 @@ def run_openloop(cmd_vel, duration=10.0, dt=0.02, policy_path=POLICY_PATH):
         joint_pos_rel = joint_pos - SIM_DEFAULTS
 
         # Simple effort model: tau = Kp * (target - pos) - Kd * vel
-        # where target = default + prev_action * scale
+        # where target = default + prev_action * scale (using the DELAYED action)
         target = SIM_DEFAULTS + prev_actions * ACTION_SCALE
         effort = STIFFNESS * (target - joint_pos) - DAMPING * joint_vel
-        # Normalize effort roughly (sim effort is in N·m, servos are ~0-5 N·m range)
         effort_normalized = effort / 5.0
 
         obs = np.concatenate([
-            cmd * 0.7,          # base_lin_vel (rough estimate, matching db_1.py)
-            np.array([0, 0, 0], dtype=np.float32),  # base_ang_vel (standing steady)
+            cmd * 0.7,          # base_lin_vel (rough estimate)
+            np.array([0, 0, 0], dtype=np.float32),  # base_ang_vel
             np.array([0, 0, -1], dtype=np.float32),  # projected_gravity (upright)
             cmd,                 # velocity_cmd
             joint_pos_rel,       # joint_pos_rel
             joint_vel,           # joint_vel
             effort_normalized,   # joint_effort
-            prev_actions,        # prev_actions
+            prev_actions,        # prev_actions (the delayed action the actuator actually applied)
         ]).astype(np.float32)
 
         # Policy inference
         with torch.no_grad():
             obs_t = torch.tensor(obs).unsqueeze(0)
-            actions = policy(obs_t).squeeze().numpy()
+            raw_actions = policy(obs_t).squeeze().numpy()
 
-        # Update state with simple PD dynamics
-        # Target position = default + action * scale
-        new_target = SIM_DEFAULTS + actions * ACTION_SCALE
+        # Push new action into delay buffer, pop delayed action
+        action_buffer.append(raw_actions.copy())
+        delayed_actions = action_buffer[0]
 
-        # PD acceleration: a = Kp*(target - pos) - Kd*vel  (divided by inertia ~1)
+        # The delayed action is what actually gets applied
+        prev_actions = delayed_actions.copy()
+
+        # Update state with simple PD dynamics using DELAYED action
+        new_target = SIM_DEFAULTS + delayed_actions * ACTION_SCALE
+
         accel = STIFFNESS * (new_target - joint_pos) - DAMPING * joint_vel
 
         # Integrate (semi-implicit Euler)
         joint_vel = joint_vel + accel * dt
-        joint_vel = np.clip(joint_vel, -10.5, 10.5)  # velocity limit
+        joint_vel = np.clip(joint_vel, -15.0, 15.0)  # velocity limit matches actuator config
         joint_pos = joint_pos + joint_vel * dt
 
         # Clamp to joint limits
         joint_pos = np.clip(joint_pos, JOINT_LOWER, JOINT_UPPER)
-
-        prev_actions = actions.copy()
 
         # Record
         row = {'step': step, 'time': t}
         for i in range(60):
             row[f'obs_{i}'] = obs[i]
         for i in range(12):
-            row[f'action_{i}'] = actions[i]
+            row[f'action_{i}'] = raw_actions[i]
+            row[f'delayed_action_{i}'] = delayed_actions[i]
             row[f'joint_pos_{i}'] = joint_pos[i]
             row[f'joint_pos_rel_{i}'] = joint_pos[i] - SIM_DEFAULTS[i]
         rows.append(row)
@@ -142,56 +156,110 @@ def run_openloop(cmd_vel, duration=10.0, dt=0.02, policy_path=POLICY_PATH):
     return df
 
 
-def summarize(df):
-    """Print gait summary for LF leg."""
+def summarize(df, cmd_label=""):
+    """Print gait summary for all joints."""
     print("\n" + "=" * 70)
-    print("LEFT FRONT LEG — OPEN-LOOP GAIT ANALYSIS")
+    print(f"GAIT ANALYSIS — {cmd_label}")
     print("=" * 70)
 
     # Skip first 2 seconds (settle time)
     settled = df[df['time'] >= 2.0]
 
-    for j, name in enumerate(['LF_hip', 'LF_thigh', 'LF_calf']):
+    print("\nALL JOINTS — POSITION RANGE (degrees, after 2s settle)")
+    print("-" * 70)
+    for j in range(12):
         pos = settled[f'joint_pos_rel_{j}'].values
         act = settled[f'action_{j}'].values
-
-        mn, mx = pos.min(), pos.max()
-        print(f"\n{name}:")
-        print(f"  Position range: [{mn:+.4f}, {mx:+.4f}] rad  "
-              f"([{np.degrees(mn):+.2f}, {np.degrees(mx):+.2f}] deg)")
-        print(f"  Action range:   [{act.min():+.4f}, {act.max():+.4f}]")
 
         # Estimate frequency from zero crossings
         centered = pos - pos.mean()
         crossings = np.where(np.diff(np.sign(centered)))[0]
+        freq = float('nan')
         if len(crossings) > 2:
-            avg_half_period = np.mean(np.diff(crossings)) * 0.02  # dt
+            avg_half_period = np.mean(np.diff(crossings)) * 0.02
             freq = 1.0 / (2 * avg_half_period)
-            print(f"  Estimated freq: {freq:.2f} Hz")
 
+        print(f"  {JOINT_NAMES[j]:12s}: pos=[{np.degrees(pos.min()):+7.2f}, {np.degrees(pos.max()):+7.2f}] "
+              f"range={np.degrees(pos.max()-pos.min()):5.2f}°  "
+              f"act=[{act.min():+.3f}, {act.max():+.3f}]  "
+              f"freq={freq:.2f}Hz")
+
+    # Check if actions differ from previous policy (same gait for all cmds?)
+    print(f"\n  Action std (mean across joints): {settled[[f'action_{j}' for j in range(12)]].std().mean():.4f}")
+
+
+def run_multi_command_comparison(policy_path, duration=10.0):
+    """Run the policy with multiple commands to check direction-dependent behavior."""
+    commands = {
+        "forward_0.15":  [0.15, 0.0, 0.0],
+        "backward_0.15": [-0.15, 0.0, 0.0],
+        "left_0.15":     [0.0, 0.15, 0.0],
+        "right_0.15":    [0.0, -0.15, 0.0],
+        "yaw_left_0.2":  [0.0, 0.0, 0.2],
+        "yaw_right_0.2": [0.0, 0.0, -0.2],
+        "stop":          [0.0, 0.0, 0.0],
+    }
+
+    results = {}
+    for name, cmd in commands.items():
+        print(f"\n{'='*70}")
+        print(f"COMMAND: {name} → {cmd}")
+        print(f"{'='*70}")
+        df = run_openloop(cmd, duration=duration, policy_path=policy_path)
+        results[name] = df
+        summarize(df, cmd_label=name)
+
+        # Save CSV
+        out_dir = "/Users/javierweddington/SpotDMouse/P2-Terrain_Challenge/mp2/misc"
+        out_path = f"{out_dir}/openloop_scheduled_{name}.csv"
+        df.to_csv(out_path, index=False)
+        print(f"  Saved → {out_path}")
+
+    # Cross-command comparison
     print("\n" + "=" * 70)
-    print("ALL JOINTS — POSITION RANGE (degrees, after 2s settle)")
+    print("CROSS-COMMAND COMPARISON (action correlation after 2s settle)")
     print("=" * 70)
-    for j in range(12):
-        pos = settled[f'joint_pos_rel_{j}'].values
-        print(f"  {JOINT_NAMES[j]:12s}: [{np.degrees(pos.min()):+7.2f}, {np.degrees(pos.max()):+7.2f}]  "
-              f"range={np.degrees(pos.max()-pos.min()):5.2f} deg")
+    cmd_names = list(commands.keys())
+    for i in range(len(cmd_names)):
+        for j in range(i+1, len(cmd_names)):
+            df_a = results[cmd_names[i]]
+            df_b = results[cmd_names[j]]
+            settled_a = df_a[df_a['time'] >= 2.0]
+            settled_b = df_b[df_b['time'] >= 2.0]
+            min_len = min(len(settled_a), len(settled_b))
+            acts_a = settled_a[[f'action_{k}' for k in range(12)]].values[:min_len].flatten()
+            acts_b = settled_b[[f'action_{k}' for k in range(12)]].values[:min_len].flatten()
+            corr = np.corrcoef(acts_a, acts_b)[0, 1]
+            print(f"  {cmd_names[i]:18s} vs {cmd_names[j]:18s}: corr={corr:+.3f}")
+
+    print("\n  Low correlation (<0.5) = direction-dependent gait (GOOD)")
+    print("  High correlation (>0.8) = same gait for all commands (BAD)")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cmd_x", type=float, default=0.15)
-    parser.add_argument("--cmd_y", type=float, default=0.0)
-    parser.add_argument("--cmd_yaw", type=float, default=0.0)
+    parser.add_argument("--cmd_x", type=float, default=None)
+    parser.add_argument("--cmd_y", type=float, default=None)
+    parser.add_argument("--cmd_yaw", type=float, default=None)
     parser.add_argument("--duration", type=float, default=10.0)
     parser.add_argument("--output", type=str, default=None)
+    parser.add_argument("--policy", type=str, default=POLICY_PATH)
+    parser.add_argument("--no-delay", action="store_true", help="Disable delay buffer")
+    parser.add_argument("--compare", action="store_true", help="Run all directions and compare")
     args = parser.parse_args()
 
-    cmd = [args.cmd_x, args.cmd_y, args.cmd_yaw]
-    df = run_openloop(cmd, duration=args.duration)
+    if args.compare:
+        run_multi_command_comparison(args.policy, duration=args.duration)
+    else:
+        cmd_x = args.cmd_x if args.cmd_x is not None else 0.15
+        cmd_y = args.cmd_y if args.cmd_y is not None else 0.0
+        cmd_yaw = args.cmd_yaw if args.cmd_yaw is not None else 0.0
+        cmd = [cmd_x, cmd_y, cmd_yaw]
 
-    out_path = args.output or f"/Users/javierweddington/SpotDMouse/P2-Terrain_Challenge/mp2/misc/openloop_cmd_{args.cmd_x}_{args.cmd_y}_{args.cmd_yaw}.csv"
-    df.to_csv(out_path, index=False)
-    print(f"\nSaved {len(df)} steps to: {out_path}")
+        df = run_openloop(cmd, duration=args.duration, policy_path=args.policy, use_delay=not args.no_delay)
 
-    summarize(df)
+        out_path = args.output or f"/Users/javierweddington/SpotDMouse/P2-Terrain_Challenge/mp2/misc/openloop_cmd_{cmd_x}_{cmd_y}_{cmd_yaw}.csv"
+        df.to_csv(out_path, index=False)
+        print(f"\nSaved {len(df)} steps to: {out_path}")
+
+        summarize(df, cmd_label=f"cmd=[{cmd_x}, {cmd_y}, {cmd_yaw}]")

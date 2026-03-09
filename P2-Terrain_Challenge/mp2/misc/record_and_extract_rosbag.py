@@ -70,7 +70,7 @@ TOPICS_TO_RECORD = [
 
 def print_record_instructions():
     topics_str = ' '.join(TOPICS_TO_RECORD)
-    print("""
+    print(f"""
 ╔══════════════════════════════════════════════════════════════════════╗
 ║              ROSBAG RECORDING INSTRUCTIONS                         ║
 ║              Run these commands ON THE ROBOT                       ║
@@ -84,10 +84,7 @@ STEP 1: Launch the robot bringup (Terminal 1)
 
 STEP 2: Start rosbag recording (Terminal 2)
 ───────────────────────────────────────────
-  ros2 bag record -o walk_forward_$(date +%Y%m%d_%H%M%S) \\
-      """ + topics_str + """ \\
-      --compression-mode message \\
-      --compression-format zstd
+  ros2 bag record -o walk_forward_$(date +%Y%m%d_%H%M%S) {topics_str} --compression-mode message --compression-format zstd
 
 STEP 3: Teleop walk forward (Terminal 3)
 ────────────────────────────────────────

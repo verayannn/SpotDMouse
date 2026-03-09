@@ -12,7 +12,7 @@ class FixedMappingControllerV3:
     Controller with corrected frame transformations - Version 3
     """
 
-    def __init__(self, policy_path="/home/ubuntu/mp2_mlp/policy_joyboy_delayedpdactuator_hippy.pt"):
+    def __init__(self, policy_path="/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt"):
         print("=" * 70)
         print("FIXED MAPPING RL CONTROLLER v3")
         print("=" * 70)
@@ -115,6 +115,31 @@ class FixedMappingControllerV3:
 
         self.CONTROL_FREQUENCY = 50 #25 or 10 depending on the sim csv output ranges
 
+        # ==================== SYNTHETIC PD DYNAMICS ====================
+        # Simulates the DelayedPDActuator dynamics the MLP was trained with.
+        # Hardware position servos don't produce PD oscillations, so these
+        # synthetic observations provide the feedback loop the policy needs.
+        self.use_synthetic_obs = True
+        self.pd_delay_steps = 9           # Policy-level delay (~180ms = midpoint of 33-43 physics steps / 4)
+        self.pd_stiffness = 70.0          # Kp from training config
+        self.pd_damping = 1.2             # Kd from training config
+        self.pd_inertia = 0.01            # Effective joint inertia (armature=0.005 + link)
+        self.pd_substeps = 4              # Substeps per policy step (matches 200Hz physics / 50Hz policy)
+        self.pd_friction = 0.03           # Joint friction from training config
+        self.pd_effort_limit = 5.0        # For normalizing synthetic effort
+
+        # PD simulation state
+        self.pd_position = self.sim_default_positions.copy()
+        self.pd_velocity = np.zeros(12)
+        self.pd_action_buffer = deque(maxlen=self.pd_delay_steps + 1)
+        for _ in range(self.pd_delay_steps + 1):
+            self.pd_action_buffer.append(np.zeros(12))
+
+        # Cached synthetic observations (read by get_observation, updated by _step_pd_dynamics)
+        self.syn_pos_rel = np.zeros(12)
+        self.syn_vel = np.zeros(12)
+        self.syn_effort = np.zeros(12)
+
         # ==================== CSV LOGGING ====================
         self.log_enabled = False
         self.log_rows = []
@@ -138,6 +163,10 @@ class FixedMappingControllerV3:
         print(f"  action_rate_limit: {self.action_rate_limit}")
         print(f"  use_simple_lin_vel: {self.use_simple_lin_vel}")
         print(f"  startup_duration:  {self.startup_duration} steps")
+        print(f"  use_synthetic_obs: {self.use_synthetic_obs}")
+        if self.use_synthetic_obs:
+            print(f"    pd_delay:  {self.pd_delay_steps} steps ({self.pd_delay_steps * 1000 / self.CONTROL_FREQUENCY:.0f}ms)")
+            print(f"    pd_Kp:     {self.pd_stiffness}  Kd: {self.pd_damping}  I: {self.pd_inertia}")
 
     def _calibrate_sensors(self, samples=50):
         """Calibrate IMU and effort offsets."""
@@ -290,6 +319,72 @@ class FixedMappingControllerV3:
             return np.clip(blended, -0.5, 0.5)
 
     # ==============================================================
+    # SYNTHETIC PD DYNAMICS
+    # ==============================================================
+
+    def _step_pd_dynamics(self, current_action):
+        """Advance synthetic PD dynamics by one policy step.
+
+        Simulates: action → delay buffer → PD torque → mass-spring-damper integration.
+        Called AFTER the policy produces an action each step.
+        """
+        # Push current action into delay buffer
+        self.pd_action_buffer.append(current_action.copy())
+
+        # Get delayed action (from pd_delay_steps ago)
+        delayed_action = self.pd_action_buffer[0]
+
+        # Target position from delayed action (same formula as sim)
+        target = self.sim_default_positions + delayed_action * self.ACTION_SCALE
+        target = np.clip(target, self.joint_lower_limits, self.joint_upper_limits)
+
+        dt_sub = (1.0 / self.CONTROL_FREQUENCY) / self.pd_substeps
+
+        for _ in range(self.pd_substeps):
+            # PD torque: τ = Kp*(target - q) - Kd*q̇
+            error = target - self.pd_position
+            torque = self.pd_stiffness * error - self.pd_damping * self.pd_velocity
+
+            # Coulomb friction
+            torque -= self.pd_friction * np.sign(self.pd_velocity)
+
+            # Acceleration: a = τ / I
+            accel = torque / self.pd_inertia
+
+            # Semi-implicit Euler integration
+            self.pd_velocity += accel * dt_sub
+            self.pd_position += self.pd_velocity * dt_sub
+
+        # Enforce joint limits (bounce off limits)
+        for j in range(12):
+            if self.pd_position[j] < self.joint_lower_limits[j]:
+                self.pd_position[j] = self.joint_lower_limits[j]
+                self.pd_velocity[j] = 0.0
+            elif self.pd_position[j] > self.joint_upper_limits[j]:
+                self.pd_position[j] = self.joint_upper_limits[j]
+                self.pd_velocity[j] = 0.0
+
+        # Cache synthetic observations for get_observation() to use
+        self.syn_pos_rel = self.pd_position - self.sim_default_positions
+        self.syn_vel = self.pd_velocity.copy()
+
+        # Synthetic effort = current PD torque, normalized by effort limit
+        final_error = target - self.pd_position
+        final_torque = self.pd_stiffness * final_error - self.pd_damping * self.pd_velocity
+        self.syn_effort = np.clip(final_torque / self.pd_effort_limit, -1.0, 1.0)
+
+    def _reset_pd_dynamics(self):
+        """Reset PD simulation to default stance."""
+        self.pd_position = self.sim_default_positions.copy()
+        self.pd_velocity = np.zeros(12)
+        self.pd_action_buffer.clear()
+        for _ in range(self.pd_delay_steps + 1):
+            self.pd_action_buffer.append(np.zeros(12))
+        self.syn_pos_rel = np.zeros(12)
+        self.syn_vel = np.zeros(12)
+        self.syn_effort = np.zeros(12)
+
+    # ==============================================================
     # HARDWARE OUTPUT
     # ==============================================================
 
@@ -338,12 +433,19 @@ class FixedMappingControllerV3:
 
         velocity_commands = self.velocity_command.copy()
 
-        joint_pos_rel = current_angles_sim - self.sim_default_positions
-        joint_vel = self._compute_smoothed_velocity(current_angles_sim, dt)
+        # Joint observations: synthetic PD or hardware
+        if self.use_synthetic_obs:
+            joint_pos_rel = self.syn_pos_rel.copy()
+            joint_vel = self.syn_vel.copy()
+            joint_effort = self.syn_effort.copy()
+        else:
+            joint_pos_rel = current_angles_sim - self.sim_default_positions
+            joint_vel = self._compute_smoothed_velocity(current_angles_sim, dt)
 
-        # Update state
+        # Update state (always track hardware for other uses)
         self.prev_joint_angles_sim = current_angles_sim.copy()
-        self.prev_joint_vel = joint_vel.copy()
+        if not self.use_synthetic_obs:
+            self.prev_joint_vel = joint_vel.copy()
         self.prev_time = current_time
 
         prev_actions = self.prev_actions.copy()
@@ -449,6 +551,10 @@ class FixedMappingControllerV3:
         self.prev_actions = clipped_actions.copy()  # Store raw for observation
         self.prev_smoothed_actions = final_actions.copy()
 
+        # Step synthetic PD dynamics (feeds action into delay buffer + PD sim)
+        if self.use_synthetic_obs:
+            self._step_pd_dynamics(clipped_actions)
+
         # Compute target (sim frame)
         target_sim = self.sim_default_positions + final_actions * self.ACTION_SCALE
         target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
@@ -536,6 +642,8 @@ class FixedMappingControllerV3:
                 self.startup_steps = 0
                 self.estimated_lin_vel = np.zeros(3)
                 self.prev_smoothed_actions = np.zeros(12)
+                if self.use_synthetic_obs:
+                    self._reset_pd_dynamics()
             self.control_active = True
             print(f"[CMD] vx={vx:.2f}, vy={vy:.2f}, vyaw={vyaw:.2f}")
         else:
@@ -601,9 +709,22 @@ class FixedMappingControllerV3:
         elif param == 'health':
             self.health_check_enabled = value.lower() in ['true', '1', 'yes']
             print(f"[PARAM] health_check_enabled = {self.health_check_enabled}")
+        elif param == 'synthetic':
+            self.use_synthetic_obs = value.lower() in ['true', '1', 'yes']
+            if self.use_synthetic_obs:
+                self._reset_pd_dynamics()
+            print(f"[PARAM] use_synthetic_obs = {self.use_synthetic_obs}")
+        elif param == 'pd_inertia':
+            self.pd_inertia = float(value)
+            print(f"[PARAM] pd_inertia = {self.pd_inertia}")
+        elif param == 'pd_delay':
+            self.pd_delay_steps = int(value)
+            self.pd_action_buffer = deque(maxlen=self.pd_delay_steps + 1)
+            self._reset_pd_dynamics()
+            print(f"[PARAM] pd_delay_steps = {self.pd_delay_steps}")
         else:
             print(f"Unknown param: {param}")
-            print("Available: scale, ema, rate, simple, health")
+            print("Available: scale, ema, rate, simple, health, synthetic, pd_inertia, pd_delay")
 
     # ==============================================================
     # TESTING & VALIDATION
@@ -674,7 +795,7 @@ Controls:
   x        - Exit
 """)
 
-    controller = FixedMappingControllerV3("/home/ubuntu/mp2_mlp/policy_joyboy_delayedpdactuator_hippy.pt")
+    controller = FixedMappingControllerV3("/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt")
 
     control_thread = threading.Thread(target=controller.control_loop, daemon=True)
     control_thread.start()

@@ -123,7 +123,7 @@ class FixedMappingControllerV3:
         self.pd_delay_steps = 9           # Policy-level delay (~180ms = midpoint of 33-43 physics steps / 4)
         self.pd_stiffness = 70.0          # Kp from training config
         self.pd_damping = 1.2             # Kd from training config
-        self.pd_inertia = 0.01            # Effective joint inertia (armature=0.005 + link)
+        self.pd_inertia = 0.20            # Effective joint inertia → ~3Hz natural freq (matches servo BW)
         self.pd_substeps = 4              # Substeps per policy step (matches 200Hz physics / 50Hz policy)
         self.pd_friction = 0.03           # Joint friction from training config
         self.pd_effort_limit = 5.0        # For normalizing synthetic effort
@@ -717,6 +717,9 @@ class FixedMappingControllerV3:
         elif param == 'pd_inertia':
             self.pd_inertia = float(value)
             print(f"[PARAM] pd_inertia = {self.pd_inertia}")
+        elif param == 'pd_damping':
+            self.pd_damping = float(value)
+            print(f"[PARAM] pd_damping = {self.pd_damping}")
         elif param == 'pd_delay':
             self.pd_delay_steps = int(value)
             self.pd_action_buffer = deque(maxlen=self.pd_delay_steps + 1)
@@ -724,7 +727,7 @@ class FixedMappingControllerV3:
             print(f"[PARAM] pd_delay_steps = {self.pd_delay_steps}")
         else:
             print(f"Unknown param: {param}")
-            print("Available: scale, ema, rate, simple, health, synthetic, pd_inertia, pd_delay")
+            print("Available: scale, ema, rate, simple, health, synthetic, pd_inertia, pd_damping, pd_delay")
 
     # ==============================================================
     # TESTING & VALIDATION

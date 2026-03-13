@@ -6,13 +6,167 @@ from collections import deque
 from MangDang.mini_pupper.HardwareInterface import HardwareInterface
 from MangDang.mini_pupper.Config import Configuration
 
+# ==================== EMBEDDED COMPLEMENTARY FILTER ====================
+# Inlined from ai_imu_dr/ai_imu_filter.py to avoid deployment dependency.
+
+class ComplementaryFilter:
+    """Fuses gyro (fast, drifts) + accel (slow, noisy) for gravity + velocity."""
+
+    def __init__(self, alpha_gravity=0.02, alpha_vel=0.95, dt=0.02):
+        self.alpha_g = alpha_gravity
+        self.alpha_v = alpha_vel
+        self.dt = dt
+        self.gravity_est = np.array([0.0, 0.0, -1.0])
+        self.velocity_est = np.zeros(3)
+        self.gyro_bias = np.zeros(3)
+        self.calibrated = False
+        self._cal_gyro = []
+        self._cal_accel = []
+
+    def calibrate(self, gyro, accel):
+        self._cal_gyro.append(gyro.copy())
+        self._cal_accel.append(accel.copy())
+
+    def finish_calibration(self):
+        if self._cal_gyro:
+            self.gyro_bias = np.mean(self._cal_gyro, axis=0)
+        if self._cal_accel:
+            accel_mean = np.mean(self._cal_accel, axis=0)
+            norm = np.linalg.norm(accel_mean)
+            if norm > 0.1:
+                self.gravity_est = accel_mean / norm
+        self.calibrated = True
+        self._cal_gyro = []
+        self._cal_accel = []
+
+    def update(self, gyro, accel, dt=None):
+        if dt is None:
+            dt = self.dt
+        omega = gyro - self.gyro_bias
+        g_gyro = self.gravity_est - np.cross(omega, self.gravity_est) * dt
+        accel_norm = np.linalg.norm(accel)
+        if accel_norm > 0.1:
+            g_accel = accel / accel_norm
+        else:
+            g_accel = self.gravity_est
+        self.gravity_est = (1 - self.alpha_g) * g_gyro + self.alpha_g * g_accel
+        gn = np.linalg.norm(self.gravity_est)
+        if gn > 0.1:
+            self.gravity_est = self.gravity_est / gn
+        lin_accel = accel - self.gravity_est * 9.81
+        self.velocity_est = self.alpha_v * (self.velocity_est + lin_accel * dt)
+        return self.velocity_est.copy(), omega.copy(), self.gravity_est.copy()
+
+HAS_COMP_FILTER = True
+
 
 class FixedMappingControllerV3:
     """
     Controller with corrected frame transformations - Version 3
     """
 
-    def __init__(self, policy_path="/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt"):
+    # ==================== TEST PRESETS ====================
+    # Each preset configures policy, PD, EMA, HW_SCALE, and effort handling.
+    # effort_mode: "synthetic" (from PD), "real" (raw servo load), "zero", "boost5x"
+    PRESETS = {
+        # --- MLP presets ---
+        "mlp_pd": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt",
+            "use_synthetic_obs": True,
+            "ema_alpha": 1.0,
+            "HW_SCALE": 0.55,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "synthetic",
+            "description": "MLP + PD wrapper (baseline, no EMA)",
+        },
+        "mlp_pd_ema": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt",
+            "use_synthetic_obs": True,
+            "ema_alpha": 0.3,
+            "HW_SCALE": 0.55,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "synthetic",
+            "description": "MLP + PD wrapper + EMA (target ~2Hz gait)",
+        },
+        "mlp_nopd": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt",
+            "use_synthetic_obs": False,
+            "ema_alpha": 1.0,
+            "HW_SCALE": 0.55,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "real",
+            "description": "MLP + real sensors (no PD — expect failure)",
+        },
+        # --- LSTM presets ---
+        "lstm_pd": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": True,
+            "ema_alpha": 0.3,
+            "HW_SCALE": 1.5,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "synthetic",
+            "description": "LSTM + PD wrapper + EMA (freq-limited)",
+        },
+        "lstm_nopd": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": False,
+            "ema_alpha": 0.3,
+            "HW_SCALE": 1.5,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "real",
+            "description": "LSTM + real sensors + EMA (no PD, raw effort)",
+        },
+        "lstm_nopd_boost": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": False,
+            "ema_alpha": 0.3,
+            "HW_SCALE": 1.5,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "boost5x",
+            "description": "LSTM + real sensors + effort x5 (match training magnitude)",
+        },
+        "lstm_nopd_zero": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": False,
+            "ema_alpha": 0.3,
+            "HW_SCALE": 1.5,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "zero",
+            "description": "LSTM + real sensors + zero effort (remove OOD signal)",
+        },
+        # --- ComplementaryFilter presets (AI-IMU fallback) ---
+        "mlp_pd_cf": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt",
+            "use_synthetic_obs": True,
+            "ema_alpha": 1.0,
+            "HW_SCALE": 0.55,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "synthetic",
+            "use_comp_filter": True,
+            "description": "MLP + PD + ComplementaryFilter (real base_lin_vel + gravity)",
+        },
+        "lstm_nopd_cf": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": False,
+            "ema_alpha": 0.3,
+            "HW_SCALE": 1.5,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "real",
+            "use_comp_filter": True,
+            "description": "LSTM + no PD + ComplementaryFilter (real base_lin_vel + gravity)",
+        },
+    }
+
+    def __init__(self, policy_path=None, preset="mlp_pd"):
         print("=" * 70)
         print("FIXED MAPPING RL CONTROLLER v3")
         print("=" * 70)
@@ -25,11 +179,15 @@ class FixedMappingControllerV3:
         self.esp32 = self.pwm_params.esp32
         time.sleep(0.3)
 
-        # ==================== POLICY ====================
+        # ==================== PRESET / POLICY ====================
+        self.current_preset = preset
+        cfg = self.PRESETS.get(preset, self.PRESETS["mlp_pd"])
+        actual_policy = policy_path if policy_path else cfg["policy"]
         try:
-            self.policy = torch.jit.load(policy_path)
+            self.policy = torch.jit.load(actual_policy)
             self.policy.eval()
-            print(f"[OK] Policy: {policy_path}")
+            print(f"[OK] Policy: {actual_policy}")
+            print(f"[OK] Preset: {preset} — {cfg['description']}")
         except Exception as e:
             print(f"[ERROR] {e}")
             raise
@@ -72,10 +230,11 @@ class FixedMappingControllerV3:
         # Hardware mapping
         self.hw_to_isaac_leg = {0: 1, 1: 0, 2: 3, 3: 2}
 
-        # ==================== TUNING (v3 CONSERVATIVE) ====================
-        self.ACTION_SCALE = 0.5    # Must match training action_scale (used by synthetic PD)
-        self.HW_SCALE = 0.55      # Hardware output multiplier (amplifies physical movements)
-        self.ema_alpha = 1.0              # EMA smoothing (lower = smoother)
+        # ==================== TUNING (from preset) ====================
+        self.ACTION_SCALE = cfg.get("ACTION_SCALE", 0.5)
+        self.HW_SCALE = cfg.get("HW_SCALE", 0.55)
+        self.ema_alpha = cfg.get("ema_alpha", 1.0)
+        self.effort_mode = cfg.get("effort_mode", "synthetic")
         self.action_rate_limit = 100.0     # Max change per step
 
         # Velocity smoothing
@@ -84,10 +243,20 @@ class FixedMappingControllerV3:
 
         # ==================== BASE LINEAR VELOCITY ====================
         self.use_simple_lin_vel = True    # Use simpler command-based estimate
+        self.use_comp_filter = cfg.get("use_comp_filter", False)
 
         self.estimated_lin_vel = np.zeros(3)
         self.lin_vel_decay = 0.9
         self.lin_vel_gain = 0.01
+
+        # ==================== COMPLEMENTARY FILTER ====================
+        self.comp_filter = None
+        if self.use_comp_filter and HAS_COMP_FILTER:
+            self.comp_filter = ComplementaryFilter(dt=1.0/self.CONTROL_FREQUENCY)
+            print("[AI-IMU] ComplementaryFilter enabled")
+        elif self.use_comp_filter and not HAS_COMP_FILTER:
+            print("[AI-IMU] WARNING: ComplementaryFilter not available, falling back to simple")
+            self.use_comp_filter = False
 
         # ==================== IMU ====================
         self.gyro_scale = np.pi / 180.0
@@ -96,9 +265,25 @@ class FixedMappingControllerV3:
         self.accel_offset = np.zeros(3)
         self.gravity_ref = np.array([0.0, 0.0, -1.0])
 
+        # Raw IMU storage for logging (populated each step)
+        self._raw_imu = {'gx': 0, 'gy': 0, 'gz': 0, 'ax': 0, 'ay': 0, 'az': 0}
+
         # ==================== EFFORT ====================
         self.effort_scale = 5000.0
         self.effort_offset = np.zeros(12)
+
+        # ==================== ACTION BIAS CORRECTION ====================
+        # Measured from HW logs: policy outputs are biased vs sim, causing circle walking.
+        # hw_bias = mean(hw_actions) - mean(sim_actions) per joint.
+        # Subtract this from raw actions to center them where sim expects.
+        # Set to zeros to disable. Tune with: set bias_scale 1.0
+        self.action_bias = np.array([
+            +0.13, -0.18, -0.13,   # LF: hip pulls outward on HW
+            -0.57, -0.35, +0.17,   # RF: hip pulls inward on HW (main asymmetry)
+            +0.08, -0.01, -0.17,   # LB
+            -0.18, +0.10, +0.18,   # RB
+        ])
+        self.bias_scale = 1.0  # 0.0 = disabled, 1.0 = full correction
 
         # ==================== STATE ====================
         self.prev_actions = np.zeros(12)
@@ -120,8 +305,8 @@ class FixedMappingControllerV3:
         # Simulates the DelayedPDActuator dynamics the MLP was trained with.
         # Hardware position servos don't produce PD oscillations, so these
         # synthetic observations provide the feedback loop the policy needs.
-        self.use_synthetic_obs = True
-        self.pd_delay_steps = 9           # Policy-level delay (~180ms = midpoint of 33-43 physics steps / 4)
+        self.use_synthetic_obs = cfg.get("use_synthetic_obs", True)
+        self.pd_delay_steps = cfg.get("pd_delay_steps", 9)
         self.pd_stiffness = 70.0          # Kp from training config
         self.pd_damping = 1.2             # Kd from training config
         self.pd_inertia = 0.20            # Effective joint inertia → ~3Hz natural freq (matches servo BW)
@@ -156,9 +341,62 @@ class FixedMappingControllerV3:
         print("[READY]")
         print("=" * 70)
 
+    def load_preset(self, preset_name):
+        """Switch to a different test preset (reloads policy if needed)."""
+        if preset_name not in self.PRESETS:
+            print(f"[ERROR] Unknown preset: {preset_name}")
+            print(f"  Available: {', '.join(self.PRESETS.keys())}")
+            return
+
+        was_active = self.control_active
+        self.control_active = False
+        time.sleep(0.1)
+
+        cfg = self.PRESETS[preset_name]
+        self.current_preset = preset_name
+
+        # Reload policy if it changed
+        new_policy_path = cfg["policy"]
+        try:
+            self.policy = torch.jit.load(new_policy_path)
+            self.policy.eval()
+            print(f"[OK] Policy: {new_policy_path}")
+        except Exception as e:
+            print(f"[ERROR] Failed to load policy: {e}")
+            return
+
+        # Apply all preset params
+        self.ACTION_SCALE = cfg.get("ACTION_SCALE", 0.5)
+        self.HW_SCALE = cfg.get("HW_SCALE", 0.55)
+        self.ema_alpha = cfg.get("ema_alpha", 1.0)
+        self.effort_mode = cfg.get("effort_mode", "synthetic")
+        self.use_synthetic_obs = cfg.get("use_synthetic_obs", True)
+        self.pd_delay_steps = cfg.get("pd_delay_steps", 9)
+
+        # ComplementaryFilter toggle
+        self.use_comp_filter = cfg.get("use_comp_filter", False)
+        if self.use_comp_filter and HAS_COMP_FILTER:
+            if self.comp_filter is None:
+                self.comp_filter = ComplementaryFilter(dt=1.0/self.CONTROL_FREQUENCY)
+                # Re-calibrate
+                self._calibrate_sensors()
+            print("[AI-IMU] ComplementaryFilter enabled")
+        else:
+            self.comp_filter = None
+
+        # Reset state
+        self.prev_actions = np.zeros(12)
+        self.prev_smoothed_actions = np.zeros(12)
+        self.startup_steps = 0
+        self.pd_action_buffer = deque(maxlen=self.pd_delay_steps + 1)
+        self._reset_pd_dynamics()
+
+        print(f"[PRESET] {preset_name} — {cfg['description']}")
+        self._print_config()
+
     def _print_config(self):
         """Print current configuration."""
-        print(f"\n[CONFIG]")
+        print(f"\n[CONFIG] Preset: {self.current_preset}")
         print(f"  ACTION_SCALE:      {self.ACTION_SCALE} (synthetic PD)")
         print(f"  HW_SCALE:          {self.HW_SCALE} (servo output)")
         print(f"  ema_alpha:         {self.ema_alpha}")
@@ -166,6 +404,8 @@ class FixedMappingControllerV3:
         print(f"  use_simple_lin_vel: {self.use_simple_lin_vel}")
         print(f"  startup_duration:  {self.startup_duration} steps")
         print(f"  use_synthetic_obs: {self.use_synthetic_obs}")
+        print(f"  effort_mode:       {self.effort_mode}")
+        print(f"  comp_filter:       {self.comp_filter is not None}")
         if self.use_synthetic_obs:
             print(f"    pd_delay:  {self.pd_delay_steps} steps ({self.pd_delay_steps * 1000 / self.CONTROL_FREQUENCY:.0f}ms)")
             print(f"    pd_Kp:     {self.pd_stiffness}  Kd: {self.pd_damping}  I: {self.pd_inertia}")
@@ -179,6 +419,11 @@ class FixedMappingControllerV3:
             if imu:
                 gyro_samples.append([imu['gx'], imu['gy'], imu['gz']])
                 accel_samples.append([imu['ax'], imu['ay'], imu['az']])
+                # Feed raw samples to comp filter for calibration
+                if self.comp_filter is not None:
+                    gyro_si = np.array([imu['gx'], imu['gy'], imu['gz']]) * self.gyro_scale
+                    accel_si = np.array([imu['ax'], imu['ay'], imu['az']]) * self.accel_scale
+                    self.comp_filter.calibrate(gyro_si, accel_si)
 
             effort = self.esp32.servos_get_load()
             if effort:
@@ -192,6 +437,11 @@ class FixedMappingControllerV3:
             self.accel_offset = np.mean(accel_samples, axis=0)
         if effort_samples:
             self.effort_offset = np.mean(effort_samples, axis=0)
+
+        # Finalize comp filter calibration
+        if self.comp_filter is not None:
+            self.comp_filter.finish_calibration()
+            print(f"[AI-IMU] Calibrated: gyro_bias={self.comp_filter.gyro_bias}, gravity={self.comp_filter.gravity_est}")
 
     # ==============================================================
     # POSITION TRANSFORMATIONS
@@ -415,23 +665,34 @@ class FixedMappingControllerV3:
         current_angles_sim = self._read_joint_positions_sim_frame()
         joint_effort = self._read_joint_efforts()
 
-        # Base linear velocity
-        accel_raw = np.array([imu['ax'], imu['ay'], imu['az']])
-        accel = accel_raw * self.accel_scale
-
-        base_lin_vel = self._estimate_base_lin_vel(accel, dt)
-
-        # Base angular velocity
+        # Raw IMU in SI units (for logging + comp filter)
         gyro_raw = np.array([imu['gx'], imu['gy'], imu['gz']])
-        base_ang_vel = (gyro_raw - self.gyro_offset) * self.gyro_scale
+        accel_raw = np.array([imu['ax'], imu['ay'], imu['az']])
+        gyro_si = gyro_raw * self.gyro_scale     # rad/s
+        accel_si = accel_raw * self.accel_scale   # m/s^2
 
-        # Projected gravity
-        accel_norm = np.linalg.norm(accel)
-        if accel_norm > 0.1:
-            projected_gravity = accel / accel_norm
+        # Store raw IMU for CSV logging
+        self._raw_imu = {
+            'gx': gyro_si[0], 'gy': gyro_si[1], 'gz': gyro_si[2],
+            'ax': accel_si[0], 'ay': accel_si[1], 'az': accel_si[2],
+        }
+
+        if self.comp_filter is not None:
+            # AI-IMU: ComplementaryFilter produces real estimates
+            cf_vel, cf_ang_vel, cf_gravity = self.comp_filter.update(gyro_si, accel_si, dt if dt > 0.001 else self.comp_filter.dt)
+            base_lin_vel = cf_vel
+            base_ang_vel = cf_ang_vel
+            projected_gravity = cf_gravity
         else:
-            projected_gravity = np.array([0.0, 0.0, -1.0])
-        # Projected Gravity
+            # Legacy: fake base_lin_vel + raw gyro + raw gravity
+            accel = accel_raw * self.accel_scale
+            base_lin_vel = self._estimate_base_lin_vel(accel, dt)
+            base_ang_vel = (gyro_raw - self.gyro_offset) * self.gyro_scale
+            accel_norm = np.linalg.norm(accel)
+            if accel_norm > 0.1:
+                projected_gravity = accel / accel_norm
+            else:
+                projected_gravity = np.array([0.0, 0.0, -1.0])
 
         velocity_commands = self.velocity_command.copy()
 
@@ -443,6 +704,14 @@ class FixedMappingControllerV3:
         else:
             joint_pos_rel = current_angles_sim - self.sim_default_positions
             joint_vel = self._compute_smoothed_velocity(current_angles_sim, dt)
+
+        # Effort mode (only matters when use_synthetic_obs=False)
+        if not self.use_synthetic_obs:
+            if self.effort_mode == "zero":
+                joint_effort = np.zeros(12)
+            elif self.effort_mode == "boost5x":
+                joint_effort = joint_effort * 5.0
+            # else "real" — use raw servo load as-is
 
         # Update state (always track hardware for other uses)
         self.prev_joint_angles_sim = current_angles_sim.copy()
@@ -514,7 +783,9 @@ class FixedMappingControllerV3:
 
         obs = self.get_observation()
 
-        obs[6:9] = [0.0, 0.0, -1.0] # gravity overide for noisy IMU
+        if self.comp_filter is None:
+            obs[6:9] = [0.0, 0.0, -1.0]  # gravity override for noisy raw IMU
+        # When comp_filter is active, gravity comes from the filter (no override)
         # obs[3:6] = 0.0 basically still
         # obs[24:36] = 0.0 jittery
         # obs[36:48] = 0.0 jittery
@@ -528,6 +799,11 @@ class FixedMappingControllerV3:
 
         # Clip actions
         clipped_actions = np.clip(raw_actions, -1.0, 1.0)
+
+        # Action bias correction (center HW actions where sim expects them)
+        if self.bias_scale > 0:
+            clipped_actions = clipped_actions - self.action_bias * self.bias_scale
+            clipped_actions = np.clip(clipped_actions, -1.0, 1.0)
 
         # Startup fade-in
         if self.startup_steps < self.startup_duration:
@@ -557,7 +833,7 @@ class FixedMappingControllerV3:
         if self.use_synthetic_obs:
             self._step_pd_dynamics(clipped_actions)
 
-        # Compute target (sim frame) — HW_SCALE amplifies physical movements
+        # Compute target (sim frame) — per-joint HW_SCALE amplifies physical movements
         target_sim = self.sim_default_positions + final_actions * self.HW_SCALE
         target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
 
@@ -565,7 +841,7 @@ class FixedMappingControllerV3:
         target_matrix = self._isaac_to_hardware_matrix(target_sim)
         self.hardware.set_actuator_postions(target_matrix)
 
-        # CSV logging
+        # CSV logging (includes raw IMU for MesNet training)
         if self.log_enabled and len(self.log_rows) < self.log_max_steps:
             row = {
                 'step': self.debug_counter,
@@ -574,6 +850,13 @@ class FixedMappingControllerV3:
                 'cmd_y': self.velocity_command[1],
                 'cmd_yaw': self.velocity_command[2],
                 'fade': fade,
+                # Raw IMU in SI units (rad/s, m/s^2) for MesNet training
+                'imu_gx': self._raw_imu['gx'],
+                'imu_gy': self._raw_imu['gy'],
+                'imu_gz': self._raw_imu['gz'],
+                'imu_ax': self._raw_imu['ax'],
+                'imu_ay': self._raw_imu['ay'],
+                'imu_az': self._raw_imu['az'],
             }
             for i in range(60):
                 row[f'obs_{i}'] = float(obs[i])
@@ -602,7 +885,7 @@ class FixedMappingControllerV3:
         """Save collected log rows to CSV."""
         import csv
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        filename = f"/home/ubuntu/mp2_mlp/hw_log_{timestamp}.csv"
+        filename = f"/home/ubuntu/mp2_mlp/{self.current_preset}_hw_log_{timestamp}.csv"
         if not self.log_rows:
             print("[LOG] No data to save.")
             return
@@ -730,9 +1013,12 @@ class FixedMappingControllerV3:
             self.pd_action_buffer = deque(maxlen=self.pd_delay_steps + 1)
             self._reset_pd_dynamics()
             print(f"[PARAM] pd_delay_steps = {self.pd_delay_steps}")
+        elif param == 'bias_scale':
+            self.bias_scale = float(value)
+            print(f"[PARAM] bias_scale = {self.bias_scale} (0=off, 1=full correction)")
         else:
             print(f"Unknown param: {param}")
-            print("Available: scale, ema, rate, simple, health, synthetic, pd_inertia, pd_damping, pd_delay")
+            print("Available: scale, hw_scale, ema, rate, simple, health, synthetic, pd_inertia, pd_damping, pd_delay, bias_scale")
 
     # ==============================================================
     # TESTING & VALIDATION
@@ -785,10 +1071,15 @@ class FixedMappingControllerV3:
 
 # ==================== MAIN ====================
 if __name__ == "__main__":
+    import sys
+
+    # Allow preset from command line: python mlp_controller_v3.py lstm_pd
+    initial_preset = sys.argv[1] if len(sys.argv) > 1 else "mlp_pd"
+
     print("\n" + "="*70)
     print("MINI PUPPER 2 - FIXED MAPPING CONTROLLER v3")
     print("="*70)
-    print("""
+    print(f"""
 Controls:
   w/s      - Forward/Backward
   a/d      - Strafe Left/Right
@@ -796,25 +1087,43 @@ Controls:
   SPACE    - Stop
   +/-      - Adjust speed
   debug    - Print debug info
-  test     - Replay simulation actions from CSV
   log      - Start CSV logging (12s capture)
-  set X Y  - Set parameter (scale/ema/rate/simple/health) to value Y
+  set X Y  - Set parameter to value Y
   x        - Exit
+
+Presets (switch with 'preset <name>', list with 'presets'):
+  mlp_pd        - MLP + PD (baseline, no EMA)
+  mlp_pd_ema    - MLP + PD + EMA (target ~2Hz gait)
+  mlp_nopd      - MLP no PD (expect failure)
+  lstm_pd       - LSTM + PD + EMA
+  lstm_nopd     - LSTM no PD, raw effort
+  lstm_nopd_boost - LSTM no PD, effort x5
+  lstm_nopd_zero  - LSTM no PD, zero effort
+  mlp_pd_cf       - MLP + PD + ComplementaryFilter (real vel/gravity)
+  lstm_nopd_cf    - LSTM + no PD + ComplementaryFilter
+
+Test order for paper:
+  1. preset mlp_pd       → log → w → (12s) → MLP baseline
+  2. preset mlp_pd_ema   → log → w → (12s) → MLP with 2Hz filter
+  3. preset lstm_pd      → log → w → (12s) → LSTM with PD
+  4. preset lstm_nopd_boost → log → w → LSTM no PD, effort x5
+  5. preset lstm_nopd_zero  → log → w → LSTM no PD, zero effort
+  6. preset mlp_nopd     → log → w → (12s) → MLP no PD (failure control)
 """)
 
-    controller = FixedMappingControllerV3("/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt")
+    controller = FixedMappingControllerV3(preset=initial_preset)
 
     control_thread = threading.Thread(target=controller.control_loop, daemon=True)
     control_thread.start()
 
-    speed = 0.3  # Start with low speed
+    speed = 0.15
 
     try:
         while True:
             cmd = input("> ").strip().lower()
 
             if cmd == 'w':
-                controller.set_velocity_command(speed, +0.06, 0)
+                controller.set_velocity_command(speed, 0, 0)
             elif cmd == 's':
                 controller.set_velocity_command(-speed, 0, 0)
             elif cmd == 'a':
@@ -838,12 +1147,21 @@ Controls:
             elif cmd == 'log':
                 controller.log_rows = []
                 controller.log_enabled = True
-                print("[LOG] Logging started — will capture 600 steps (12s at 50Hz)")
+                print(f"[LOG] Logging started ({controller.current_preset}) — 600 steps (12s)")
                 print("[LOG] Give a movement command (e.g. 'w') to capture walking data")
             elif cmd == 'test':
-                controller.set_velocity_command(0, 0, 0)  # Stop first
+                controller.set_velocity_command(0, 0, 0)
                 time.sleep(0.5)
                 controller.test_with_sim_actions()
+            elif cmd.startswith('preset '):
+                preset_name = cmd.split(None, 1)[1].strip()
+                controller.load_preset(preset_name)
+            elif cmd == 'presets':
+                print("\nAvailable presets:")
+                for name, cfg in FixedMappingControllerV3.PRESETS.items():
+                    marker = " <-- active" if name == controller.current_preset else ""
+                    print(f"  {name:12s} {cfg['description']}{marker}")
+                print()
             elif cmd.startswith('set '):
                 parts = cmd.split()
                 if len(parts) == 3:
@@ -853,7 +1171,7 @@ Controls:
             elif cmd == 'x':
                 break
             else:
-                print("Unknown command")
+                print("Unknown command. Type 'presets' to see test configurations.")
 
     except KeyboardInterrupt:
         pass

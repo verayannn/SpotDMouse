@@ -6,6 +6,52 @@ from collections import deque
 from MangDang.mini_pupper.HardwareInterface import HardwareInterface
 from MangDang.mini_pupper.Config import Configuration
 
+# ==================== BUTTERWORTH LOW-PASS FILTER ====================
+# Replaces EMA smoothing for action output. 2nd-order Butterworth at 3Hz cutoff
+# cleanly passes 1-3Hz gait content while rejecting 5-8Hz policy oscillations.
+# Unlike EMA, flat passband preserves gait shape; sharp rolloff matches servo BW.
+
+class ButterworthLPF:
+    """Per-channel 2nd-order Butterworth low-pass filter (Direct Form II)."""
+
+    def __init__(self, cutoff_hz=3.0, fs=50.0, n_channels=12):
+        self.n = n_channels
+        # Precompute coefficients (bilinear transform)
+        wc = 2.0 * np.pi * cutoff_hz
+        wc_d = 2.0 * fs * np.tan(wc / (2.0 * fs))  # pre-warp
+        K = wc_d / (2.0 * fs)
+        K2 = K * K
+        sqrt2_K = np.sqrt(2.0) * K
+        norm = 1.0 + sqrt2_K + K2
+        self.b0 = K2 / norm
+        self.b1 = 2.0 * K2 / norm
+        self.b2 = K2 / norm
+        self.a1 = 2.0 * (K2 - 1.0) / norm
+        self.a2 = (1.0 - sqrt2_K + K2) / norm
+        # State: 2 delay elements per channel
+        self.w1 = np.zeros(n_channels)
+        self.w2 = np.zeros(n_channels)
+
+    def filter(self, x):
+        """Filter one sample (array of n_channels)."""
+        w0 = x - self.a1 * self.w1 - self.a2 * self.w2
+        y = self.b0 * w0 + self.b1 * self.w1 + self.b2 * self.w2
+        self.w2 = self.w1.copy()
+        self.w1 = w0.copy()
+        return y
+
+    def reset(self, value=None):
+        """Reset filter state. If value given, initialize to steady-state."""
+        if value is not None:
+            # Steady-state: output = input, so w1 = w2 = x / (1 + a1 + a2) ... simplified:
+            # For DC input x, w_ss = x / (1 - a1 - a2) ... but just warm-start
+            self.w1 = value.copy()
+            self.w2 = value.copy()
+        else:
+            self.w1 = np.zeros(self.n)
+            self.w2 = np.zeros(self.n)
+
+
 # ==================== EMBEDDED COMPLEMENTARY FILTER ====================
 # Inlined from ai_imu_dr/ai_imu_filter.py to avoid deployment dependency.
 
@@ -164,6 +210,166 @@ class FixedMappingControllerV3:
             "use_comp_filter": True,
             "description": "LSTM + no PD + ComplementaryFilter (real base_lin_vel + gravity)",
         },
+        # --- Hardware-driven PD observer presets ---
+        # Uses real joint positions + PD-computed velocity/effort (closed-loop observer)
+        # MLP gait=7.7Hz, LSTM gait=5.3Hz — cutoff must be ABOVE gait freq
+        # Butterworth removes noise/aliasing above gait while preserving the signal
+        "mlp_pd_hw": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt",
+            "use_synthetic_obs": True,
+            "obs_mode": "hw_observer",
+            "ema_alpha": 1.0,           # no EMA (Butterworth handles smoothing)
+            "HW_SCALE": 0.55,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "synthetic",
+            "use_comp_filter": True,
+            "use_butterworth": True,
+            "butterworth_cutoff": 10.0,  # above 7.7Hz gait, removes >10Hz noise
+            "bias_scale": 0.0,          # disable stale action bias
+            "vel_alpha": 0.15,          # smoother velocity obs (quantization noise)
+            "description": "MLP + HW observer + Butterworth 10Hz",
+        },
+        "lstm_pd_hw": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": True,
+            "obs_mode": "hw_observer",
+            "ema_alpha": 0.3,           # fallback if Butterworth disabled
+            "HW_SCALE": 1.5,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 9,
+            "effort_mode": "synthetic",
+            "use_comp_filter": True,
+            "use_butterworth": True,
+            "butterworth_cutoff": 8.0,   # above 5.3Hz gait, removes >8Hz noise
+            "bias_scale": 0.0,          # disable stale action bias
+            "vel_alpha": 0.15,          # smoother velocity obs (quantization noise)
+            "description": "LSTM + HW observer + Butterworth 8Hz",
+        },
+        # --- 25Hz deployment presets ---
+        # Instead of retraining at lower frequency, deploy at 25Hz.
+        # Each action held 40ms (vs 20ms at 50Hz) → servos have 2x longer to track.
+        # MLP 7.7Hz gait well below 12.5Hz Nyquist. LSTM 5.3Hz gait comfortable.
+        # Key adjustments: delay_steps halved (keep ~160-200ms effective delay),
+        # pd_substeps=2 (100Hz physics / 25Hz policy), HW_SCALE reduced (~0.7x).
+        "mlp_25hz": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt",
+            "use_synthetic_obs": True,
+            "obs_mode": "hw_observer",
+            "ema_alpha": 1.0,
+            "HW_SCALE": 0.40,           # reduced from 0.55 (actions held 2x longer)
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 5,         # 5 * 40ms = 200ms (was 9 * 20ms = 180ms)
+            "pd_substeps": 2,            # 2 substeps * 25Hz = 50Hz physics (was 4 * 50Hz = 200Hz)
+            "effort_mode": "synthetic",
+            "use_comp_filter": True,
+            "use_butterworth": True,
+            "butterworth_cutoff": 10.0,
+            "bias_scale": 0.0,
+            "vel_alpha": 0.15,
+            "control_frequency": 25,
+            "description": "MLP + HW observer @ 25Hz (2x servo tracking time)",
+        },
+        "lstm_25hz": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": True,
+            "obs_mode": "hw_observer",
+            "ema_alpha": 0.3,
+            "HW_SCALE": 1.0,            # reduced from 1.5 (actions held 2x longer)
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 5,         # 5 * 40ms = 200ms
+            "pd_substeps": 2,
+            "effort_mode": "synthetic",
+            "use_comp_filter": True,
+            "use_butterworth": True,
+            "butterworth_cutoff": 8.0,
+            "bias_scale": 0.0,
+            "vel_alpha": 0.15,
+            "control_frequency": 25,
+            "description": "LSTM + HW observer @ 25Hz (2x servo tracking time)",
+        },
+        # --- CSV-warmup presets ---
+        # Open-loop CSV playback walks forward; closed-loop doesn't.
+        # Root cause: effort obs always saturated (Kp=70 × servo_tracking_error > 5.0).
+        # Fix: zero effort obs + zero lin_vel (neither can be estimated on hardware).
+        # hw_observer gives real joint_pos_rel, filtered joint_vel.
+        # CSV warmup: play 3-4 loops of known-good actions to prime LSTM hidden state,
+        # then hand off to live policy with primed observations.
+        "lstm_25hz_crit": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": True,
+            "obs_mode": "hw_observer",
+            "ema_alpha": 0.3,
+            "HW_SCALE": 1.0,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 2,
+            "pd_substeps": 2,
+            "pd_stiffness": 70.0,
+            "pd_damping": 1.2,
+            "pd_inertia": 2.0,
+            "pd_friction": 0.03,
+            "pd_effort_limit": 5.0,
+            "pd_effort_clamp": 0.0,      # ZERO effort obs — can't estimate on HW
+            "effort_mode": "synthetic",
+            "use_comp_filter": True,
+            "use_butterworth": True,
+            "butterworth_cutoff": 8.0,
+            "bias_scale": 0.0,
+            "vel_alpha": 0.15,
+            "lin_vel_mode": "zero",
+            "control_frequency": 25,
+            "description": "LSTM @ 25Hz + zero effort/lin_vel + HW observer",
+        },
+        "lstm_50hz_crit": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_LSTM.pt",
+            "use_synthetic_obs": True,
+            "obs_mode": "hw_observer",
+            "ema_alpha": 0.3,
+            "HW_SCALE": 1.5,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 4,
+            "pd_substeps": 4,
+            "pd_stiffness": 70.0,
+            "pd_damping": 1.2,
+            "pd_inertia": 2.0,
+            "pd_friction": 0.03,
+            "pd_effort_limit": 5.0,
+            "pd_effort_clamp": 0.0,
+            "effort_mode": "synthetic",
+            "use_comp_filter": True,
+            "use_butterworth": True,
+            "butterworth_cutoff": 8.0,
+            "bias_scale": 0.0,
+            "vel_alpha": 0.15,
+            "lin_vel_mode": "zero",
+            "control_frequency": 50,
+            "description": "LSTM @ 50Hz + zero effort/lin_vel + HW observer",
+        },
+        "mlp_25hz_crit": {
+            "policy": "/home/ubuntu/policy_joyboy_delayedpdactuator_hippy.pt",
+            "use_synthetic_obs": True,
+            "obs_mode": "hw_observer",
+            "ema_alpha": 1.0,
+            "HW_SCALE": 0.40,
+            "ACTION_SCALE": 0.5,
+            "pd_delay_steps": 2,
+            "pd_substeps": 2,
+            "pd_stiffness": 70.0,
+            "pd_damping": 1.2,
+            "pd_inertia": 2.0,
+            "pd_friction": 0.03,
+            "pd_effort_limit": 5.0,
+            "pd_effort_clamp": 0.0,
+            "effort_mode": "synthetic",
+            "use_comp_filter": True,
+            "use_butterworth": True,
+            "butterworth_cutoff": 10.0,
+            "bias_scale": 0.0,
+            "vel_alpha": 0.15,
+            "lin_vel_mode": "zero",
+            "control_frequency": 25,
+            "description": "MLP @ 25Hz + zero effort/lin_vel + HW observer",
+        },
     }
 
     def __init__(self, policy_path=None, preset="mlp_pd"):
@@ -235,7 +441,16 @@ class FixedMappingControllerV3:
         self.HW_SCALE = cfg.get("HW_SCALE", 0.55)
         self.ema_alpha = cfg.get("ema_alpha", 1.0)
         self.effort_mode = cfg.get("effort_mode", "synthetic")
+        self.obs_mode = cfg.get("obs_mode", "legacy")  # "legacy" or "hw_observer"
         self.action_rate_limit = 100.0     # Max change per step
+        self.bias_scale = cfg.get("bias_scale", 1.0)   # 0.0 = disable action bias
+        self.lin_vel_mode = cfg.get("lin_vel_mode", "filter")  # 'filter', 'zero', or 'command'
+
+        # ==================== BUTTERWORTH ACTION FILTER ====================
+        # (initialized after CONTROL_FREQUENCY is set, see below)
+        self.use_butterworth = cfg.get("use_butterworth", False)
+        self.butterworth_cutoff = cfg.get("butterworth_cutoff", 3.0)
+        self.action_lpf = None
 
         # Velocity smoothing
         self.vel_filter_alpha = 0.2       # Joint velocity smoothing
@@ -250,13 +465,8 @@ class FixedMappingControllerV3:
         self.lin_vel_gain = 0.01
 
         # ==================== COMPLEMENTARY FILTER ====================
+        # (initialized after CONTROL_FREQUENCY is set, see below)
         self.comp_filter = None
-        if self.use_comp_filter and HAS_COMP_FILTER:
-            self.comp_filter = ComplementaryFilter(dt=1.0/self.CONTROL_FREQUENCY)
-            print("[AI-IMU] ComplementaryFilter enabled")
-        elif self.use_comp_filter and not HAS_COMP_FILTER:
-            print("[AI-IMU] WARNING: ComplementaryFilter not available, falling back to simple")
-            self.use_comp_filter = False
 
         # ==================== IMU ====================
         self.gyro_scale = np.pi / 180.0
@@ -295,11 +505,30 @@ class FixedMappingControllerV3:
         self.velocity_command = np.zeros(3)
         self.control_active = False
         self.shutdown = False
+        self._last_hw_pos_sim = self.sim_default_positions.copy()
+        self._last_dt = 1.0 / cfg.get("control_frequency", 50)
         self.startup_steps = 0
-        self.startup_duration = 200  # ~4s at 50Hz, policy stabilizes by then
         self.debug_counter = 0
 
-        self.CONTROL_FREQUENCY = 50 #25 or 10 depending on the sim csv output ranges
+        self.CONTROL_FREQUENCY = cfg.get("control_frequency", 50)
+        self.startup_duration = int(4.0 * self.CONTROL_FREQUENCY)  # ~4s warmup at any frequency
+
+        # Finish Butterworth init (needs CONTROL_FREQUENCY)
+        if self.use_butterworth:
+            self.action_lpf = ButterworthLPF(
+                cutoff_hz=self.butterworth_cutoff,
+                fs=self.CONTROL_FREQUENCY,
+                n_channels=12
+            )
+            print(f"[FILTER] Butterworth LPF: {self.butterworth_cutoff}Hz cutoff at {self.CONTROL_FREQUENCY}Hz")
+
+        # Finish ComplementaryFilter init (needs CONTROL_FREQUENCY)
+        if self.use_comp_filter and HAS_COMP_FILTER:
+            self.comp_filter = ComplementaryFilter(dt=1.0/self.CONTROL_FREQUENCY)
+            print(f"[AI-IMU] ComplementaryFilter enabled (dt={1.0/self.CONTROL_FREQUENCY:.3f}s)")
+        elif self.use_comp_filter and not HAS_COMP_FILTER:
+            print("[AI-IMU] WARNING: ComplementaryFilter not available, falling back to simple")
+            self.use_comp_filter = False
 
         # ==================== SYNTHETIC PD DYNAMICS ====================
         # Simulates the DelayedPDActuator dynamics the MLP was trained with.
@@ -307,12 +536,13 @@ class FixedMappingControllerV3:
         # synthetic observations provide the feedback loop the policy needs.
         self.use_synthetic_obs = cfg.get("use_synthetic_obs", True)
         self.pd_delay_steps = cfg.get("pd_delay_steps", 9)
-        self.pd_stiffness = 70.0          # Kp from training config
-        self.pd_damping = 1.2             # Kd from training config
-        self.pd_inertia = 0.20            # Effective joint inertia → ~3Hz natural freq (matches servo BW)
-        self.pd_substeps = 4              # Substeps per policy step (matches 200Hz physics / 50Hz policy)
-        self.pd_friction = 0.03           # Joint friction from training config
-        self.pd_effort_limit = 5.0        # For normalizing synthetic effort
+        self.pd_stiffness = cfg.get("pd_stiffness", 70.0)
+        self.pd_damping = cfg.get("pd_damping", 1.2)
+        self.pd_inertia = cfg.get("pd_inertia", 0.20)
+        self.pd_substeps = cfg.get("pd_substeps", 4)
+        self.pd_friction = cfg.get("pd_friction", 0.03)
+        self.pd_effort_limit = cfg.get("pd_effort_limit", 5.0)
+        self.pd_effort_clamp = cfg.get("pd_effort_clamp", None)  # clamp normalized effort obs
 
         # PD simulation state
         self.pd_position = self.sim_default_positions.copy()
@@ -326,6 +556,14 @@ class FixedMappingControllerV3:
         self.syn_vel = np.zeros(12)
         self.syn_effort = np.zeros(12)
 
+        # ==================== HW-DRIVEN PD OBSERVER STATE ====================
+        # Instead of open-loop PD simulation, uses real joint positions and
+        # computes PD-consistent velocity/effort from the actual trajectory.
+        self.obs_prev_hw_pos = self.sim_default_positions.copy()
+        self.obs_hw_vel = np.zeros(12)           # filtered velocity from hw positions
+        self.obs_vel_alpha = cfg.get("vel_alpha", 0.3)  # EMA alpha for velocity filtering
+        self.obs_hw_effort = np.zeros(12)         # PD effort from real position error
+
         # ==================== CSV LOGGING ====================
         self.log_enabled = False
         self.log_rows = []
@@ -337,6 +575,7 @@ class FixedMappingControllerV3:
         # ==================== CALIBRATION ====================
         print("\n[CALIBRATING] Sensors...")
         self._calibrate_sensors()
+        self._measure_stance_offset()
         self._print_config()
         print("[READY]")
         print("=" * 70)
@@ -366,21 +605,45 @@ class FixedMappingControllerV3:
             return
 
         # Apply all preset params
+        self.CONTROL_FREQUENCY = cfg.get("control_frequency", 50)
         self.ACTION_SCALE = cfg.get("ACTION_SCALE", 0.5)
         self.HW_SCALE = cfg.get("HW_SCALE", 0.55)
         self.ema_alpha = cfg.get("ema_alpha", 1.0)
         self.effort_mode = cfg.get("effort_mode", "synthetic")
         self.use_synthetic_obs = cfg.get("use_synthetic_obs", True)
+        self.obs_mode = cfg.get("obs_mode", "legacy")
         self.pd_delay_steps = cfg.get("pd_delay_steps", 9)
+        self.pd_substeps = cfg.get("pd_substeps", 4)
+        self.pd_stiffness = cfg.get("pd_stiffness", 70.0)
+        self.pd_damping = cfg.get("pd_damping", 1.2)
+        self.pd_inertia = cfg.get("pd_inertia", 0.20)
+        self.pd_friction = cfg.get("pd_friction", 0.03)
+        self.pd_effort_limit = cfg.get("pd_effort_limit", 5.0)
+        self.pd_effort_clamp = cfg.get("pd_effort_clamp", None)
+        self.bias_scale = cfg.get("bias_scale", 1.0)
 
-        # ComplementaryFilter toggle
+        # Butterworth filter
+        self.use_butterworth = cfg.get("use_butterworth", False)
+        self.butterworth_cutoff = cfg.get("butterworth_cutoff", 3.0)
+        if self.use_butterworth:
+            self.action_lpf = ButterworthLPF(
+                cutoff_hz=self.butterworth_cutoff,
+                fs=self.CONTROL_FREQUENCY,
+                n_channels=12
+            )
+            print(f"[FILTER] Butterworth LPF: {self.butterworth_cutoff}Hz cutoff")
+        else:
+            self.action_lpf = None
+
+        # HW observer velocity smoothing
+        self.obs_vel_alpha = cfg.get("vel_alpha", 0.3)
+
+        # ComplementaryFilter — always create fresh to ensure calibration
         self.use_comp_filter = cfg.get("use_comp_filter", False)
         if self.use_comp_filter and HAS_COMP_FILTER:
-            if self.comp_filter is None:
-                self.comp_filter = ComplementaryFilter(dt=1.0/self.CONTROL_FREQUENCY)
-                # Re-calibrate
-                self._calibrate_sensors()
-            print("[AI-IMU] ComplementaryFilter enabled")
+            self.comp_filter = ComplementaryFilter(dt=1.0/self.CONTROL_FREQUENCY)
+            self._calibrate_sensors()
+            print("[AI-IMU] ComplementaryFilter enabled (freshly calibrated)")
         else:
             self.comp_filter = None
 
@@ -388,8 +651,10 @@ class FixedMappingControllerV3:
         self.prev_actions = np.zeros(12)
         self.prev_smoothed_actions = np.zeros(12)
         self.startup_steps = 0
+        self.startup_duration = int(4.0 * self.CONTROL_FREQUENCY)
         self.pd_action_buffer = deque(maxlen=self.pd_delay_steps + 1)
         self._reset_pd_dynamics()
+        self._reset_hw_observer()
 
         print(f"[PRESET] {preset_name} — {cfg['description']}")
         self._print_config()
@@ -397,18 +662,25 @@ class FixedMappingControllerV3:
     def _print_config(self):
         """Print current configuration."""
         print(f"\n[CONFIG] Preset: {self.current_preset}")
+        print(f"  CONTROL_FREQ:      {self.CONTROL_FREQUENCY}Hz ({1000/self.CONTROL_FREQUENCY:.0f}ms per step)")
         print(f"  ACTION_SCALE:      {self.ACTION_SCALE} (synthetic PD)")
         print(f"  HW_SCALE:          {self.HW_SCALE} (servo output)")
-        print(f"  ema_alpha:         {self.ema_alpha}")
+        print(f"  ema_alpha:         {self.ema_alpha}{' (bypassed by Butterworth)' if self.action_lpf else ''}")
+        print(f"  butterworth:       {self.butterworth_cutoff}Hz" if self.action_lpf else "  butterworth:       off")
         print(f"  action_rate_limit: {self.action_rate_limit}")
-        print(f"  use_simple_lin_vel: {self.use_simple_lin_vel}")
+        print(f"  bias_scale:        {self.bias_scale}")
         print(f"  startup_duration:  {self.startup_duration} steps")
         print(f"  use_synthetic_obs: {self.use_synthetic_obs}")
+        print(f"  obs_mode:          {self.obs_mode}")
         print(f"  effort_mode:       {self.effort_mode}")
         print(f"  comp_filter:       {self.comp_filter is not None}")
+        print(f"  lin_vel_mode:      {self.lin_vel_mode}")
         if self.use_synthetic_obs:
+            wn = np.sqrt(self.pd_stiffness / self.pd_inertia)
+            zeta = self.pd_damping / (2.0 * np.sqrt(self.pd_stiffness * self.pd_inertia))
             print(f"    pd_delay:  {self.pd_delay_steps} steps ({self.pd_delay_steps * 1000 / self.CONTROL_FREQUENCY:.0f}ms)")
             print(f"    pd_Kp:     {self.pd_stiffness}  Kd: {self.pd_damping}  I: {self.pd_inertia}")
+            print(f"    pd_ωn:     {wn:.1f} rad/s ({wn/(2*np.pi):.2f}Hz)  ζ: {zeta:.2f} ({'crit' if abs(zeta-1.0)<0.05 else 'under' if zeta<1.0 else 'over'}-damped)")
 
     def _calibrate_sensors(self, samples=50):
         """Calibrate IMU and effort offsets."""
@@ -442,6 +714,47 @@ class FixedMappingControllerV3:
         if self.comp_filter is not None:
             self.comp_filter.finish_calibration()
             print(f"[AI-IMU] Calibrated: gyro_bias={self.comp_filter.gyro_bias}, gravity={self.comp_filter.gravity_est}")
+
+    def _measure_stance_offset(self, samples=10):
+        """Measure and report calibration offset between real stance and sim defaults.
+
+        Reads servo positions at startup (before any RL control) and computes
+        the offset from sim_default_positions. Large offsets indicate either
+        servo miscalibration or that the robot is not in the expected stance.
+        """
+        readings = []
+        for _ in range(samples):
+            angles_real = self._read_joint_positions_raw()
+            if angles_real is not None:
+                angles_sim = self._real_to_sim_positions(angles_real)
+                offset = angles_sim - self.sim_default_positions
+                readings.append(offset)
+            time.sleep(0.02)
+
+        if not readings:
+            print("[STANCE] WARNING: Could not read servo positions")
+            return
+
+        mean_offset = np.mean(readings, axis=0)
+        names = ['LF_hip', 'LF_thigh', 'LF_calf',
+                 'RF_hip', 'RF_thigh', 'RF_calf',
+                 'LB_hip', 'LB_thigh', 'LB_calf',
+                 'RB_hip', 'RB_thigh', 'RB_calf']
+
+        large_offsets = []
+        print("\n[STANCE] Calibration offset (real vs sim default):")
+        for i, name in enumerate(names):
+            flag = " *** CHECK" if abs(mean_offset[i]) > 0.1 else ""
+            print(f"  {name:<12}: {mean_offset[i]:+.4f} rad ({np.degrees(mean_offset[i]):+.1f}°){flag}")
+            if abs(mean_offset[i]) > 0.1:
+                large_offsets.append((name, mean_offset[i]))
+
+        if large_offsets:
+            print(f"\n[STANCE] WARNING: {len(large_offsets)} joints have >0.1 rad offset!")
+            print("  This may cause OOD observations. Check servo calibration")
+            print("  or adjust real_default_positions to match actual neutral.")
+
+        self._stance_offset = mean_offset
 
     # ==============================================================
     # POSITION TRANSFORMATIONS
@@ -624,6 +937,8 @@ class FixedMappingControllerV3:
         final_error = target - self.pd_position
         final_torque = self.pd_stiffness * final_error - self.pd_damping * self.pd_velocity
         self.syn_effort = np.clip(final_torque / self.pd_effort_limit, -1.0, 1.0)
+        if self.pd_effort_clamp is not None:
+            self.syn_effort = np.clip(self.syn_effort, -self.pd_effort_clamp, self.pd_effort_clamp)
 
     def _reset_pd_dynamics(self):
         """Reset PD simulation to default stance."""
@@ -635,6 +950,60 @@ class FixedMappingControllerV3:
         self.syn_pos_rel = np.zeros(12)
         self.syn_vel = np.zeros(12)
         self.syn_effort = np.zeros(12)
+
+    # ==============================================================
+    # HARDWARE-DRIVEN PD OBSERVER
+    # ==============================================================
+
+    def _step_hw_observer(self, current_action, current_hw_pos_sim, dt):
+        """Compute PD-consistent velocity and effort from real hardware positions.
+
+        Instead of running a standalone PD ODE (open-loop), this uses:
+          - Real joint positions from hardware as ground truth
+          - Delayed action target from the action buffer (same delay model)
+          - PD effort = Kp*(delayed_target - hw_pos) - Kd*hw_vel
+          - Velocity from filtered differentiation of real positions
+
+        This closes the loop: the policy sees observations that reflect
+        what the robot actually did, with PD-consistent effort signals.
+        """
+        # Push current action into delay buffer (same as open-loop PD)
+        self.pd_action_buffer.append(current_action.copy())
+
+        # Get delayed action target
+        delayed_action = self.pd_action_buffer[0]
+        target = self.sim_default_positions + delayed_action * self.ACTION_SCALE
+        target = np.clip(target, self.joint_lower_limits, self.joint_upper_limits)
+
+        # Compute velocity from real position change (filtered)
+        if dt > 0.001:
+            raw_vel = (current_hw_pos_sim - self.obs_prev_hw_pos) / dt
+            raw_vel = np.clip(raw_vel, -10.5, 10.5)
+            # EMA filter to smooth quantization noise from position servos
+            self.obs_hw_vel = (self.obs_vel_alpha * raw_vel +
+                               (1 - self.obs_vel_alpha) * self.obs_hw_vel)
+
+        # PD effort from real position error (what the PD controller would command)
+        error = target - current_hw_pos_sim
+        torque = self.pd_stiffness * error - self.pd_damping * self.obs_hw_vel
+        torque -= self.pd_friction * np.sign(self.obs_hw_vel)
+        self.obs_hw_effort = np.clip(torque / self.pd_effort_limit, -1.0, 1.0)
+        if self.pd_effort_clamp is not None:
+            self.obs_hw_effort = np.clip(self.obs_hw_effort, -self.pd_effort_clamp, self.pd_effort_clamp)
+
+        # Cache for get_observation()
+        self.syn_pos_rel = current_hw_pos_sim - self.sim_default_positions
+        self.syn_vel = self.obs_hw_vel.copy()
+        self.syn_effort = self.obs_hw_effort.copy()
+
+        # Update previous position
+        self.obs_prev_hw_pos = current_hw_pos_sim.copy()
+
+    def _reset_hw_observer(self):
+        """Reset HW observer state."""
+        self.obs_prev_hw_pos = self.sim_default_positions.copy()
+        self.obs_hw_vel = np.zeros(12)
+        self.obs_hw_effort = np.zeros(12)
 
     # ==============================================================
     # HARDWARE OUTPUT
@@ -664,6 +1033,14 @@ class FixedMappingControllerV3:
         imu = self.esp32.imu_get_data()
         current_angles_sim = self._read_joint_positions_sim_frame()
         joint_effort = self._read_joint_efforts()
+
+        # Handle ESP32 communication failure (Invalid Ack → None)
+        if imu is None:
+            imu = {'gx': 0, 'gy': 0, 'gz': 0, 'ax': 0, 'ay': 0, 'az': -1.0/self.accel_scale}
+
+        # Store for hw_observer (control_step reads this after get_observation)
+        self._last_hw_pos_sim = current_angles_sim.copy()
+        self._last_dt = dt
 
         # Raw IMU in SI units (for logging + comp filter)
         gyro_raw = np.array([imu['gx'], imu['gy'], imu['gz']])
@@ -720,6 +1097,15 @@ class FixedMappingControllerV3:
         self.prev_time = current_time
 
         prev_actions = self.prev_actions.copy()
+
+        # Base linear velocity mode
+        lin_vel_mode = getattr(self, 'lin_vel_mode', 'filter')
+        if lin_vel_mode == 'zero':
+            base_lin_vel = np.zeros(3)
+        elif lin_vel_mode == 'command':
+            # Proxy: assume robot tracks ~70% of commanded velocity
+            base_lin_vel = self.velocity_command * 0.7
+        # else 'filter': use comp filter / estimator output
 
         # Clamp observations to simulation ranges
         base_lin_vel = np.clip(base_lin_vel, -0.5, 0.5)
@@ -814,10 +1200,14 @@ class FixedMappingControllerV3:
 
         faded_actions = clipped_actions * fade
 
-        # === EMA Smoothing ===
-        # Lower ema_alpha = more smoothing, higher = more responsive
-        smoothed_actions = (self.ema_alpha * faded_actions +
-                           (1 - self.ema_alpha) * self.prev_smoothed_actions)
+        # === Action Smoothing ===
+        if self.action_lpf is not None:
+            # Butterworth LPF: flat passband at 1-3Hz, sharp rolloff above cutoff
+            smoothed_actions = self.action_lpf.filter(faded_actions)
+        else:
+            # Legacy EMA: lower ema_alpha = more smoothing
+            smoothed_actions = (self.ema_alpha * faded_actions +
+                               (1 - self.ema_alpha) * self.prev_smoothed_actions)
 
         # === Rate Limiting ===
         # Limit how fast the smoothed actions can change
@@ -829,9 +1219,12 @@ class FixedMappingControllerV3:
         self.prev_actions = clipped_actions.copy()  # Store raw for observation
         self.prev_smoothed_actions = final_actions.copy()
 
-        # Step synthetic PD dynamics (feeds action into delay buffer + PD sim)
+        # Step PD dynamics: hw_observer uses real positions, legacy uses open-loop sim
         if self.use_synthetic_obs:
-            self._step_pd_dynamics(clipped_actions)
+            if self.obs_mode == "hw_observer":
+                self._step_hw_observer(clipped_actions, self._last_hw_pos_sim, self._last_dt)
+            else:
+                self._step_pd_dynamics(clipped_actions)
 
         # Compute target (sim frame) — per-joint HW_SCALE amplifies physical movements
         target_sim = self.sim_default_positions + final_actions * self.HW_SCALE
@@ -897,6 +1290,134 @@ class FixedMappingControllerV3:
         print(f"[LOG] Saved {len(self.log_rows)} rows to {filename}")
         self.log_enabled = False
 
+    def goto_stance(self, duration=3.0, tolerance=0.05):
+        """Move robot to sim default stance and verify position before RL control.
+
+        Call this before giving a walking command. Smoothly interpolates
+        from current position to sim default over `duration` seconds,
+        then measures and reports the final calibration offset.
+
+        Usage: controller.goto_stance()  # then controller.set_velocity_command(...)
+        """
+        print(f"\n[STANCE] Moving to sim default stance over {duration}s...")
+
+        # Read current position
+        current_real = self._read_joint_positions_raw()
+        if current_real is None:
+            print("[STANCE] ERROR: Cannot read servo positions")
+            return False
+
+        target_real = self.real_default_positions.copy()
+        dt = 1.0 / self.CONTROL_FREQUENCY
+        n_steps = int(duration * self.CONTROL_FREQUENCY)
+
+        for step in range(n_steps):
+            alpha = min(1.0, (step + 1) / n_steps)
+            # Smooth cosine interpolation (less jerky than linear)
+            alpha_smooth = 0.5 * (1.0 - np.cos(np.pi * alpha))
+            interp = current_real * (1 - alpha_smooth) + target_real * alpha_smooth
+
+            # Convert to hardware matrix and send
+            # Build matrix directly from real-frame angles
+            matrix = np.zeros((3, 4))
+            matrix[:, 1] = interp[0:3]    # LF (isaac leg 0 → hw col 1)
+            matrix[:, 0] = interp[3:6]    # RF (isaac leg 1 → hw col 0)
+            matrix[:, 3] = interp[6:9]    # LB (isaac leg 2 → hw col 3)
+            matrix[:, 2] = interp[9:12]   # RB (isaac leg 3 → hw col 2)
+
+            self.hardware.set_actuator_postions(matrix)
+            time.sleep(dt)
+
+        # Hold for a moment to let servos settle
+        time.sleep(0.5)
+
+        # Measure final position
+        names = ['LF_hip', 'LF_thigh', 'LF_calf',
+                 'RF_hip', 'RF_thigh', 'RF_calf',
+                 'LB_hip', 'LB_thigh', 'LB_calf',
+                 'RB_hip', 'RB_thigh', 'RB_calf']
+
+        readings = []
+        for _ in range(20):
+            angles_real = self._read_joint_positions_raw()
+            if angles_real is not None:
+                angles_sim = self._real_to_sim_positions(angles_real)
+                readings.append(angles_sim - self.sim_default_positions)
+            time.sleep(0.02)
+
+        if readings:
+            offset = np.mean(readings, axis=0)
+            max_err = np.max(np.abs(offset))
+            print(f"\n[STANCE] Final offset from sim default (max: {max_err:.4f} rad):")
+            for i, name in enumerate(names):
+                flag = " *** LARGE" if abs(offset[i]) > tolerance else ""
+                print(f"  {name:<12}: {offset[i]:+.4f} rad ({np.degrees(offset[i]):+.1f}°){flag}")
+
+            if max_err < tolerance:
+                print(f"\n[STANCE] OK — all joints within {tolerance} rad of sim default")
+            else:
+                print(f"\n[STANCE] WARNING — some joints are off. Consider adjusting real_default_positions")
+                print(f"  To auto-correct, run: controller.auto_calibrate_stance()")
+
+            self._stance_offset = offset
+        else:
+            print("[STANCE] WARNING: Could not verify final position")
+
+        # Reset all state for clean RL start
+        self.prev_actions = np.zeros(12)
+        self.prev_smoothed_actions = np.zeros(12)
+        if self.action_lpf is not None:
+            self.action_lpf.reset()
+        self._reset_pd_dynamics()
+        self._reset_hw_observer()
+        self.startup_steps = 0
+        self.prev_joint_angles_sim = self.sim_default_positions.copy()
+        self._last_hw_pos_sim = self.sim_default_positions.copy()
+
+        print("[STANCE] Ready for walking command.")
+        return True
+
+    def auto_calibrate_stance(self):
+        """Measure actual servo positions and update real_default_positions to match.
+
+        Run this with the robot in the physical pose that corresponds to
+        sim_default_positions. Adjusts real_default_positions so that
+        joint_pos_rel reads ~0 when the robot is in this stance.
+        """
+        print("[CAL] Reading current servo positions (hold robot in desired stance)...")
+        readings = []
+        for _ in range(50):
+            angles_real = self._read_joint_positions_raw()
+            if angles_real is not None:
+                readings.append(angles_real)
+            time.sleep(0.02)
+
+        if not readings:
+            print("[CAL] ERROR: No servo readings")
+            return
+
+        measured_real = np.mean(readings, axis=0)
+        old_defaults = self.real_default_positions.copy()
+        names = ['LF_hip', 'LF_thigh', 'LF_calf',
+                 'RF_hip', 'RF_thigh', 'RF_calf',
+                 'LB_hip', 'LB_thigh', 'LB_calf',
+                 'RB_hip', 'RB_thigh', 'RB_calf']
+
+        print(f"\n[CAL] Measured real positions vs current defaults:")
+        for i, name in enumerate(names):
+            delta = measured_real[i] - old_defaults[i]
+            print(f"  {name:<12}: measured={measured_real[i]:+.4f}  default={old_defaults[i]:+.4f}  delta={delta:+.4f}")
+
+        self.real_default_positions = measured_real.copy()
+        print(f"\n[CAL] Updated real_default_positions. Verify with goto_stance().")
+        print(f"[CAL] To make permanent, update the array in __init__:")
+        print(f"  self.real_default_positions = np.array([")
+        for leg in range(4):
+            vals = measured_real[leg*3:(leg+1)*3]
+            leg_name = ['LF', 'RF', 'LB', 'RB'][leg]
+            print(f"      {vals[0]:+.4f}, {vals[1]:+.4f}, {vals[2]:+.4f},   # {leg_name}")
+        print(f"  ])")
+
     def control_loop(self):
         """Main control loop."""
         dt_target = 1.0 / self.CONTROL_FREQUENCY
@@ -927,8 +1448,11 @@ class FixedMappingControllerV3:
                 self.startup_steps = 0
                 self.estimated_lin_vel = np.zeros(3)
                 self.prev_smoothed_actions = np.zeros(12)
+                if self.action_lpf is not None:
+                    self.action_lpf.reset()
                 if self.use_synthetic_obs:
                     self._reset_pd_dynamics()
+                    self._reset_hw_observer()
             self.control_active = True
             print(f"[CMD] vx={vx:.2f}, vy={vy:.2f}, vyaw={vyaw:.2f}")
         else:
@@ -1016,55 +1540,346 @@ class FixedMappingControllerV3:
         elif param == 'bias_scale':
             self.bias_scale = float(value)
             print(f"[PARAM] bias_scale = {self.bias_scale} (0=off, 1=full correction)")
+        elif param == 'obs_mode':
+            if value in ('legacy', 'hw_observer'):
+                self.obs_mode = value
+                if value == 'hw_observer':
+                    self._reset_hw_observer()
+                    self.use_synthetic_obs = True
+                print(f"[PARAM] obs_mode = {self.obs_mode}")
+            else:
+                print(f"[ERROR] obs_mode must be 'legacy' or 'hw_observer'")
+        elif param == 'vel_alpha':
+            self.obs_vel_alpha = float(value)
+            print(f"[PARAM] obs_vel_alpha = {self.obs_vel_alpha}")
+        elif param == 'lin_vel':
+            if value in ('filter', 'zero', 'command'):
+                self.lin_vel_mode = value
+                print(f"[PARAM] lin_vel_mode = {self.lin_vel_mode}")
+            else:
+                print(f"[ERROR] lin_vel must be 'filter', 'zero', or 'command'")
+        elif param == 'butterworth':
+            cutoff = float(value)
+            if cutoff <= 0:
+                self.action_lpf = None
+                self.use_butterworth = False
+                print(f"[PARAM] Butterworth disabled, using EMA")
+            else:
+                self.butterworth_cutoff = cutoff
+                self.action_lpf = ButterworthLPF(
+                    cutoff_hz=cutoff, fs=self.CONTROL_FREQUENCY, n_channels=12)
+                self.use_butterworth = True
+                print(f"[PARAM] Butterworth cutoff = {cutoff}Hz")
         else:
             print(f"Unknown param: {param}")
-            print("Available: scale, hw_scale, ema, rate, simple, health, synthetic, pd_inertia, pd_damping, pd_delay, bias_scale")
+            print("Available: scale, hw_scale, ema, rate, simple, health, synthetic, pd_inertia, pd_damping, pd_delay, bias_scale, obs_mode, vel_alpha, butterworth")
 
     # ==============================================================
     # TESTING & VALIDATION
     # ==============================================================
 
-    def test_with_sim_actions(self, csv_path="/home/ubuntu/debug/obs_action_logs_x_010/env_0_actions.csv", max_steps=150):
-        """Replay actions from simulation to test transformations."""
+    def test_with_sim_actions(self, csv_path="/home/ubuntu/env_2_actions.csv",
+                              max_steps=150, playback_hz=None, loops=1,
+                              hw_scale=None, log=True, warmup_skip=30):
+        """Replay raw actions from simulation CSV — open-loop, no policy.
+
+        Args:
+            csv_path: Path to actions CSV (12 columns, one row per sim step)
+            max_steps: Max steps per loop (0 = all)
+            playback_hz: Control rate (default: self.CONTROL_FREQUENCY)
+            loops: Number of times to loop the trajectory
+            hw_scale: Override HW_SCALE for this playback (default: self.HW_SCALE)
+            log: If True, log commanded + real joint positions to CSV
+            warmup_skip: Skip first N steps on loops 2+ (avoids backward startup transient)
+        """
         try:
             import pandas as pd
             sim_actions = pd.read_csv(csv_path)
-            print(f"\n[TEST] Replaying simulation actions from {csv_path}")
-            print(f"[TEST] Total steps in CSV: {len(sim_actions)}, replaying {min(max_steps, len(sim_actions))}")
+            print(f"\n[PLAY] Replaying actions from {csv_path}")
+            print(f"[PLAY] CSV has {len(sim_actions)} steps")
         except Exception as e:
             print(f"[ERROR] Could not load CSV: {e}")
             return
 
-        print("[TEST] Starting in 3 seconds...")
+        hz = playback_hz or self.CONTROL_FREQUENCY
+        scale = hw_scale if hw_scale is not None else self.HW_SCALE
+        dt = 1.0 / hz
+        n_steps = min(max_steps, len(sim_actions)) if max_steps > 0 else len(sim_actions)
+
+        print(f"[PLAY] Rate: {hz}Hz ({dt*1000:.0f}ms/step), HW_SCALE: {scale}")
+        print(f"[PLAY] Steps: {n_steps}, Loops: {loops}, Warmup skip: {warmup_skip} (loops 2+)")
+        print(f"[PLAY] Logging: {log}")
+        print(f"[PLAY] Starting in 3 seconds...")
         time.sleep(3)
 
-        for i in range(min(max_steps, len(sim_actions))):
-            row = sim_actions.iloc[i]
-            actions = np.array([
-                row['action_base_lf1'], row['action_lf1_lf2'], row['action_lf2_lf3'],
-                row['action_base_rf1'], row['action_rf1_rf2'], row['action_rf2_rf3'],
-                row['action_base_lb1'], row['action_lb1_lb2'], row['action_lb2_lb3'],
-                row['action_base_rb1'], row['action_rb1_rb2'], row['action_rb2_rb3'],
-            ])
+        # Drop non-action columns (e.g. time_step, index)
+        action_cols = [c for c in sim_actions.columns if c.startswith('action_')]
+        if len(action_cols) == 12:
+            action_data = sim_actions[action_cols].iloc[:n_steps].values
+        else:
+            action_data = sim_actions.iloc[:n_steps, -12:].values
+        print(f"[PLAY] Using {action_data.shape[1]} action columns")
 
-            # Apply directly (no smoothing, no rate limiting)
-            target_sim = self.sim_default_positions + actions * self.HW_SCALE
-            target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
+        joint_names = ['LF_hip', 'LF_thigh', 'LF_calf',
+                       'RF_hip', 'RF_thigh', 'RF_calf',
+                       'LB_hip', 'LB_thigh', 'LB_calf',
+                       'RB_hip', 'RB_thigh', 'RB_calf']
 
-            target_matrix = self._isaac_to_hardware_matrix(target_sim)
-            self.hardware.set_actuator_postions(target_matrix)
+        log_rows = []
+        global_step = 0
+        t0 = time.time()
 
-            time.sleep(0.02)  # 50Hz
+        for loop_i in range(loops):
+            # Skip startup transient on subsequent loops
+            start_idx = warmup_skip if loop_i > 0 else 0
+            if loops > 1:
+                print(f"  Loop {loop_i + 1}/{loops} (from step {start_idx})")
 
-            if i % 25 == 0:
-                print(f"  Step {i}/{min(max_steps, len(sim_actions))}: "
-                      f"actions=[{actions.min():+.2f}, {actions.max():+.2f}]")
+            for i in range(start_idx, n_steps):
+                step_start = time.time()
+                actions = action_data[i]
 
-        print("[TEST] Replay complete. Robot should have followed sim trajectory.")
-        print("[TEST] Returning to default stance in 2 seconds...")
+                target_sim = self.sim_default_positions + actions * scale
+                target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
+
+                target_matrix = self._isaac_to_hardware_matrix(target_sim)
+                self.hardware.set_actuator_postions(target_matrix)
+
+                # Read back actual joint positions for logging
+                if log:
+                    real_pos = self._read_joint_positions_sim_frame()
+                    # Read IMU if available
+                    imu_data = self._read_imu() if hasattr(self, '_read_imu') else None
+
+                    row = {
+                        'global_step': global_step,
+                        'loop': loop_i,
+                        'csv_step': i,
+                        'time': time.time() - t0,
+                        'playback_hz': hz,
+                        'hw_scale': scale,
+                    }
+                    for j in range(12):
+                        row[f'sim_action_{j}'] = float(actions[j])
+                        row[f'cmd_pos_{j}'] = float(target_sim[j])
+                        if real_pos is not None:
+                            row[f'real_pos_{j}'] = float(real_pos[j])
+                    log_rows.append(row)
+
+                elapsed = time.time() - step_start
+                if elapsed < dt:
+                    time.sleep(dt - elapsed)
+
+                if i % max(1, int(hz)) == 0:
+                    tracking = ""
+                    if log and real_pos is not None:
+                        err = np.abs(target_sim - real_pos)
+                        tracking = f"  track_err={err.mean():.4f}"
+                    print(f"  Step {global_step} (csv:{i}): "
+                          f"actions=[{actions.min():+.3f}, {actions.max():+.3f}]{tracking}")
+
+                global_step += 1
+
+        # Save log
+        if log and log_rows:
+            import csv
+            source = csv_path.split('/')[-1].replace('.csv', '')
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            log_file = f"/home/ubuntu/mp2_mlp/playback_{source}_{hz}hz_{timestamp}.csv"
+            fieldnames = list(log_rows[0].keys())
+            with open(log_file, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(log_rows)
+            print(f"[LOG] Saved {len(log_rows)} rows to {log_file}")
+
+        print("[PLAY] Replay complete.")
+        print("[PLAY] Returning to stance in 2 seconds...")
         time.sleep(2)
+        target_matrix = self._isaac_to_hardware_matrix(self.sim_default_positions)
+        self.hardware.set_actuator_postions(target_matrix)
 
-        # Return to default
+    def csv_warmup_then_live(self, csv_path="/home/ubuntu/env_2_actions_lstm.csv",
+                              warmup_loops=3, warmup_skip=30, live_duration=10.0):
+        """Prime LSTM hidden state with known-good CSV actions, then hand off to live policy.
+
+        Phase 1 (warmup): Play CSV actions open-loop while feeding observations through
+        the policy network (but IGNORING its output). This lets the LSTM build up
+        internal state from real observations + known-good actions as prev_actions.
+
+        Phase 2 (live): Seamlessly switch to using the policy's own output.
+        The LSTM hidden state carries over — it should continue the gait pattern.
+
+        Args:
+            csv_path: Path to known-good sim actions CSV
+            warmup_loops: Number of CSV replay loops for priming
+            warmup_skip: Skip first N steps on loops 2+
+            live_duration: Seconds to run live policy after warmup
+        """
+        try:
+            import pandas as pd
+            sim_actions_df = pd.read_csv(csv_path)
+        except Exception as e:
+            print(f"[ERROR] Could not load CSV: {e}")
+            return
+
+        action_cols = [c for c in sim_actions_df.columns if c.startswith('action_')]
+        if len(action_cols) == 12:
+            action_data = sim_actions_df[action_cols].values
+        else:
+            action_data = sim_actions_df.iloc[:, -12:].values
+        n_csv_steps = len(action_data)
+
+        hz = self.CONTROL_FREQUENCY
+        dt = 1.0 / hz
+        scale = self.HW_SCALE
+
+        print(f"\n[WARMUP] CSV: {csv_path} ({n_csv_steps} steps)")
+        print(f"[WARMUP] Phase 1: {warmup_loops} loops open-loop @ {hz}Hz (priming LSTM)")
+        print(f"[WARMUP] Phase 2: {live_duration}s live policy")
+        print(f"[WARMUP] Starting in 3 seconds...")
+        time.sleep(3)
+
+        # Reset policy state
+        self.startup_steps = 0
+        self.prev_actions = np.zeros(12)
+        self.prev_smoothed_actions = np.zeros(12)
+        if self.action_lpf is not None:
+            self.action_lpf.reset()
+        self._reset_pd_dynamics()
+        self._reset_hw_observer()
+
+        # Logging
+        log_rows = []
+        t0 = time.time()
+        global_step = 0
+
+        # ===== PHASE 1: CSV warmup =====
+        print("\n--- PHASE 1: CSV Warmup (open-loop actions, LSTM observing) ---")
+        for loop_i in range(warmup_loops):
+            start_idx = warmup_skip  # skip startup transient on ALL loops
+            print(f"  Warmup loop {loop_i + 1}/{warmup_loops} (from step {start_idx})")
+
+            for i in range(start_idx, n_csv_steps):
+                step_start = time.time()
+
+                # Use CSV actions for the servos (open-loop)
+                csv_actions = action_data[i]
+                target_sim = self.sim_default_positions + csv_actions * scale
+                target_sim = np.clip(target_sim, self.joint_lower_limits, self.joint_upper_limits)
+                target_matrix = self._isaac_to_hardware_matrix(target_sim)
+                self.hardware.set_actuator_postions(target_matrix)
+
+                # Update hw_observer with the CSV actions (builds obs from real servo positions)
+                current_hw_pos = self._read_joint_positions_sim_frame()
+                if current_hw_pos is not None and self.obs_mode == "hw_observer":
+                    self._last_hw_pos_sim = current_hw_pos
+                    actual_dt = time.time() - (self.prev_time if self.prev_time else time.time())
+                    if actual_dt < 0.001:
+                        actual_dt = dt
+                    self._step_hw_observer(csv_actions, current_hw_pos, actual_dt)
+                    self._last_dt = actual_dt
+                    self.prev_time = time.time()
+
+                # Build observation — use POLICY's own prev_actions (not CSV)
+                # so the LSTM sees its own output distribution during priming
+                obs = self.get_observation()
+                obs_tensor = torch.from_numpy(obs).float().unsqueeze(0)
+                with torch.no_grad():
+                    policy_output = self.policy(obs_tensor).squeeze().numpy()
+
+                # Store POLICY output as prev_actions for next step's observation
+                # This is key: the LSTM must be conditioned on its OWN action
+                # distribution, not the CSV actions, to avoid shock at handoff
+                self.prev_actions = np.clip(policy_output, -1.0, 1.0)
+
+                # Also feed policy output through the PD dynamics so
+                # joint_pos_rel/vel/effort reflect what the policy would create
+                if self.use_synthetic_obs:
+                    if self.obs_mode == "hw_observer":
+                        # hw_observer already updated above with csv_actions for servo tracking
+                        # but also step PD with policy output for effort/vel consistency
+                        pass  # hw_observer uses real positions, already stepped
+                    else:
+                        self._step_pd_dynamics(self.prev_actions)
+
+                # Log
+                row = {
+                    'step': global_step, 'time': time.time() - t0,
+                    'phase': 'warmup', 'loop': loop_i, 'csv_step': i,
+                }
+                for j in range(12):
+                    row[f'csv_action_{j}'] = float(csv_actions[j])
+                    row[f'policy_action_{j}'] = float(policy_output[j])
+                for j in range(60):
+                    row[f'obs_{j}'] = float(obs[j])
+                log_rows.append(row)
+
+                elapsed = time.time() - step_start
+                if elapsed < dt:
+                    time.sleep(dt - elapsed)
+                global_step += 1
+
+        print(f"  Warmup complete ({global_step} steps). LSTM primed.")
+        print(f"  Policy prev_actions at handoff: [{self.prev_actions.min():+.3f}, {self.prev_actions.max():+.3f}]")
+
+        # ===== PHASE 2: Live policy =====
+        print(f"\n--- PHASE 2: Live Policy ({live_duration}s) ---")
+        n_live_steps = int(live_duration * hz)
+        self.control_active = True
+        self.startup_steps = self.startup_duration  # skip fade-in (already warmed up)
+        # Seed smoothed actions from policy's current output to avoid jump
+        self.prev_smoothed_actions = self.prev_actions.copy()
+
+        for i in range(n_live_steps):
+            step_start = time.time()
+
+            try:
+                self.control_step()
+            except Exception as e:
+                print(f"[ERROR] {e}")
+                import traceback
+                traceback.print_exc()
+                break
+
+            # Log
+            obs = self.get_observation()
+            row = {
+                'step': global_step, 'time': time.time() - t0,
+                'phase': 'live', 'loop': -1, 'csv_step': -1,
+            }
+            for j in range(12):
+                row[f'csv_action_{j}'] = float(self.prev_actions[j])
+            for j in range(60):
+                row[f'obs_{j}'] = float(obs[j])
+            log_rows.append(row)
+
+            elapsed = time.time() - step_start
+            if elapsed < dt:
+                time.sleep(dt - elapsed)
+
+            if i % max(1, int(hz)) == 0:
+                act_range = f"[{self.prev_actions.min():+.3f}, {self.prev_actions.max():+.3f}]"
+                print(f"  Live step {i}/{n_live_steps}: actions={act_range}")
+
+            global_step += 1
+
+        self.control_active = False
+
+        # Save log
+        if log_rows:
+            import csv
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            log_file = f"/home/ubuntu/mp2_mlp/csv_warmup_{timestamp}.csv"
+            fieldnames = list(log_rows[0].keys())
+            with open(log_file, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(log_rows)
+            print(f"[LOG] Saved {len(log_rows)} rows to {log_file}")
+
+        print("[WARMUP] Done. Returning to stance...")
+        time.sleep(2)
         target_matrix = self._isaac_to_hardware_matrix(self.sim_default_positions)
         self.hardware.set_actuator_postions(target_matrix)
 
@@ -1089,6 +1904,10 @@ Controls:
   debug    - Print debug info
   log      - Start CSV logging (12s capture)
   set X Y  - Set parameter to value Y
+  play mlp [hz] [scale] [loops] - Open-loop playback of best MLP sim actions
+  play lstm [hz] [scale] [loops] - Open-loop playback of best LSTM sim actions
+  warmup [loops] [live_secs]    - CSV warmup → live policy handoff
+  test     - Legacy test replay
   x        - Exit
 
 Presets (switch with 'preset <name>', list with 'presets'):
@@ -1153,6 +1972,39 @@ Test order for paper:
                 controller.set_velocity_command(0, 0, 0)
                 time.sleep(0.5)
                 controller.test_with_sim_actions()
+            elif cmd.startswith('play '):
+                # play mlp|lstm [hz] [hw_scale] [loops]
+                # e.g. "play mlp", "play lstm 25", "play mlp 25 0.5 3"
+                controller.set_velocity_command(0, 0, 0)
+                time.sleep(0.5)
+                parts = cmd.split()
+                policy_type = parts[1] if len(parts) > 1 else 'mlp'
+                play_hz = int(parts[2]) if len(parts) > 2 else None
+                play_scale = float(parts[3]) if len(parts) > 3 else None
+                play_loops = int(parts[4]) if len(parts) > 4 else 3
+                csv_map = {
+                    'mlp': '/home/ubuntu/env_2_actions_mlp.csv',
+                    'lstm': '/home/ubuntu/env_2_actions_lstm.csv',
+                }
+                csv_path = csv_map.get(policy_type, csv_map['mlp'])
+                controller.test_with_sim_actions(
+                    csv_path=csv_path, max_steps=0,
+                    playback_hz=play_hz, hw_scale=play_scale, loops=play_loops
+                )
+            elif cmd.startswith('warmup'):
+                # warmup [loops] [live_seconds]
+                # e.g. "warmup", "warmup 4", "warmup 3 15"
+                controller.set_velocity_command(speed, 0, 0)  # set command for obs
+                time.sleep(0.1)
+                controller.set_velocity_command(0, 0, 0)
+                parts = cmd.split()
+                w_loops = int(parts[1]) if len(parts) > 1 else 3
+                w_live = float(parts[2]) if len(parts) > 2 else 10.0
+                controller.velocity_command = np.array([speed, 0.0, 0.0])
+                controller.csv_warmup_then_live(
+                    csv_path='/home/ubuntu/env_2_actions_lstm.csv',
+                    warmup_loops=w_loops, live_duration=w_live
+                )
             elif cmd.startswith('preset '):
                 preset_name = cmd.split(None, 1)[1].strip()
                 controller.load_preset(preset_name)

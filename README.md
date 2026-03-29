@@ -11,7 +11,7 @@ SpotDMouse applies **biologically constrained neural networks** derived from mou
 This project represents a fundamentally different approach from traditional computer vision by leveraging **temporal properties of the visual world** through neural networks trained on single-cell neuronal data from mice experiencing naturalistic visual motion in virtual reality.
 
 **Principal Investigator:** Javier C. Weddington  
-**Advisors:** Stephen A. Baccus (Baccus Lab)
+**Advisors:** Stephen A. Baccus (Baccus Lab)  
 **Institution:** Stanford University
 
 ---
